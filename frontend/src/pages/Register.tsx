@@ -357,14 +357,14 @@ export default function Register() {
                       setCountryCode(e.target.value);
                       if (formData.phone) validatePhone(formData.phone, e.target.value);
                     }}
-                    className="w-[70px] shrink-0 px-1.5 py-2.5 bg-slate-100 border-r border-slate-300 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                    className="w-[90px] shrink-0 px-1.5 py-2.5 bg-slate-100 border-r border-slate-300 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
                   >
-                    <option value="+91">+91</option>
-                    <option value="+971">+971</option>
-                    <option value="+966">+966</option>
-                    <option value="+65">+65</option>
-                    <option value="+44">+44</option>
-                    <option value="+1">+1</option>
+                    <option value="+91">🇮🇳 +91 (IN)</option>
+                    <option value="+971">🇦🇪 +971 (AE)</option>
+                    <option value="+966">🇸🇦 +966 (SA)</option>
+                    <option value="+65">🇸🇬 +65 (SG)</option>
+                    <option value="+44">🇬🇧 +44 (UK)</option>
+                    <option value="+1">🇺🇸 +1 (US)</option>
                   </select>
 
                   <input
