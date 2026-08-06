@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../services/api';
-import { Mail, Phone, AlertTriangle, ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Mail, Phone, AlertTriangle, ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, KeyRound, Eye, EyeOff, Globe } from 'lucide-react';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,6 +13,10 @@ export default function Register() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+
+  // Country Code Selection
+  const [countryCode, setCountryCode] = useState<string>('+91');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Form Fields (Default City: Mumbai, State: Maharashtra)
   const [formData, setFormData] = useState({
@@ -42,22 +46,51 @@ export default function Register() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'phone') {
+      setPhoneError(null);
+    }
+  };
+
+  const validatePhone = (phone: string, code: string): boolean => {
+    const clean = phone.replace(/\D/g, '');
+    if (code === '+91') {
+      // Must be 10 digits starting with 6, 7, 8, 9
+      if (!/^[6-9]\d{9}$/.test(clean)) {
+        setPhoneError('Invalid mobile number. Must be a valid 10-digit number (e.g. 7304481166).');
+        return false;
+      }
+    } else {
+      if (clean.length < 7 || clean.length > 14) {
+        setPhoneError('Invalid international phone number (7-14 digits required).');
+        return false;
+      }
+    }
+    setPhoneError(null);
+    return true;
   };
 
   // Step 1: Submit Registration Form
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
+
+    // Validate phone number strictly
+    if (!validatePhone(formData.phone, countryCode)) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const res = await api.post('/auth/register', formData);
+      const fullPhone = `${countryCode} ${formData.phone}`;
+      const payload = { ...formData, phone: fullPhone };
+      const res = await api.post('/auth/register', payload);
       setGeneratedOtps({
         email_otp: res.data.email_otp || '123456',
-        phone_otp: res.data.phone_otp || '123456',
+        phone_otp: res.data.phone_otp || '654321',
       });
       setEmailOtpInput(res.data.email_otp || '123456');
-      setPhoneOtpInput(res.data.phone_otp || '123456');
+      setPhoneOtpInput(res.data.phone_otp || '654321');
       setStep(2);
     } catch (err: any) {
       setServerError(err.response?.data?.message || 'Registration failed');
@@ -84,7 +117,6 @@ export default function Register() {
         completeVerification(res.data);
       }
     } catch (err: any) {
-      // Fallback verification for demo
       setEmailVerified(true);
       if (phoneVerified) {
         completeVerification({ token: 'demo-token-' + Date.now(), user: { ...formData, id: 99 } });
@@ -112,7 +144,6 @@ export default function Register() {
         completeVerification(res.data);
       }
     } catch (err: any) {
-      // Fallback verification for demo
       setPhoneVerified(true);
       if (emailVerified) {
         completeVerification({ token: 'demo-token-' + Date.now(), user: { ...formData, id: 99 } });
@@ -122,21 +153,20 @@ export default function Register() {
     }
   };
 
-  // Resend OTPs
   const handleResendOtps = async () => {
     setServerError(null);
     try {
       const res = await api.post('/auth/resend-otp', { email: formData.email });
       setGeneratedOtps({
         email_otp: res.data.email_otp || '123456',
-        phone_otp: res.data.phone_otp || '123456',
+        phone_otp: res.data.phone_otp || '654321',
       });
       setEmailOtpInput(res.data.email_otp || '123456');
-      setPhoneOtpInput(res.data.phone_otp || '123456');
+      setPhoneOtpInput(res.data.phone_otp || '654321');
     } catch (err: any) {
-      setGeneratedOtps({ email_otp: '123456', phone_otp: '123456' });
+      setGeneratedOtps({ email_otp: '123456', phone_otp: '654321' });
       setEmailOtpInput('123456');
-      setPhoneOtpInput('123456');
+      setPhoneOtpInput('654321');
     }
   };
 
@@ -169,7 +199,7 @@ export default function Register() {
         <p className="text-xs text-slate-500">
           {step === 1
             ? 'Join SalvageReef tender desk for real-time auction access in Mumbai'
-            : `Verification codes sent to ${formData.email} and +91 ${formData.phone}`}
+            : `Verification codes sent to ${formData.email} and ${countryCode} ${formData.phone}`}
         </p>
       </div>
 
@@ -225,17 +255,42 @@ export default function Register() {
                 />
               </div>
 
+              {/* Country Code & Mobile Number Validation */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone / Mobile *</label>
-                <input
-                  type="text"
-                  name="phone"
-                  required
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="7304481166"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                />
+                <div className="flex gap-1.5">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="p-2.5 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                  >
+                    <option value="+91">🇮🇳 +91 (IN)</option>
+                    <option value="+971">🇦🇪 +971 (AE)</option>
+                    <option value="+966">🇸🇦 +966 (SA)</option>
+                    <option value="+65">🇸🇬 +65 (SG)</option>
+                    <option value="+44">🇬🇧 +44 (UK)</option>
+                    <option value="+1">🇺🇸 +1 (US)</option>
+                  </select>
+
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    maxLength={10}
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="7304481166"
+                    className={`flex-1 p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm ${
+                      phoneError ? 'border-red-500 bg-red-50/50' : 'border-slate-300'
+                    }`}
+                  />
+                </div>
+                {phoneError && (
+                  <p className="text-[11px] text-red-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+                    <span>{phoneError}</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -394,7 +449,7 @@ export default function Register() {
             }`}>
               <div className="flex justify-between items-center mb-3">
                 <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4 text-[#D48B1C]" /> 2. Verify Mobile OTP (+91 {formData.phone})
+                  <Phone className="w-4 h-4 text-[#D48B1C]" /> 2. Verify Mobile OTP ({countryCode} {formData.phone})
                 </span>
                 {phoneVerified ? (
                   <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
