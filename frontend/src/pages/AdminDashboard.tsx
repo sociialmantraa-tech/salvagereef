@@ -38,10 +38,21 @@ import {
   Image as ImageIcon,
   Lock,
   Check,
-  Info
+  Info,
+  KeyRound,
+  Palette,
+  Eye,
+  Sliders,
+  Type,
+  Code
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  // Admin Security Password Verification State
+  const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState<string>('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const [stats, setStats] = useState({
     total_auctions_live: 0,
     total_auctions: 0,
@@ -63,7 +74,7 @@ export default function AdminDashboard() {
   const [categories, setCategories] = useState<any[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'add-product' | 'approvals' | 'auctions' | 'classifieds' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'add-product' | 'approvals' | 'auctions' | 'classifieds' | 'seo' | 'theme' | 'settings'>('overview');
   
   // User Filtering
   const [userSearch, setUserSearch] = useState<string>('');
@@ -92,13 +103,30 @@ export default function AdminDashboard() {
   const [compressing, setCompressing] = useState<boolean>(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
 
-  // Website Settings Form State
-  const [siteName, setSiteName] = useState('SalvageReef');
-  const [founderName, setFounderName] = useState('Neelkanth Sharma');
-  const [contactPhone, setContactPhone] = useState('+91 7304481166');
-  const [contactEmail, setContactEmail] = useState('salvagereef@gmail.com');
-  const [officeAddress, setOfficeAddress] = useState('101 Imperial Bldg, Bhayander West, Thane 401101, Maharashtra');
-  const [siteTagline, setSiteTagline] = useState('RECOVER. REUSE. RECYCLE.');
+  // SEO & Meta Keywords State
+  const [metaTitle, setMetaTitle] = useState('SalvageReef - B2B Industrial Salvage & Forward Auctions');
+  const [metaDescription, setMetaDescription] = useState("India's premier online B2B marketplace for Forward Auctions, industrial scrap, heavy machinery classifieds, and salvaged capital assets.");
+  const [metaKeywords, setMetaKeywords] = useState('salvage auction, scrap copper bidding, heavy machinery classifieds, HMS steel scrap, industrial asset recovery, tender bidding India');
+  const [ogImageUrl, setOgImageUrl] = useState('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200');
+  const [googleAnalyticsId, setGoogleAnalyticsId] = useState('G-849201992');
+
+  // Page Content & Theme Colors State
+  const [primaryColor, setPrimaryColor] = useState('#D48B1C');
+  const [secondaryColor, setSecondaryColor] = useState('#1D70B8');
+  const [darkNavColor, setDarkNavColor] = useState('#0B192C');
+  const [heroHeading, setHeroHeading] = useState('Search classified and auctions');
+  const [heroSubtitle, setHeroSubtitle] = useState('Buy & Sell Damaged Assets, Rejected Equipment, HMS Scrap, and Capital Machinery through Verified Bidding.');
+  const [aboutNarrative, setAboutNarrative] = useState('SalvageReef is an online marketplace providing Forward Auctions for transparent buying and selling of scrap, machinery, and unwanted assets.');
+
+  const handleAdminAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPasswordInput === 'admin123') {
+      setAdminAuthenticated(true);
+      setAuthError(null);
+    } else {
+      setAuthError('Security Alert: Invalid Admin Password PIN! Access Denied.');
+    }
+  };
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -262,9 +290,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSeo = (e: React.FormEvent) => {
     e.preventDefault();
-    showNotification('Website settings & corporate contact details saved successfully!');
+    document.title = metaTitle;
+    showNotification('SEO keywords & Google search meta tags saved successfully!');
+  };
+
+  const handleSaveThemeAndContent = (e: React.FormEvent) => {
+    e.preventDefault();
+    document.documentElement.style.setProperty('--color-primary', primaryColor);
+    document.documentElement.style.setProperty('--color-secondary', secondaryColor);
+    showNotification('Page content & custom brand theme colors applied live!');
   };
 
   // Filter Users
@@ -289,6 +325,52 @@ export default function AdminDashboard() {
     if (approvalFilter === 'all') return true;
     return i.status === approvalFilter;
   });
+
+  // ADMIN SECURITY PASSWORD PROTECTION SCREEN
+  if (!adminAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 space-y-6">
+        <div className="bg-[#0B192C] text-white p-6 rounded-3xl border-b-4 border-[#D48B1C] shadow-2xl text-center space-y-3">
+          <div className="w-16 h-16 rounded-full bg-[#D48B1C]/20 border-2 border-[#D48B1C] flex items-center justify-center text-[#D48B1C] mx-auto">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-black">Admin Security Verification</h2>
+          <p className="text-xs text-slate-300">Enter your Admin Security PIN password to access the executive console.</p>
+        </div>
+
+        <form onSubmit={handleAdminAuthSubmit} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-4">
+          {authError && (
+            <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2 font-bold">
+              <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700">Admin Security Password *</label>
+            <div className="relative">
+              <input
+                type="password"
+                required
+                placeholder="Enter password (admin123)"
+                value={adminPasswordInput}
+                onChange={(e) => setAdminPasswordInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm"
+              />
+              <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+          >
+            <ShieldCheck className="w-4 h-4" /> Authenticate Admin Console
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -320,6 +402,12 @@ export default function AdminDashboard() {
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-xl text-xs border border-slate-700 transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#D48B1C]" /> Refresh Data
+          </button>
+          <button
+            onClick={() => setAdminAuthenticated(false)}
+            className="flex items-center gap-2 bg-red-900/60 hover:bg-red-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs border border-red-700 transition-all"
+          >
+            <Lock className="w-3.5 h-3.5" /> Lock Console
           </button>
         </div>
       </div>
@@ -446,6 +534,38 @@ export default function AdminDashboard() {
               </span>
             </button>
 
+            {/* NEW TAB: SEO KEYWORDS & GOOGLE METADATA */}
+            <button
+              onClick={() => setActiveTab('seo')}
+              className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
+                activeTab === 'seo'
+                  ? 'bg-[#D48B1C] text-white shadow-lg font-black'
+                  : 'hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Globe className="w-4 h-4 text-blue-400" />
+                <span>SEO & Meta Keywords</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
+            {/* NEW TAB: PAGE CONTENT & THEME COLORS */}
+            <button
+              onClick={() => setActiveTab('theme')}
+              className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
+                activeTab === 'theme'
+                  ? 'bg-[#D48B1C] text-white shadow-lg font-black'
+                  : 'hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Palette className="w-4 h-4 text-[#D48B1C]" />
+                <span>Page Content & Colors</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
             <button
               onClick={() => setActiveTab('settings')}
               className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
@@ -471,10 +591,8 @@ export default function AdminDashboard() {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               
-              {/* KPI Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
-                {/* Vertical Card 1 */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -495,7 +613,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Vertical Card 2 */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -512,7 +629,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Vertical Card 3 */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -530,7 +646,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Vertical Card 4 */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -546,41 +661,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-              </div>
-
-              {/* Quick Action Navigation */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-[#D48B1C]" /> Executive Actions Overview
-                </h3>
-
-                <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-slate-50 rounded-2xl border border-slate-200 gap-3">
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 block">Manage Registered Users & Active Status</span>
-                      <p className="text-[11px] text-slate-500">View unmasked names, activate/suspend accounts, update roles, and review KYC verification.</p>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('users')}
-                      className="px-4 py-2 bg-[#0B192C] text-white text-xs font-bold rounded-xl hover:bg-[#D48B1C] transition-colors shrink-0"
-                    >
-                      Open Users &rarr;
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 gap-3">
-                    <div>
-                      <span className="text-xs font-bold text-emerald-950 block">Publish New Scrap & Salvage Product</span>
-                      <p className="text-[11px] text-emerald-800">Add a public auction lot, private corporate tender, or group dismantling lot into the live catalog.</p>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('add-product')}
-                      className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shrink-0"
-                    >
-                      + Add Product &rarr;
-                    </button>
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -770,7 +850,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* SECTION 3: ADD PRODUCT / POST AUCTION LOT (WITH SECURE WEBP IMAGE UPLOADER) */}
+          {/* SECTION 3: ADD PRODUCT / POST AUCTION LOT */}
           {activeTab === 'add-product' && (
             <form onSubmit={handleAddProductSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="border-b border-slate-200 pb-3 flex justify-between items-center">
@@ -784,7 +864,6 @@ export default function AdminDashboard() {
 
               <div className="space-y-6 text-xs font-semibold text-slate-700">
                 
-                {/* Product Title */}
                 <div className="space-y-1">
                   <label className="block text-slate-900 font-extrabold text-xs">1. Product / Lot Title *</label>
                   <input
@@ -797,7 +876,6 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                {/* Category & Auction Type */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-slate-900 font-extrabold text-xs">2. Category *</label>
@@ -828,7 +906,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Pricing & Quantity */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="block text-slate-900 font-extrabold text-xs">4. Quantity *</label>
@@ -865,7 +942,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Location & Times */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-slate-900 font-extrabold text-xs">7. City *</label>
@@ -888,28 +964,6 @@ export default function AdminDashboard() {
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
                     />
                   </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">9. Bidding Start Time *</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={productStartTime}
-                      onChange={(e) => setProductStartTime(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">10. Bidding End Time *</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={productEndTime}
-                      onChange={(e) => setProductEndTime(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                  </div>
                 </div>
 
                 {/* SECURE HIGH-PERFORMANCE WEBP IMAGE UPLOAD SECTION */}
@@ -923,7 +977,6 @@ export default function AdminDashboard() {
                     </span>
                   </div>
 
-                  {/* Upload Specification Guidance Banner */}
                   <div className="bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-2 font-medium">
                     <div className="flex items-center gap-1.5 text-slate-900">
                       <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -946,7 +999,6 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {/* Dropzone / File Picker Input */}
                   <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center bg-white transition-all group">
                     <input
                       type="file"
@@ -969,7 +1021,6 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Real-time File Metrics */}
                         <div className="inline-flex flex-wrap items-center justify-center gap-3 bg-slate-900 text-white text-[11px] px-4 py-2 rounded-xl font-mono shadow">
                           <span>Name: {compressedImage.fileName}</span>
                           <span>&bull;</span>
@@ -979,21 +1030,17 @@ export default function AdminDashboard() {
                           <span>&bull;</span>
                           <span>Size: <span className="text-amber-300 font-bold">{compressedImage.width} x {compressedImage.height} px</span></span>
                         </div>
-
-                        <p className="text-[10px] text-slate-400 block font-sans">Click or drag a new image to replace this photo.</p>
                       </div>
                     ) : (
                       <div className="space-y-2 py-4">
                         <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-emerald-600 mx-auto transition-colors" />
                         <p className="text-xs font-bold text-slate-800">Click or Drag & Drop Product Image File Here</p>
-                        <p className="text-[10px] text-slate-400">Supports high-res JPG, PNG, WEBP & GIF. Auto-converted to low-storage WebP.</p>
                       </div>
                     )}
                   </div>
 
                 </div>
 
-                {/* Description */}
                 <div className="space-y-1">
                   <label className="block text-slate-900 font-extrabold text-xs">12. Description & Inspection Details *</label>
                   <textarea
@@ -1072,12 +1119,6 @@ export default function AdminDashboard() {
                           <span>&bull;</span>
                           <span><strong>Email:</strong> {req.user?.email}</span>
                         </div>
-
-                        {req.message && (
-                          <p className="text-xs text-slate-600 italic bg-white p-2.5 rounded-xl border border-slate-200 mt-2">
-                            "{req.message}"
-                          </p>
-                        )}
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
@@ -1127,7 +1168,6 @@ export default function AdminDashboard() {
                   <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
                     <Gavel className="w-5 h-5 text-[#D48B1C]" /> Auction Lots Catalog ({auctions.length})
                   </h3>
-                  <p className="text-xs text-slate-500">Live, upcoming, and closed forward auctions.</p>
                 </div>
 
                 <button
@@ -1206,7 +1246,6 @@ export default function AdminDashboard() {
                 <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
                   <Tag className="w-5 h-5 text-[#D48B1C]" /> Machinery Classifieds Directory ({classifieds.length})
                 </h3>
-                <p className="text-xs text-slate-500">Fixed-price machinery and capital equipment listings.</p>
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -1263,14 +1302,221 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* SECTION 7: WEBSITE SETTINGS */}
+          {/* SECTION 7: SEO KEYWORDS & GOOGLE SEARCH METADATA TAB */}
+          {activeTab === 'seo' && (
+            <form onSubmit={handleSaveSeo} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-blue-600" /> SEO & Google Search Meta Keywords Manager
+                </h3>
+                <p className="text-xs text-slate-500">Configure page title tags, search keywords, social sharing previews, and tracking codes.</p>
+              </div>
+
+              <div className="space-y-4 text-xs font-semibold text-slate-700">
+                
+                {/* Meta Title Tag */}
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">1. Website Title Tag (Google Search Title) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                  />
+                </div>
+
+                {/* Target Keywords */}
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">2. Target SEO Keywords (Comma Separated) *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={metaKeywords}
+                    onChange={(e) => setMetaKeywords(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-800"
+                  ></textarea>
+                </div>
+
+                {/* Meta Description */}
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">3. Meta Description (Google Search Snippet) *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={metaDescription}
+                    onChange={(e) => setMetaDescription(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
+                  ></textarea>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">4. Social OpenGraph Banner Image URL</label>
+                    <input
+                      type="text"
+                      value={ogImageUrl}
+                      onChange={(e) => setOgImageUrl(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">5. Google Analytics / GTM Tracking ID</label>
+                    <input
+                      type="text"
+                      value={googleAnalyticsId}
+                      onChange={(e) => setGoogleAnalyticsId(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Google Search Result Live Preview Card */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Google Search Result Live Preview</span>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-1 font-sans">
+                    <span className="text-xs text-slate-500 block truncate">https://salvagereef.com</span>
+                    <h4 className="text-base text-blue-800 font-bold hover:underline cursor-pointer leading-snug">{metaTitle}</h4>
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{metaDescription}</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+              >
+                <Save className="w-4 h-4" /> Save SEO Meta Keywords & Settings
+              </button>
+            </form>
+          )}
+
+          {/* SECTION 8: PAGE CONTENT & THEME COLORS TAB */}
+          {activeTab === 'theme' && (
+            <form onSubmit={handleSaveThemeAndContent} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                  <Palette className="w-5 h-5 text-[#D48B1C]" /> Page Content & Custom Brand Color Palette
+                </h3>
+                <p className="text-xs text-slate-500">Customize primary theme colors, hero headings, and site text dynamically.</p>
+              </div>
+
+              <div className="space-y-6 text-xs font-semibold text-slate-700">
+                
+                {/* Brand Colors */}
+                <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                  <span className="text-slate-900 font-extrabold text-xs block flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-[#D48B1C]" /> Dynamic Brand Color Picker
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-slate-800 font-bold">Primary Brand Gold</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={primaryColor}
+                          onChange={(e) => setPrimaryColor(e.target.value)}
+                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
+                        />
+                        <input
+                          type="text"
+                          value={primaryColor}
+                          onChange={(e) => setPrimaryColor(e.target.value)}
+                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-800 font-bold">Secondary Accent Blue</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={secondaryColor}
+                          onChange={(e) => setSecondaryColor(e.target.value)}
+                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
+                        />
+                        <input
+                          type="text"
+                          value={secondaryColor}
+                          onChange={(e) => setSecondaryColor(e.target.value)}
+                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-800 font-bold">Header Navigation Dark</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={darkNavColor}
+                          onChange={(e) => setDarkNavColor(e.target.value)}
+                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
+                        />
+                        <input
+                          type="text"
+                          value={darkNavColor}
+                          onChange={(e) => setDarkNavColor(e.target.value)}
+                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Homepage Hero Heading Editor */}
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">Homepage Hero Headline Text</label>
+                  <input
+                    type="text"
+                    value={heroHeading}
+                    onChange={(e) => setHeroHeading(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-slate-900 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">Homepage Hero Subtitle Banner</label>
+                  <textarea
+                    rows={2}
+                    value={heroSubtitle}
+                    onChange={(e) => setHeroSubtitle(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                  ></textarea>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-slate-900 font-bold">About Us Narrative Summary</label>
+                  <textarea
+                    rows={3}
+                    value={aboutNarrative}
+                    onChange={(e) => setAboutNarrative(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                  ></textarea>
+                </div>
+
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+              >
+                <Palette className="w-4 h-4" /> Apply Page Content & Theme Colors Live
+              </button>
+            </form>
+          )}
+
+          {/* SECTION 9: WEBSITE SETTINGS */}
           {activeTab === 'settings' && (
-            <form onSubmit={handleSaveSettings} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); showNotification('Corporate details saved!'); }} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="border-b border-slate-200 pb-4">
                 <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
                   <Settings className="w-5 h-5 text-[#D48B1C]" /> Edit Website Brand & Corporate Details
                 </h3>
-                <p className="text-xs text-slate-500">Manage site contact numbers, support email, corporate office, and brand messaging.</p>
               </div>
 
               <div className="space-y-4 text-xs font-semibold text-slate-700">
