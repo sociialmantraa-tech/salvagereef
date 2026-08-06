@@ -21,6 +21,7 @@ class User extends Authenticatable
         'city',
         'state',
         'is_verified',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -31,6 +32,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_verified' => 'boolean',
+        'is_active' => 'boolean',
         'password' => 'hashed',
     ];
 

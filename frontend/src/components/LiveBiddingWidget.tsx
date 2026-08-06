@@ -5,6 +5,8 @@ import api from '../services/api';
 import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Auction, Bid } from '../types';
 
+import { formatBidderName } from '../utils/formatUtils';
+
 interface LiveBiddingWidgetProps {
   auction: Auction;
   onBidSuccess?: (data?: any) => void;
@@ -308,7 +310,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
               >
                 <div className="flex items-center gap-2">
                   {idx === 0 && <Trophy className="w-3.5 h-3.5 text-[#D48B1C]" />}
-                  <span>{b.user?.name || b.bidder_name || 'Verified Bidder'}</span>
+                  <span>{formatBidderName(b.user?.name || b.bidder_name, user?.role === 'admin')}</span>
                 </div>
                 <div className="text-right">
                   <span className="font-semibold text-slate-900">₹{Number(b.amount).toLocaleString('en-IN')}</span>

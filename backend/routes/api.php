@@ -47,6 +47,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/dashboard/stats', [AdminController::class, 'stats']);
             Route::get('/users', [AdminController::class, 'users']);
             Route::put('/users/{id}/verify', [AdminController::class, 'verifyUser']);
+            Route::put('/users/{id}/toggle-active', [AdminController::class, 'toggleUserActive']);
+            Route::put('/users/{id}/role', [AdminController::class, 'updateUserRole']);
+            Route::get('/auctions/all', [AdminController::class, 'allAuctions']);
+            Route::get('/classifieds/all', [AdminController::class, 'allClassifieds']);
+            Route::get('/interests/all', [AdminController::class, 'allInterests']);
             Route::put('/interests/{id}/approve', [AdminController::class, 'approveInterest']);
             Route::post('/auctions', [AuctionController::class, 'store']);
             Route::delete('/auctions/{id}', [AdminController::class, 'deleteAuction']);
