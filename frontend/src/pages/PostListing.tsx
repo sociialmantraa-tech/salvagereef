@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import api from '../services/api';
-import { Tag, PlusCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
+import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock } from 'lucide-react';
 import { Category } from '../types';
 
 const schema = z.object({
@@ -16,7 +17,6 @@ const schema = z.object({
   unit: z.string().min(1, 'Unit is required'),
   location_city: z.string().min(2, 'City is required'),
   location_state: z.string().min(2, 'State is required'),
-  image_url: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -26,6 +26,11 @@ export default function PostListing() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Image Upload State
+  const [compressedImage, setCompressedImage] = useState<CompressionResult | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState<boolean>(false);
 
   const {
     register,
@@ -37,7 +42,6 @@ export default function PostListing() {
       unit: 'nos',
       location_city: 'Thane',
       location_state: 'Maharashtra',
-      image_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
     },
   });
 
@@ -45,11 +49,32 @@ export default function PostListing() {
     api.get('/categories').then((res) => setCategories(res.data)).catch(console.error);
   }, []);
 
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageError(null);
+    setCompressing(true);
+    try {
+      const result = await compressAndSanitizeImage(file, 1200, 900, 0.82);
+      setCompressedImage(result);
+    } catch (err: any) {
+      setImageError(err.message || 'Image processing failed');
+      setCompressedImage(null);
+    } finally {
+      setCompressing(false);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     setServerError(null);
     setSubmitting(true);
     try {
-      const res = await api.post('/classifieds/post-listing', data);
+      const payload = {
+        ...data,
+        image_url: compressedImage ? compressedImage.dataUrl : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+      };
+      const res = await api.post('/classifieds/post-listing', payload);
       navigate(`/classifieds/${res.data.slug}`);
     } catch (err: any) {
       setServerError(err.response?.data?.message || 'Failed to create classified listing');
@@ -85,7 +110,7 @@ export default function PostListing() {
               type="text"
               {...register('title')}
               placeholder="e.g. Heavy Duty Lathe Machine 10 Feet Bed"
-              className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+              className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
             />
             {errors.title && <p className="text-red-500 text-[11px] mt-1">{errors.title.message}</p>}
           </div>
@@ -113,7 +138,7 @@ export default function PostListing() {
                 type="number"
                 {...register('price')}
                 placeholder="175000"
-                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-extrabold text-slate-900"
               />
               {errors.price && <p className="text-red-500 text-[11px] mt-1">{errors.price.message}</p>}
             </div>
@@ -168,14 +193,82 @@ export default function PostListing() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Sample Image URL</label>
-            <input
-              type="text"
-              {...register('image_url')}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-            />
+          {/* SECURE HIGH-PERFORMANCE WEBP IMAGE UPLOAD SECTION */}
+          <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+            <div className="flex items-center justify-between">
+              <label className="block text-slate-900 font-extrabold text-xs flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-emerald-600" /> Secure Product Photo Upload
+              </label>
+              <span className="text-[10px] text-emerald-800 font-black bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                <Lock className="w-3 h-3" /> Auto Canvas Sanitized & WebP Compressed
+              </span>
+            </div>
+
+            {/* Guidance Specs */}
+            <div className="bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-2 font-medium">
+              <div className="flex items-center gap-1.5 text-slate-900">
+                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span><strong>Recommended Res:</strong> 1200 x 800 px</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-900">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span><strong>Max Size:</strong> 10 MB (Auto WebP)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-900">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#D48B1C] shrink-0" />
+                <span><strong>Format:</strong> WebP, JPG, PNG, GIF</span>
+              </div>
+            </div>
+
+            {imageError && (
+              <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
+
+            <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center bg-white transition-all group">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleImageFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+
+              {compressing ? (
+                <div className="space-y-2 py-4">
+                  <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+                  <p className="text-xs font-bold text-slate-700">Compressing photo to WebP format & checking security...</p>
+                </div>
+              ) : compressedImage ? (
+                <div className="space-y-3">
+                  <div className="w-44 h-32 mx-auto rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md relative group">
+                    <img src={compressedImage.dataUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
+                      <Check className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  <div className="inline-flex flex-wrap items-center justify-center gap-3 bg-slate-900 text-white text-[11px] px-4 py-2 rounded-xl font-mono shadow">
+                    <span>Name: {compressedImage.fileName}</span>
+                    <span>&bull;</span>
+                    <span>Raw: <span className="text-red-300 font-bold">{compressedImage.originalSizeStr}</span></span>
+                    <span>&bull;</span>
+                    <span>WebP: <span className="text-emerald-400 font-black">{compressedImage.compressedSizeStr}</span></span>
+                    <span>&bull;</span>
+                    <span>Size: <span className="text-amber-300 font-bold">{compressedImage.width} x {compressedImage.height} px</span></span>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 block font-sans">Click or drag a new photo to replace.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 py-4">
+                  <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-emerald-600 mx-auto transition-colors" />
+                  <p className="text-xs font-bold text-slate-800">Click or Drag & Drop Product Photo Here</p>
+                  <p className="text-[10px] text-slate-400">Supports high-res JPG, PNG, WEBP & GIF. Auto-converted to low-storage WebP.</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -191,7 +284,7 @@ export default function PostListing() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || compressing}
             className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
           >
             {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />} Publish Scrap Listing
