@@ -61,14 +61,6 @@ export default function Navbar() {
               About Us
             </Link>
             <Link
-              to="/terms"
-              className={`transition-colors ${
-                isActive('/terms') || isActive('/privacy-policy') || isActive('/copyright-policy') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
-              }`}
-            >
-              Policies & Terms
-            </Link>
-            <Link
               to="/contact"
               className={`transition-colors ${
                 isActive('/contact') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
@@ -167,13 +159,7 @@ export default function Navbar() {
           >
             About Us
           </Link>
-          <Link
-            to="/terms"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100"
-          >
-            Policies & Terms
-          </Link>
+
           <Link
             to="/contact"
             onClick={() => setMobileMenuOpen(false)}
