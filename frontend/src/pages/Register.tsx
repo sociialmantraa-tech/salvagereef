@@ -14,10 +14,11 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  // Compact Country Code Selector (w-[70px])
+  // Compact Country Code Selector (w-[64px] text-[10px] - No overlapping)
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Form Fields (Empty Defaults)
   const [formData, setFormData] = useState({
@@ -70,6 +71,9 @@ export default function Register() {
     if (e.target.name === 'email') {
       setEmailError(null);
     }
+    if (e.target.name === 'password') {
+      setPasswordError(null);
+    }
   };
 
   // Validate Email onBlur
@@ -106,6 +110,26 @@ export default function Register() {
     return true;
   };
 
+  // Validate Password Rules (Min 6 chars, letters & numbers)
+  const validatePassword = (pwd: string): boolean => {
+    if (!pwd) return false;
+    if (pwd.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      return false;
+    }
+    if (!/[A-Za-z]/.test(pwd) || !/[0-9]/.test(pwd)) {
+      setPasswordError('Password must contain both letters and numbers.');
+      return false;
+    }
+    setPasswordError(null);
+    return true;
+  };
+
+  const handlePasswordBlur = () => {
+    if (!formData.password) return;
+    validatePassword(formData.password);
+  };
+
   // Step 1: Submit Registration Form
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +142,10 @@ export default function Register() {
     }
 
     if (!validatePhone(formData.phone, countryCode)) {
+      return;
+    }
+
+    if (!validatePassword(formData.password)) {
       return;
     }
 
@@ -134,7 +162,6 @@ export default function Register() {
       setEmailOtpInput('');
       setPhoneOtpInput('');
       setStep(2);
-      // Trigger initial OTP send with animation
       triggerSendOtp(dynamicOtp);
     } catch (err: any) {
       setServerError(err.response?.data?.message || 'Registration failed');
@@ -153,7 +180,7 @@ export default function Register() {
     setTimeout(() => {
       setIsSendingOtp(false);
       setOtpSentStatus(true);
-      setCountdown(30); // 30s countdown
+      setCountdown(30);
       setLiveOtpNotice(
         otpPreference === 'phone'
           ? `📲 6-Digit OTP sent via SMS to ${countryCode} ${formData.phone}`
@@ -175,12 +202,12 @@ export default function Register() {
     try {
       await api.post('/auth/resend-otp', { email: formData.email });
     } catch (err) {
-      // Fallback API simulation
+      // Fallback
     } finally {
       setTimeout(() => {
         setIsResendingOtp(false);
         setOtpSentStatus(true);
-        setCountdown(30); // Start 30-second timer
+        setCountdown(30);
         setLiveOtpNotice(`📲 Fresh 6-Digit OTP resent via SMS to ${countryCode} ${formData.phone}!`);
       }, 700);
     }
@@ -347,7 +374,7 @@ export default function Register() {
                 )}
               </div>
 
-              {/* COMPACT NARROW COUNTRY SELECTOR (W-[70px]) */}
+              {/* COMPACT NARROW COUNTRY SELECTOR (W-[64px] TEXT-[10px] - ZERO OVERLAPPING) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone / Mobile *</label>
                 <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:ring-2 focus-within:ring-[#D48B1C]">
@@ -357,14 +384,14 @@ export default function Register() {
                       setCountryCode(e.target.value);
                       if (formData.phone) validatePhone(formData.phone, e.target.value);
                     }}
-                    className="w-[68px] shrink-0 px-1 py-2.5 bg-slate-100 border-r border-slate-300 text-[11px] font-extrabold text-slate-800 focus:outline-none cursor-pointer text-center"
+                    className="w-[64px] shrink-0 px-1 py-2.5 bg-slate-100 border-r border-slate-300 text-[10px] font-extrabold text-slate-800 focus:outline-none cursor-pointer text-center"
                   >
-                    <option value="+91">+91 (IN)</option>
-                    <option value="+971">+971 (AE)</option>
-                    <option value="+966">+966 (SA)</option>
-                    <option value="+65">+65 (SG)</option>
-                    <option value="+44">+44 (UK)</option>
-                    <option value="+1">+1 (US)</option>
+                    <option value="+91">+91 IN</option>
+                    <option value="+971">+971 AE</option>
+                    <option value="+966">+966 SA</option>
+                    <option value="+65">+65 SG</option>
+                    <option value="+44">+44 UK</option>
+                    <option value="+1">+1 US</option>
                   </select>
 
                   <input
@@ -404,6 +431,7 @@ export default function Register() {
                 </select>
               </div>
 
+              {/* PASSWORD FIELD WITH SECURITY RULES & ONBLUR VALIDATION */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Password *</label>
                 <div className="relative">
@@ -413,8 +441,11 @@ export default function Register() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
-                    className="w-full pr-10 pl-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                    onBlur={handlePasswordBlur}
+                    placeholder="Min 6 chars (e.g. Pass123)"
+                    className={`w-full pr-10 pl-3 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] ${
+                      passwordError ? 'border-red-500 bg-red-50/40' : 'border-slate-300'
+                    }`}
                   />
                   <button
                     type="button"
@@ -428,6 +459,12 @@ export default function Register() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-[11px] text-red-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+                    <span>{passwordError}</span>
+                  </p>
+                )}
               </div>
             </div>
 
