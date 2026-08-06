@@ -1,0 +1,26 @@
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# PHP / Backend
+backend/vendor/
+backend/.env
+backend/storage/*.key
+backend/storage/logs/*.log
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# Archives & Temp
+*.zip
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE & Editors
+.vscode/
+.idea/
