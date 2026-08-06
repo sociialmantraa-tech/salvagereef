@@ -17,6 +17,7 @@ export default function Register() {
   // Country Code Selection
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Form Fields (Default City: Mumbai, State: Maharashtra)
   const [formData, setFormData] = useState({
@@ -49,19 +50,39 @@ export default function Register() {
     if (e.target.name === 'phone') {
       setPhoneError(null);
     }
+    if (e.target.name === 'email') {
+      setEmailError(null);
+    }
+  };
+
+  // Validate Email onBlur (when user leaves field)
+  const handleEmailBlur = () => {
+    if (!formData.email) return;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email)) {
+      setEmailError('Invalid email format. (e.g. buyer@salvagereef.com)');
+    } else {
+      setEmailError(null);
+    }
+  };
+
+  // Validate Mobile Phone onBlur (when user leaves field)
+  const handlePhoneBlur = () => {
+    if (!formData.phone) return;
+    validatePhone(formData.phone, countryCode);
   };
 
   const validatePhone = (phone: string, code: string): boolean => {
     const clean = phone.replace(/\D/g, '');
     if (code === '+91') {
-      // Must be 10 digits starting with 6, 7, 8, 9
+      // Must be exactly 10 digits starting with 6, 7, 8, or 9
       if (!/^[6-9]\d{9}$/.test(clean)) {
-        setPhoneError('Invalid mobile number. Must be a valid 10-digit number (e.g. 7304481166).');
+        setPhoneError('Invalid mobile number. Must be 10 digits starting with 6-9.');
         return false;
       }
     } else {
       if (clean.length < 7 || clean.length > 14) {
-        setPhoneError('Invalid international phone number (7-14 digits required).');
+        setPhoneError('Invalid phone number (7-14 digits required).');
         return false;
       }
     }
@@ -73,6 +94,13 @@ export default function Register() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
+
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email)) {
+      setEmailError('Invalid email format. Please enter a valid email address.');
+      return;
+    }
 
     // Validate phone number strictly
     if (!validatePhone(formData.phone, countryCode)) {
@@ -242,6 +270,7 @@ export default function Register() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* EMAIL WITH ONBLUR VALIDATION */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Email Address *</label>
                 <input
@@ -250,26 +279,38 @@ export default function Register() {
                   required
                   value={formData.email}
                   onChange={handleChange}
+                  onBlur={handleEmailBlur}
                   placeholder="buyer@salvagereef.com"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                  className={`w-full p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] ${
+                    emailError ? 'border-red-500 bg-red-50/40' : 'border-slate-300'
+                  }`}
                 />
+                {emailError && (
+                  <p className="text-[11px] text-red-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+                    <span>{emailError}</span>
+                  </p>
+                )}
               </div>
 
-              {/* Country Code & Mobile Number Validation */}
+              {/* CLEAN COUNTRY CODE & MOBILE WITH ONBLUR VALIDATION */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone / Mobile *</label>
-                <div className="flex gap-1.5">
+                <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:ring-2 focus-within:ring-[#D48B1C]">
                   <select
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="p-2.5 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                    onChange={(e) => {
+                      setCountryCode(e.target.value);
+                      if (formData.phone) validatePhone(formData.phone, e.target.value);
+                    }}
+                    className="px-2.5 py-2.5 bg-slate-100 border-r border-slate-300 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer shrink-0"
                   >
-                    <option value="+91">🇮🇳 +91 (IN)</option>
-                    <option value="+971">🇦🇪 +971 (AE)</option>
-                    <option value="+966">🇸🇦 +966 (SA)</option>
-                    <option value="+65">🇸🇬 +65 (SG)</option>
-                    <option value="+44">🇬🇧 +44 (UK)</option>
-                    <option value="+1">🇺🇸 +1 (US)</option>
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+971">🇦🇪 +971</option>
+                    <option value="+966">🇸🇦 +966</option>
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+1">🇺🇸 +1</option>
                   </select>
 
                   <input
@@ -279,9 +320,10 @@ export default function Register() {
                     maxLength={10}
                     value={formData.phone}
                     onChange={handleChange}
+                    onBlur={handlePhoneBlur}
                     placeholder="7304481166"
-                    className={`flex-1 p-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm ${
-                      phoneError ? 'border-red-500 bg-red-50/50' : 'border-slate-300'
+                    className={`w-full px-3 py-2.5 bg-slate-50 focus:outline-none font-mono text-sm ${
+                      phoneError ? 'bg-red-50/40 text-red-900' : 'text-slate-900'
                     }`}
                   />
                 </div>
@@ -322,7 +364,10 @@ export default function Register() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowPassword((prev) => !prev);
+                    }}
                     className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
                     title={showPassword ? 'Hide Password' : 'Show Password'}
                   >
