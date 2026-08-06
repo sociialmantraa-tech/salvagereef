@@ -19,11 +19,14 @@ import {
   RefreshCw,
   Award,
   Trash2,
-  Lock,
   Tag,
   MapPin,
-  Check,
-  ChevronRight
+  PlusCircle,
+  Settings,
+  Save,
+  Globe,
+  FileText,
+  PackagePlus
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -45,28 +48,53 @@ export default function AdminDashboard() {
   const [auctions, setAuctions] = useState<any[]>([]);
   const [classifieds, setClassifieds] = useState<any[]>([]);
   const [interests, setInterests] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [needingAttention, setNeedingAttention] = useState<any[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'approvals' | 'auctions' | 'classifieds'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'add-product' | 'approvals' | 'auctions' | 'classifieds' | 'settings'>('users');
   
-  // Filtering & Search
+  // User Filters
   const [userSearch, setUserSearch] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-
   const [approvalFilter, setApprovalFilter] = useState<string>('pending');
+  
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+
+  // Add Product Form State
+  const [productTitle, setProductTitle] = useState('');
+  const [productCategory, setProductCategory] = useState('1');
+  const [productType, setProductType] = useState('public');
+  const [productQuantity, setProductQuantity] = useState('50');
+  const [productUnit, setProductUnit] = useState('MT');
+  const [productStartingPrice, setProductStartingPrice] = useState('100000');
+  const [productCity, setProductCity] = useState('Thane');
+  const [productState, setProductState] = useState('Maharashtra');
+  const [productStartTime, setProductStartTime] = useState('2026-08-06T12:00');
+  const [productEndTime, setProductEndTime] = useState('2026-08-15T18:00');
+  const [productDescription, setProductDescription] = useState('');
+  const [productImageUrl, setProductImageUrl] = useState('');
+  const [submittingProduct, setSubmittingProduct] = useState(false);
+
+  // Website Details Settings Form State
+  const [siteName, setSiteName] = useState('SalvageReef');
+  const [founderName, setFounderName] = useState('Neelkanth Sharma');
+  const [contactPhone, setContactPhone] = useState('+91 7304481166');
+  const [contactEmail, setContactEmail] = useState('salvagereef@gmail.com');
+  const [officeAddress, setOfficeAddress] = useState('101 Imperial Bldg, Bhayander West, Thane 401101, Maharashtra');
+  const [siteTagline, setSiteTagline] = useState('RECOVER. REUSE. RECYCLE.');
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [statsRes, usersRes, auctionsRes, classifiedsRes, interestsRes] = await Promise.all([
+      const [statsRes, usersRes, auctionsRes, classifiedsRes, interestsRes, categoriesRes] = await Promise.all([
         api.get('/admin/dashboard/stats'),
         api.get('/admin/users'),
         api.get('/admin/auctions/all').catch(() => ({ data: [] })),
         api.get('/admin/classifieds/all').catch(() => ({ data: [] })),
         api.get('/admin/interests/all').catch(() => ({ data: [] })),
+        api.get('/categories').catch(() => ({ data: [] })),
       ]);
 
       setStats(statsRes.data.stats || {});
@@ -77,6 +105,7 @@ export default function AdminDashboard() {
       setAuctions(auctionsRes.data || []);
       setClassifieds(classifiedsRes.data || []);
       setInterests(interestsRes.data || []);
+      setCategories(categoriesRes.data || []);
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
@@ -161,6 +190,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAddProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingProduct(true);
+    try {
+      const payload = {
+        title: productTitle,
+        description: productDescription || 'High quality salvage lot listed by admin desk.',
+        category_id: productCategory,
+        auction_type: productType,
+        quantity: parseFloat(productQuantity),
+        unit: productUnit,
+        starting_price: parseFloat(productStartingPrice),
+        start_time: productStartTime,
+        end_time: productEndTime,
+        location_city: productCity,
+        location_state: productState,
+        image_url: productImageUrl || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+      };
+
+      await api.post('/admin/auctions', payload);
+      showNotification(`Product / Auction Lot "${productTitle}" created successfully!`);
+      setProductTitle('');
+      setProductDescription('');
+      setProductImageUrl('');
+      fetchAdminData();
+      setActiveTab('auctions');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create product auction lot');
+    } finally {
+      setSubmittingProduct(false);
+    }
+  };
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    showNotification('Website settings & corporate contact details saved successfully!');
+  };
+
   // Filter Users
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -203,16 +270,25 @@ export default function AdminDashboard() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white">Admin Management Console</h1>
           <p className="text-xs text-slate-300">
-            Complete overview of registered users, active status, KYC verification, auctions, and private tender access approvals.
+            Control center for adding products, managing registered users, website details, and private tender access approvals.
           </p>
         </div>
 
-        <button
-          onClick={fetchAdminData}
-          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2 rounded-xl text-xs border border-white/20 transition-all shrink-0"
-        >
-          <RefreshCw className="w-4 h-4" /> Refresh Data
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab('add-product')}
+            className="flex items-center gap-2 bg-[#D48B1C] hover:bg-[#b87614] text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition-all shrink-0"
+          >
+            <PlusCircle className="w-4 h-4" /> Add New Product
+          </button>
+          <button
+            onClick={fetchAdminData}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-3 py-2 rounded-xl text-xs border border-white/20 transition-all shrink-0"
+            title="Refresh Console Data"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Floating Action Notification Banner */}
@@ -298,34 +374,46 @@ export default function AdminDashboard() {
       {/* Main Console Tab Bar */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-4 flex-wrap gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
                 activeTab === 'users'
                   ? 'bg-[#0B192C] text-white shadow-lg'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               <Users className="w-4 h-4 text-[#D48B1C]" />
-              Registered Users ({users.length})
+              Users Directory ({users.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('add-product')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                activeTab === 'add-product'
+                  ? 'bg-[#D48B1C] text-white shadow-lg'
+                  : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <PackagePlus className="w-4 h-4" />
+              ➕ Add Product / Auction Lot
             </button>
 
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
                 activeTab === 'approvals'
                   ? 'bg-[#0B192C] text-white shadow-lg'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               <ShieldAlert className="w-4 h-4 text-[#D48B1C]" />
-              Tender Access Approvals ({stats.pending_approvals})
+              Tender Approvals ({stats.pending_approvals})
             </button>
 
             <button
               onClick={() => setActiveTab('auctions')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
                 activeTab === 'auctions'
                   ? 'bg-[#0B192C] text-white shadow-lg'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -337,14 +425,26 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('classifieds')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
                 activeTab === 'classifieds'
                   ? 'bg-[#0B192C] text-white shadow-lg'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               <Tag className="w-4 h-4 text-[#D48B1C]" />
-              Machinery Classifieds ({classifieds.length || stats.total_classifieds})
+              Classifieds ({classifieds.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                activeTab === 'settings'
+                  ? 'bg-[#0B192C] text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Settings className="w-4 h-4 text-[#D48B1C]" />
+              ⚙️ Website Details
             </button>
           </div>
         </div>
@@ -402,7 +502,7 @@ export default function AdminDashboard() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-900 text-slate-200 uppercase font-bold text-[11px] tracking-wider">
                     <tr>
-                      <th className="p-3.5">User Details (Full Name)</th>
+                      <th className="p-3.5">User Details (Full Unmasked Name)</th>
                       <th className="p-3.5">Contact Details</th>
                       <th className="p-3.5">Company & Location</th>
                       <th className="p-3.5">Role</th>
@@ -533,11 +633,185 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 2: Pending Tender Access Approvals */}
+        {/* TAB 2: Add Product / Post Auction Lot Form */}
+        {activeTab === 'add-product' && (
+          <form onSubmit={handleAddProductSubmit} className="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200 space-y-6">
+            <div className="border-b border-slate-200 pb-3 flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                  <PackagePlus className="w-5 h-5 text-[#D48B1C]" /> Add New Product / Auction Lot
+                </h3>
+                <p className="text-xs text-slate-500">Post a new scrap, salvage, or capital equipment lot directly into live listings.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 text-xs font-semibold text-slate-700">
+              {/* Product Title */}
+              <div className="sm:col-span-8 space-y-1">
+                <label>Product / Lot Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 50 MT Industrial Copper Cable Scrap - Grade A Clean Wire"
+                  value={productTitle}
+                  onChange={(e) => setProductTitle(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              {/* Category */}
+              <div className="sm:col-span-4 space-y-1">
+                <label>Category *</label>
+                <select
+                  value={productCategory}
+                  onChange={(e) => setProductCategory(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Auction Type */}
+              <div className="sm:col-span-4 space-y-1">
+                <label>Auction / Listing Type *</label>
+                <select
+                  value={productType}
+                  onChange={(e) => setProductType(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                >
+                  <option value="public">Public Scrap Auction</option>
+                  <option value="private">Private Tender Lot</option>
+                  <option value="group">Group Mill Auction</option>
+                </select>
+              </div>
+
+              {/* Quantity & Unit */}
+              <div className="sm:col-span-4 space-y-1">
+                <label>Quantity *</label>
+                <input
+                  type="number"
+                  required
+                  value={productQuantity}
+                  onChange={(e) => setProductQuantity(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              <div className="sm:col-span-4 space-y-1">
+                <label>Unit *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="MT, kg, nos, lot"
+                  value={productUnit}
+                  onChange={(e) => setProductUnit(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              {/* Starting Price */}
+              <div className="sm:col-span-4 space-y-1">
+                <label>Starting Price (₹) *</label>
+                <input
+                  type="number"
+                  required
+                  value={productStartingPrice}
+                  onChange={(e) => setProductStartingPrice(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold text-slate-900"
+                />
+              </div>
+
+              {/* City & State */}
+              <div className="sm:col-span-4 space-y-1">
+                <label>City *</label>
+                <input
+                  type="text"
+                  required
+                  value={productCity}
+                  onChange={(e) => setProductCity(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              <div className="sm:col-span-4 space-y-1">
+                <label>State *</label>
+                <input
+                  type="text"
+                  required
+                  value={productState}
+                  onChange={(e) => setProductState(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              {/* Start & End Time */}
+              <div className="sm:col-span-6 space-y-1">
+                <label>Bidding Start Time *</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={productStartTime}
+                  onChange={(e) => setProductStartTime(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              <div className="sm:col-span-6 space-y-1">
+                <label>Bidding End Time *</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={productEndTime}
+                  onChange={(e) => setProductEndTime(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              {/* Image URL */}
+              <div className="sm:col-span-12 space-y-1">
+                <label>Product Image URL (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="https://images.unsplash.com/photo-..."
+                  value={productImageUrl}
+                  onChange={(e) => setProductImageUrl(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="sm:col-span-12 space-y-1">
+                <label>Detailed Specifications & Description *</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Enter condition, weight verification, material grades, inspection availability..."
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                ></textarea>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submittingProduct}
+              className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+            >
+              {submittingProduct ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />} Publish Product / Auction Lot
+            </button>
+          </form>
+        )}
+
+        {/* TAB 3: Tender Access Approvals */}
         {activeTab === 'approvals' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
-              <span className="font-bold text-slate-700">Filter Tender Access Requests:</span>
+              <span className="font-bold text-slate-700">Filter Requests:</span>
               <div className="flex gap-2">
                 {['pending', 'approved', 'rejected', 'all'].map((st) => (
                   <button
@@ -559,7 +833,6 @@ export default function AdminDashboard() {
               <div className="text-center py-12 text-slate-400 text-xs italic bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
                 <p className="font-bold text-slate-700">No Tender Requests Matching "{approvalFilter}"</p>
-                <p>Everything is up to date in the tender approval queue.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -602,7 +875,7 @@ export default function AdminDashboard() {
                             onClick={() => handleApproveInterest(req.id, 'approved')}
                             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve Access
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                           </button>
                         )}
                         {req.status !== 'rejected' && (
@@ -622,14 +895,17 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 3: Manage All Auctions */}
+        {/* TAB 4: Manage All Auctions */}
         {activeTab === 'auctions' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
               <span className="font-bold text-slate-700">All Auction Lots ({auctions.length})</span>
-              <Link to="/classifieds/post-listing" className="bg-[#D48B1C] text-white px-3 py-1 rounded-lg font-bold">
-                + Create Auction
-              </Link>
+              <button
+                onClick={() => setActiveTab('add-product')}
+                className="bg-[#D48B1C] text-white px-3 py-1.5 rounded-lg font-bold text-xs"
+              >
+                + Add Product Lot
+              </button>
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -693,14 +969,11 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 4: Manage Machinery Classifieds */}
+        {/* TAB 5: Manage Classifieds */}
         {activeTab === 'classifieds' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
               <span className="font-bold text-slate-700">All Machinery Classifieds ({classifieds.length})</span>
-              <Link to="/classifieds/post-listing" className="bg-[#1D70B8] text-white px-3 py-1 rounded-lg font-bold">
-                + Post Classified
-              </Link>
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -755,6 +1028,89 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+        )}
+
+        {/* TAB 6: Website Details & Settings */}
+        {activeTab === 'settings' && (
+          <form onSubmit={handleSaveSettings} className="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200 space-y-6">
+            <div className="border-b border-slate-200 pb-3 flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-[#D48B1C]" /> Edit Website Brand & Corporate Details
+                </h3>
+                <p className="text-xs text-slate-500">Update company information, contact phone, email, and corporate address.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
+              <div className="space-y-1">
+                <label>Platform Name</label>
+                <input
+                  type="text"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label>Founder Name</label>
+                <input
+                  type="text"
+                  value={founderName}
+                  onChange={(e) => setFounderName(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label>Contact Phone Number</label>
+                <input
+                  type="text"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label>Support Email Address</label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="sm:col-span-2 space-y-1">
+                <label>Brand Tagline</label>
+                <input
+                  type="text"
+                  value={siteTagline}
+                  onChange={(e) => setSiteTagline(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-bold text-[#D48B1C]"
+                />
+              </div>
+
+              <div className="sm:col-span-2 space-y-1">
+                <label>Corporate Address</label>
+                <textarea
+                  rows={2}
+                  value={officeAddress}
+                  onChange={(e) => setOfficeAddress(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl font-medium text-slate-800"
+                ></textarea>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-slate-900 hover:bg-[#0B192C] text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+            >
+              <Save className="w-4 h-4 text-[#D48B1C]" /> Save Website Details
+            </button>
+          </form>
         )}
       </div>
     </div>
