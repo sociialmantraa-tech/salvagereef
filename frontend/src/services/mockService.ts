@@ -605,28 +605,149 @@ export function handleMockApi(config: any): any {
     return {
       stats: {
         total_auctions_live: auctions.filter((a) => a.status === 'live').length,
+        total_auctions: auctions.length,
         total_bids_today: 14,
         new_users_this_week: 8,
         pending_approvals: interests.filter((i) => i.status === 'pending').length,
+        total_registered_users: INITIAL_USERS.length,
+        active_users: INITIAL_USERS.length,
+        suspended_users: 0,
+        kyc_verified_users: INITIAL_USERS.length,
+        total_classifieds: getMockClassifieds().length,
+        total_bids: 25,
       },
       needing_attention: needingAttention,
     };
   }
 
-  // 11. PUT /admin/interests/:id/approve
-  if (url.includes('/admin/interests/') && method === 'put') {
+  // 10b. GET /admin/users
+  if (url.includes('/admin/users') && method === 'get') {
+    const users = getItem('sr_all_users', INITIAL_USERS);
+    return {
+      data: users,
+      total: users.length,
+      active: users.filter((u: any) => u.is_active !== false).length,
+      suspended: users.filter((u: any) => u.is_active === false).length,
+      verified: users.filter((u: any) => u.is_verified).length,
+    };
+  }
+
+  // 10c. PUT /admin/users/:id/toggle-active
+  if (url.includes('/admin/users/') && url.endsWith('/toggle-active') && method === 'put') {
     const parts = url.split('/');
-    const interestId = Number(parts[parts.indexOf('interests') + 1]);
-    const newStatus = bodyData.status || 'approved';
-
-    const interests = getMockInterests();
-    const idx = interests.findIndex((i) => i.id === interestId);
+    const userId = Number(parts[parts.indexOf('users') + 1]);
+    const users = getItem('sr_all_users', INITIAL_USERS);
+    const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
-      interests[idx].status = newStatus;
-      setItem('sr_interests', interests);
+      users[idx].is_active = !users[idx].is_active;
+      setItem('sr_all_users', users);
     }
+    return { message: 'User active status updated' };
+  }
 
-    return { message: 'Status updated successfully' };
+  // 10d. PUT /admin/users/:id/verify
+  if (url.includes('/admin/users/') && url.endsWith('/verify') && method === 'put') {
+    const parts = url.split('/');
+    const userId = Number(parts[parts.indexOf('users') + 1]);
+    const users = getItem('sr_all_users', INITIAL_USERS);
+    const idx = users.findIndex((u: any) => u.id === userId);
+    if (idx !== -1) {
+      users[idx].is_verified = !users[idx].is_verified;
+      setItem('sr_all_users', users);
+    }
+    return { message: 'User verification status updated' };
+  }
+
+  // 10e. PUT /admin/users/:id/role
+  if (url.includes('/admin/users/') && url.endsWith('/role') && method === 'put') {
+    const parts = url.split('/');
+    const userId = Number(parts[parts.indexOf('users') + 1]);
+    const users = getItem('sr_all_users', INITIAL_USERS);
+    const idx = users.findIndex((u: any) => u.id === userId);
+    if (idx !== -1) {
+      users[idx].role = bodyData.role || 'bidder';
+      setItem('sr_all_users', users);
+    }
+    return { message: 'User role updated' };
+  }
+
+  // 10f. GET /admin/auctions/all
+  if (url.includes('/admin/auctions/all') && method === 'get') {
+    return getMockAuctions();
+  }
+
+  // 10g. GET /admin/classifieds/all
+  if (url.includes('/admin/classifieds/all') && method === 'get') {
+    return getMockClassifieds();
+  }
+
+  // 10h. GET /admin/interests/all
+  if (url.includes('/admin/interests/all') && method === 'get') {
+    return getMockInterests();
+  }
+
+  // 10i. POST /admin/auctions
+  if (url.includes('/admin/auctions') && method === 'post') {
+    const auctions = getMockAuctions();
+    const categories = getMockCategories();
+    const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null') || INITIAL_USERS[2];
+
+    const title = bodyData.title || 'New Admin Auction Lot';
+    const slugBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const uniqueSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+    const categoryObj = categories.find((c) => c.id === Number(bodyData.category_id)) || categories[0];
+
+    const newAuction: Auction = {
+      id: Date.now(),
+      title,
+      slug: uniqueSlug,
+      description: bodyData.description || 'Admin created salvage lot.',
+      category_id: Number(bodyData.category_id || 1),
+      auction_type: bodyData.auction_type || 'public',
+      status: 'live',
+      quantity: Number(bodyData.quantity || 50),
+      unit: bodyData.unit || 'MT',
+      starting_price: Number(bodyData.starting_price || 100000),
+      current_highest_bid: Number(bodyData.starting_price || 100000),
+      start_time: bodyData.start_time || new Date().toISOString(),
+      end_time: bodyData.end_time || new Date(Date.now() + 604800000).toISOString(),
+      location_city: bodyData.location_city || 'Thane',
+      location_state: bodyData.location_state || 'Maharashtra',
+      is_group: false,
+      created_by: currentUser.id,
+      category: categoryObj,
+      creator: currentUser,
+      images: [
+        { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }
+      ],
+      primary_image: { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      bids: [],
+    };
+
+    auctions.unshift(newAuction);
+    setItem('sr_auctions', auctions);
+    return newAuction;
+  }
+
+  // 10j. DELETE /admin/auctions/:id
+  if (url.includes('/admin/auctions/') && method === 'delete') {
+    const parts = url.split('/');
+    const auctionId = Number(parts[parts.length - 1]);
+    const auctions = getMockAuctions();
+    const updated = auctions.filter((a) => a.id !== auctionId);
+    setItem('sr_auctions', updated);
+    return { message: 'Auction deleted' };
+  }
+
+  // 10k. DELETE /admin/classifieds/:id
+  if (url.includes('/admin/classifieds/') && method === 'delete') {
+    const parts = url.split('/');
+    const classifiedId = Number(parts[parts.length - 1]);
+    const classifieds = getMockClassifieds();
+    const updated = classifieds.filter((c) => c.id !== classifiedId);
+    setItem('sr_classifieds', updated);
+    return { message: 'Classified deleted' };
   }
 
   // 12. POST /auth/login

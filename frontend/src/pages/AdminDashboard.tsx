@@ -97,15 +97,23 @@ export default function AdminDashboard() {
         api.get('/categories').catch(() => ({ data: [] })),
       ]);
 
-      setStats(statsRes.data.stats || {});
-      setNeedingAttention(statsRes.data.needing_attention || []);
+      setStats(statsRes?.data?.stats || {});
+      setNeedingAttention(Array.isArray(statsRes?.data?.needing_attention) ? statsRes.data.needing_attention : []);
       
-      const usersData = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data.data || []);
-      setUsers(usersData);
-      setAuctions(auctionsRes.data || []);
-      setClassifieds(classifiedsRes.data || []);
-      setInterests(interestsRes.data || []);
-      setCategories(categoriesRes.data || []);
+      const usersData = Array.isArray(usersRes?.data) ? usersRes.data : (usersRes?.data?.data || []);
+      setUsers(Array.isArray(usersData) ? usersData : []);
+
+      const auctionsData = Array.isArray(auctionsRes?.data) ? auctionsRes.data : (auctionsRes?.data?.data || []);
+      setAuctions(Array.isArray(auctionsData) ? auctionsData : []);
+
+      const classifiedsData = Array.isArray(classifiedsRes?.data) ? classifiedsRes.data : (classifiedsRes?.data?.data || []);
+      setClassifieds(Array.isArray(classifiedsData) ? classifiedsData : []);
+
+      const interestsData = Array.isArray(interestsRes?.data) ? interestsRes.data : (interestsRes?.data?.data || []);
+      setInterests(Array.isArray(interestsData) ? interestsData : []);
+
+      const categoriesData = Array.isArray(categoriesRes?.data) ? categoriesRes.data : (categoriesRes?.data?.data || []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
