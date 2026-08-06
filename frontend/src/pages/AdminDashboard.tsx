@@ -60,6 +60,7 @@ export default function AdminDashboard() {
   const [adminPassword, setAdminPassword] = useState<string>('sociial123');
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState<string>('');
+  const [showAdminPassword, setShowAdminPassword] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Admin Password Change via OTP State
@@ -382,17 +383,34 @@ export default function AdminDashboard() {
           )}
 
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-700">Admin Password *</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold text-slate-700">Admin Password *</label>
+              <button
+                type="button"
+                onClick={() => setShowOtpModal(true)}
+                className="text-[11px] text-[#D48B1C] font-extrabold hover:underline"
+              >
+                Forgot Admin Password?
+              </button>
+            </div>
             <div className="relative">
               <input
-                type="password"
+                type={showAdminPassword ? 'text' : 'password'}
                 required
                 placeholder="Enter admin password (sociial123)"
                 value={adminPasswordInput}
                 onChange={(e) => setAdminPasswordInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm"
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm text-slate-900"
               />
               <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+              <button
+                type="button"
+                onClick={() => setShowAdminPassword(!showAdminPassword)}
+                className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-700"
+                title={showAdminPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 

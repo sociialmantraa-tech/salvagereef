@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { LogOut, LayoutDashboard, Menu, X, PlusCircle } from 'lucide-react';
+import { LogOut, LayoutDashboard, Menu, X, PlusCircle, AlertCircle } from 'lucide-react';
 import Logo from './Logo';
 
 export default function Navbar() {
@@ -9,8 +9,10 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogout = () => {
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     navigate('/');
   };
@@ -79,7 +81,7 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* Right Controls: Login / Register */}
+          {/* Right Controls: Login / Register / Logout */}
           <div className="hidden md:flex items-center gap-6 text-sm font-bold">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
@@ -90,10 +92,12 @@ export default function Navbar() {
                   <LayoutDashboard className="w-4 h-4 text-[#1D70B8]" />
                   {user?.role === 'admin' ? 'Admin Desk' : 'Dashboard'}
                 </Link>
+                
+                {/* Logout Button with Confirmation Dialog */}
                 <button
-                  onClick={handleLogout}
-                  className="text-slate-400 hover:text-red-600 transition-colors"
-                  title="Logout"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                  title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -159,7 +163,6 @@ export default function Navbar() {
           >
             About Us
           </Link>
-
           <Link
             to="/contact"
             onClick={() => setMobileMenuOpen(false)}
@@ -179,7 +182,7 @@ export default function Navbar() {
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  handleLogout();
+                  setShowLogoutConfirm(true);
                 }}
                 className="block text-red-600 py-2 w-full text-left font-bold"
               >
@@ -204,6 +207,36 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full border border-slate-200 shadow-2xl text-center space-y-4 animate-fade-in">
+            <div className="w-14 h-14 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900">Sign Out Confirmation</h3>
+              <p className="text-xs text-slate-500 font-medium">Are you sure you want to sign out of your SalvageReef account?</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmLogout}
+                className="py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs shadow-md transition-colors uppercase tracking-wider"
+              >
+                Confirm Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </header>

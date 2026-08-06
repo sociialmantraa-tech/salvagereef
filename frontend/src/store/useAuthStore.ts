@@ -15,10 +15,34 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
+// 7 Days Session Expiry Helper
+const SESSION_EXPIRY_DAYS = 7;
+const isSessionValid = (): boolean => {
+  const token = localStorage.getItem('salvagereef_token');
+  const expStr = localStorage.getItem('salvagereef_token_exp');
+  if (!token || !expStr) return false;
+
+  const expTime = parseInt(expStr, 10);
+  if (Date.now() > expTime) {
+    localStorage.removeItem('salvagereef_user');
+    localStorage.removeItem('salvagereef_token');
+    localStorage.removeItem('salvagereef_token_exp');
+    return false;
+  }
+  return true;
+};
+
+const setSessionData = (user: User, token: string) => {
+  const expiryTime = Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+  localStorage.setItem('salvagereef_user', JSON.stringify(user));
+  localStorage.setItem('salvagereef_token', token);
+  localStorage.setItem('salvagereef_token_exp', expiryTime.toString());
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: JSON.parse(localStorage.getItem('salvagereef_user') || 'null'),
-  token: localStorage.getItem('salvagereef_token') || null,
-  isAuthenticated: !!localStorage.getItem('salvagereef_token'),
+  user: isSessionValid() ? JSON.parse(localStorage.getItem('salvagereef_user') || 'null') : null,
+  token: isSessionValid() ? localStorage.getItem('salvagereef_token') : null,
+  isAuthenticated: isSessionValid(),
   loading: false,
   error: null,
 
@@ -28,8 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const response = await axios.post('/auth/login', { email, password });
       const { user, token } = response.data;
 
-      localStorage.setItem('salvagereef_user', JSON.stringify(user));
-      localStorage.setItem('salvagereef_token', token);
+      setSessionData(user, token);
 
       set({ user, token, isAuthenticated: true, loading: false });
       return { success: true, user };
@@ -43,7 +66,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginWithGoogle: async () => {
     set({ loading: true, error: null });
     try {
-      // Secure Google SSO Authentication Flow
       const googleUser: User = {
         id: 999,
         name: 'Google Verified User',
@@ -57,8 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       };
       const token = 'google-oauth-token-' + Date.now();
 
-      localStorage.setItem('salvagereef_user', JSON.stringify(googleUser));
-      localStorage.setItem('salvagereef_token', token);
+      setSessionData(googleUser, token);
 
       set({ user: googleUser, token, isAuthenticated: true, loading: false });
       return { success: true, user: googleUser };
@@ -74,8 +95,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const response = await axios.post('/auth/register', formData);
       const { user, token } = response.data;
 
-      localStorage.setItem('salvagereef_user', JSON.stringify(user));
-      localStorage.setItem('salvagereef_token', token);
+      setSessionData(user, token);
 
       set({ user, token, isAuthenticated: true, loading: false });
       return { success: true, user };
@@ -94,21 +114,29 @@ export const useAuthStore = create<AuthState>((set) => ({
     } finally {
       localStorage.removeItem('salvagereef_user');
       localStorage.removeItem('salvagereef_token');
+      localStorage.removeItem('salvagereef_token_exp');
       set({ user: null, token: null, isAuthenticated: false });
     }
   },
 
   checkAuth: async () => {
+    if (!isSessionValid()) {
+      set({ user: null, token: null, isAuthenticated: false });
+      return;
+    }
     const token = localStorage.getItem('salvagereef_token');
     if (!token) return;
     try {
       const res = await axios.get('/auth/me');
       const user = res.data.user;
+      const expStr = localStorage.getItem('salvagereef_token_exp') || (Date.now() + 7 * 24 * 60 * 60 * 1000).toString();
       localStorage.setItem('salvagereef_user', JSON.stringify(user));
+      localStorage.setItem('salvagereef_token_exp', expStr);
       set({ user, isAuthenticated: true });
     } catch (e) {
       localStorage.removeItem('salvagereef_user');
       localStorage.removeItem('salvagereef_token');
+      localStorage.removeItem('salvagereef_token_exp');
       set({ user: null, token: null, isAuthenticated: false });
     }
   },

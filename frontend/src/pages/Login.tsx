@@ -1,14 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Lock, Mail, AlertTriangle, ArrowRight, RefreshCw, ShieldCheck, UserCheck } from 'lucide-react';
+import { Lock, Mail, AlertTriangle, ArrowRight, RefreshCw, ShieldCheck, UserCheck, Eye, EyeOff, KeyRound, Smartphone, Send, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, loginWithGoogle, loading, error } = useAuthStore();
   const [email, setEmail] = useState<string>('admin@salvagereef.com');
-  const [password, setPassword] = useState<string>('admin123');
+  const [password, setPassword] = useState<string>('sociial123');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
+
+  // Forgot Password / Reset Password Modal State
+  const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
+  const [forgotTarget, setForgotTarget] = useState<string>('admin@salvagereef.com');
+  const [forgotChannel, setForgotChannel] = useState<'phone' | 'email'>('phone');
+  const [forgotOtpSent, setForgotOtpSent] = useState<boolean>(false);
+  const [forgotOtpInput, setForgotOtpInput] = useState<string>('');
+  const [forgotNewPassword, setForgotNewPassword] = useState<string>('');
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
+  const [forgotErrorMsg, setForgotErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +44,8 @@ export default function Login() {
 
   const handleQuickAdminLogin = async () => {
     setEmail('admin@salvagereef.com');
-    setPassword('admin123');
-    const res = await login('admin@salvagereef.com', 'admin123');
+    setPassword('sociial123');
+    const res = await login('admin@salvagereef.com', 'sociial123');
     if (res.success) {
       navigate('/admin');
     }
@@ -49,14 +60,37 @@ export default function Login() {
     }
   };
 
+  const handleSendForgotOtp = () => {
+    setForgotErrorMsg(null);
+    setForgotOtpSent(true);
+    setForgotSuccessMsg(`Verification OTP sent to ${forgotChannel === 'phone' ? 'Phone (+91 ' + (forgotTarget || '7304481166') + ')' : 'Email (' + (forgotTarget || 'admin@salvagereef.com') + ')'}. Demo OTP: 123456`);
+  };
+
+  const handleResetPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrorMsg(null);
+    if (forgotOtpInput !== '123456') {
+      setForgotErrorMsg('Invalid 6-digit OTP code entered. Please try 123456.');
+      return;
+    }
+    if (!forgotNewPassword || forgotNewPassword.length < 6) {
+      setForgotErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+    setPassword(forgotNewPassword);
+    setShowForgotModal(false);
+    setForgotOtpSent(false);
+    alert('Password updated successfully via OTP! You can now log in.');
+  };
+
   return (
-    <div className="max-w-md mx-auto px-4 py-16 space-y-6">
+    <div className="max-w-md mx-auto px-4 py-14 space-y-6">
       <div className="text-center space-y-2">
         <div className="w-14 h-14 rounded-full bg-[#0D1B2A] border-2 border-[#D48B1C] flex items-center justify-center text-[#D48B1C] font-extrabold text-2xl mx-auto shadow-md">
           SR
         </div>
         <h1 className="text-2xl font-black text-slate-900">Sign In to SalvageReef</h1>
-        <p className="text-xs text-slate-500">Access real-time bidding, management console & tender desk</p>
+        <p className="text-xs text-slate-500">Access real-time bidding, management console & tender desk in Mumbai</p>
       </div>
 
       {/* Official Google OAuth Sign In Button */}
@@ -132,14 +166,14 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Email Address / Admin ID</label>
             <div className="relative">
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium"
+                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium text-slate-900"
                 placeholder="name@company.com"
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -147,24 +181,43 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold text-slate-700">Password</label>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(true)}
+                className="text-[11px] text-[#D48B1C] font-extrabold hover:underline"
+              >
+                Forgot Password / Admin PIN?
+              </button>
+            </div>
+            
+            {/* Password input with Eye / EyeOff Toggle Button */}
             <div className="relative">
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium"
+                className="w-full pl-9 pr-10 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium text-slate-900"
                 placeholder="••••••••"
               />
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-[#D48B1C] hover:bg-[#B87514] text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+            className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Sign In to Console
           </button>
@@ -177,6 +230,120 @@ export default function Login() {
           </Link>
         </p>
       </div>
+
+      {/* FORGOT PASSWORD / ADMIN PASSWORD OTP RESET MODAL */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-fade-in text-xs font-semibold text-slate-700">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-[#D48B1C]" /> Reset Password via OTP
+              </h3>
+              <button onClick={() => setShowForgotModal(false)} className="text-slate-400 hover:text-slate-700 font-black text-lg">
+                &times;
+              </button>
+            </div>
+
+            {forgotSuccessMsg && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl font-semibold">
+                {forgotSuccessMsg}
+              </div>
+            )}
+
+            {forgotErrorMsg && (
+              <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl font-semibold">
+                {forgotErrorMsg}
+              </div>
+            )}
+
+            {!forgotOtpSent ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block mb-1">Enter Registered Email or Mobile Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={forgotTarget}
+                    onChange={(e) => setForgotTarget(e.target.value)}
+                    placeholder="admin@salvagereef.com or 7304481166"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForgotChannel('phone')}
+                    className={`p-3 rounded-2xl border text-left font-bold transition-all ${
+                      forgotChannel === 'phone'
+                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
+                        : 'bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 text-purple-600 mb-1" />
+                    Phone Mobile OTP
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForgotChannel('email')}
+                    className={`p-3 rounded-2xl border text-left font-bold transition-all ${
+                      forgotChannel === 'email'
+                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
+                        : 'bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4 text-purple-600 mb-1" />
+                    Email OTP Code
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendForgotOtp}
+                  className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
+                >
+                  <Send className="w-4 h-4" /> Send Verification OTP
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
+                <div>
+                  <label className="block mb-1">Enter 6-Digit OTP Code *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="123456"
+                    value={forgotOtpInput}
+                    onChange={(e) => setForgotOtpInput(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-center text-lg font-bold text-slate-900 tracking-widest"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1">New Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter new password"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Verify OTP & Reset Password
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
