@@ -14,7 +14,7 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  // Compact Country Code Selector (w-[64px] text-[10px] - No overlapping)
+  // Compact Country Code Selector (w-[64px] text-[10px])
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -161,8 +161,9 @@ export default function Register() {
 
       setEmailOtpInput('');
       setPhoneOtpInput('');
+      setOtpSentStatus(false);
+      setLiveOtpNotice(null);
       setStep(2);
-      triggerSendOtp(dynamicOtp);
     } catch (err: any) {
       setServerError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -170,7 +171,7 @@ export default function Register() {
     }
   };
 
-  // Explicit "Send OTP Now" Trigger with Loader & Countdown
+  // Explicit "Send OTP Now" Trigger Button Action
   const triggerSendOtp = (otpCode?: string) => {
     setIsSendingOtp(true);
     setServerError(null);
@@ -183,10 +184,10 @@ export default function Register() {
       setCountdown(30);
       setLiveOtpNotice(
         otpPreference === 'phone'
-          ? `📲 6-Digit OTP sent via SMS to ${countryCode} ${formData.phone}`
-          : `✉️ 6-Digit OTP sent via Gmail to ${formData.email}`
+          ? `📲 6-Digit OTP dispatched via SMS to ${countryCode} ${formData.phone}!`
+          : `✉️ 6-Digit OTP dispatched via Gmail to ${formData.email}!`
       );
-    }, 600);
+    }, 700);
   };
 
   // Animated Resend OTP Handler
@@ -308,7 +309,7 @@ export default function Register() {
         <p className="text-xs text-slate-500">
           {step === 1
             ? 'Join SalvageReef tender desk for real-time auction access in Mumbai'
-            : `Click Send OTP and enter the 6-digit code to complete verification`}
+            : `Select channel and click Send OTP to receive your 6-digit verification code`}
         </p>
       </div>
 
@@ -374,7 +375,7 @@ export default function Register() {
                 )}
               </div>
 
-              {/* COMPACT NARROW COUNTRY SELECTOR (W-[64px] TEXT-[10px] - ZERO OVERLAPPING) */}
+              {/* COMPACT NARROW COUNTRY SELECTOR (W-[64px] TEXT-[10px]) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phone / Mobile *</label>
                 <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:ring-2 focus-within:ring-[#D48B1C]">
@@ -543,7 +544,11 @@ export default function Register() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setOtpPreference('phone')}
+                  onClick={() => {
+                    setOtpPreference('phone');
+                    setOtpSentStatus(false);
+                    setLiveOtpNotice(null);
+                  }}
                   className={`p-3 rounded-2xl border text-left font-bold transition-all ${
                     otpPreference === 'phone'
                       ? 'bg-amber-50 text-amber-950 border-amber-400 ring-2 ring-[#D48B1C]'
@@ -557,7 +562,11 @@ export default function Register() {
 
                 <button
                   type="button"
-                  onClick={() => setOtpPreference('email')}
+                  onClick={() => {
+                    setOtpPreference('email');
+                    setOtpSentStatus(false);
+                    setLiveOtpNotice(null);
+                  }}
                   className={`p-3 rounded-2xl border text-left font-bold transition-all ${
                     otpPreference === 'email'
                       ? 'bg-amber-50 text-amber-950 border-amber-400 ring-2 ring-[#D48B1C]'
@@ -571,98 +580,114 @@ export default function Register() {
               </div>
             </div>
 
-            {/* SEND OTP NOW ACTION BUTTON */}
-            {!otpSentStatus && (
-              <button
-                type="button"
-                onClick={() => triggerSendOtp()}
-                disabled={isSendingOtp}
-                className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
-              >
-                {isSendingOtp ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-white" /> Sending Verification OTP...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" /> Send OTP Code Now
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* OPTION 1: MOBILE PHONE OTP VERIFICATION FORM */}
-            {otpPreference === 'phone' && (
-              <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                    <Phone className="w-4 h-4 text-[#D48B1C]" /> Verify via Mobile SMS ({countryCode} {formData.phone})
-                  </span>
-                  {phoneVerified && (
-                    <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
-                      <CheckCircle2 className="w-4 h-4" /> Verified
+            {/* PROMINENT "SEND VERIFICATION OTP CODE NOW" BUTTON */}
+            {!otpSentStatus ? (
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-4 shadow-inner">
+                <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 text-[#D48B1C] flex items-center justify-center mx-auto shadow-sm">
+                  <Send className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">Request 6-Digit OTP Security Code</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Click below to send a 6-digit verification code to{' '}
+                    <span className="font-bold text-slate-800">
+                      {otpPreference === 'phone' ? `${countryCode} ${formData.phone}` : formData.email}
                     </span>
-                  )}
+                  </p>
                 </div>
 
-                {!phoneVerified && (
-                  <form onSubmit={handleVerifyPhone} className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={phoneOtpInput}
-                      onChange={(e) => setPhoneOtpInput(e.target.value)}
-                      placeholder="Enter 6-digit Mobile OTP"
-                      className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={verifyingPhone}
-                      className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
-                    >
-                      {verifyingPhone ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Mobile OTP'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* OPTION 2: EMAIL (GMAIL) OTP VERIFICATION FORM */}
-            {otpPreference === 'email' && (
-              <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                    <Mail className="w-4 h-4 text-[#D48B1C]" /> Verify via Gmail ({formData.email})
-                  </span>
-                  {emailVerified && (
-                    <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
-                      <CheckCircle2 className="w-4 h-4" /> Verified
-                    </span>
+                <button
+                  type="button"
+                  onClick={() => triggerSendOtp()}
+                  disabled={isSendingOtp}
+                  className="w-full py-4 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
+                >
+                  {isSendingOtp ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" /> Sending Verification OTP...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" /> Send Verification OTP Code Now
+                    </>
                   )}
-                </div>
-
-                {!emailVerified && (
-                  <form onSubmit={handleVerifyEmail} className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={emailOtpInput}
-                      onChange={(e) => setEmailOtpInput(e.target.value)}
-                      placeholder="Enter 6-digit Email OTP"
-                      className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={verifyingEmail}
-                      className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
-                    >
-                      {verifyingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Gmail OTP'}
-                    </button>
-                  </form>
-                )}
+                </button>
               </div>
+            ) : (
+              /* OTP VERIFICATION CODE FORM (UNLOCKED AFTER CLICKING SEND OTP) */
+              <>
+                {otpPreference === 'phone' && (
+                  <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-[#D48B1C]" /> Verify via Mobile SMS ({countryCode} {formData.phone})
+                      </span>
+                      {phoneVerified && (
+                        <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
+                          <CheckCircle2 className="w-4 h-4" /> Verified
+                        </span>
+                      )}
+                    </div>
+
+                    {!phoneVerified && (
+                      <form onSubmit={handleVerifyPhone} className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={phoneOtpInput}
+                          onChange={(e) => setPhoneOtpInput(e.target.value)}
+                          placeholder="Enter 6-digit Mobile OTP"
+                          className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                        />
+                        <button
+                          type="submit"
+                          disabled={verifyingPhone}
+                          className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
+                        >
+                          {verifyingPhone ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Mobile OTP'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+                {otpPreference === 'email' && (
+                  <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-[#D48B1C]" /> Verify via Gmail ({formData.email})
+                      </span>
+                      {emailVerified && (
+                        <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
+                          <CheckCircle2 className="w-4 h-4" /> Verified
+                        </span>
+                      )}
+                    </div>
+
+                    {!emailVerified && (
+                      <form onSubmit={handleVerifyEmail} className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={emailOtpInput}
+                          onChange={(e) => setEmailOtpInput(e.target.value)}
+                          placeholder="Enter 6-digit Email OTP"
+                          className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                        />
+                        <button
+                          type="submit"
+                          disabled={verifyingEmail}
+                          className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
+                        >
+                          {verifyingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Gmail OTP'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Resend & Back controls with Spinner & 30s Countdown */}
@@ -675,23 +700,25 @@ export default function Register() {
                 &larr; Back to Details
               </button>
 
-              <button
-                type="button"
-                disabled={countdown > 0 || isResendingOtp}
-                onClick={handleResendOtps}
-                className={`font-bold flex items-center gap-1.5 transition-all ${
-                  countdown > 0 || isResendingOtp
-                    ? 'text-slate-400 cursor-not-allowed'
-                    : 'text-[#D48B1C] hover:underline'
-                }`}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isResendingOtp ? 'animate-spin text-[#D48B1C]' : ''}`} />
-                {isResendingOtp
-                  ? 'Resending OTP...'
-                  : countdown > 0
-                  ? `Resend OTP in ${countdown}s`
-                  : 'Resend 6-Digit OTP Code'}
-              </button>
+              {otpSentStatus && (
+                <button
+                  type="button"
+                  disabled={countdown > 0 || isResendingOtp}
+                  onClick={handleResendOtps}
+                  className={`font-bold flex items-center gap-1.5 transition-all ${
+                    countdown > 0 || isResendingOtp
+                      ? 'text-slate-400 cursor-not-allowed'
+                      : 'text-[#D48B1C] hover:underline'
+                  }`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResendingOtp ? 'animate-spin text-[#D48B1C]' : ''}`} />
+                  {isResendingOtp
+                    ? 'Resending OTP...'
+                    : countdown > 0
+                    ? `Resend OTP in ${countdown}s`
+                    : 'Resend 6-Digit OTP Code'}
+                </button>
+              )}
             </div>
           </div>
         )}
