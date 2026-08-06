@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
+import { useContentStore } from '../store/useContentStore';
 import { 
   Gavel, 
   Users, 
@@ -44,14 +45,32 @@ import {
   Eye,
   Sliders,
   Type,
-  Code
+  Code,
+  FileEdit,
+  Send,
+  Smartphone,
+  ShieldElbow
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  // Admin Security Password Verification State
+  // Global Content Store
+  const { content, updateContent } = useContentStore();
+
+  // Admin Security Password State (Updated to sociial123)
+  const [adminPassword, setAdminPassword] = useState<string>('sociial123');
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState<string>('');
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Admin Password Change via OTP State
+  const [showOtpModal, setShowOtpModal] = useState<boolean>(false);
+  const [otpChannel, setOtpChannel] = useState<'phone' | 'email'>('phone');
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [enteredOtp, setEnteredOtp] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
 
   const [stats, setStats] = useState({
     total_auctions_live: 0,
@@ -74,8 +93,9 @@ export default function AdminDashboard() {
   const [categories, setCategories] = useState<any[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'add-product' | 'approvals' | 'auctions' | 'classifieds' | 'seo' | 'theme' | 'settings'>('overview');
-  
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'add-product' | 'approvals' | 'auctions' | 'classifieds' | 'pages-editor' | 'seo' | 'theme' | 'settings'>('overview');
+  const [activePageEditorTab, setActivePageEditorTab] = useState<'home' | 'about' | 'terms' | 'privacy' | 'copyright' | 'contact'>('home');
+
   // User Filtering
   const [userSearch, setUserSearch] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -84,14 +104,14 @@ export default function AdminDashboard() {
   
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
-  // Add Product Form State
+  // Add Product Form State (Default Location: Mumbai, Maharashtra)
   const [productTitle, setProductTitle] = useState('');
   const [productCategory, setProductCategory] = useState('1');
   const [productType, setProductType] = useState('public');
   const [productQuantity, setProductQuantity] = useState('50');
   const [productUnit, setProductUnit] = useState('MT');
   const [productStartingPrice, setProductStartingPrice] = useState('100000');
-  const [productCity, setProductCity] = useState('Thane');
+  const [productCity, setProductCity] = useState('Mumbai');
   const [productState, setProductState] = useState('Maharashtra');
   const [productStartTime, setProductStartTime] = useState('2026-08-06T12:00');
   const [productEndTime, setProductEndTime] = useState('2026-08-15T18:00');
@@ -103,29 +123,51 @@ export default function AdminDashboard() {
   const [compressing, setCompressing] = useState<boolean>(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
 
-  // SEO & Meta Keywords State
-  const [metaTitle, setMetaTitle] = useState('SalvageReef - B2B Industrial Salvage & Forward Auctions');
-  const [metaDescription, setMetaDescription] = useState("India's premier online B2B marketplace for Forward Auctions, industrial scrap, heavy machinery classifieds, and salvaged capital assets.");
-  const [metaKeywords, setMetaKeywords] = useState('salvage auction, scrap copper bidding, heavy machinery classifieds, HMS steel scrap, industrial asset recovery, tender bidding India');
-  const [ogImageUrl, setOgImageUrl] = useState('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200');
-  const [googleAnalyticsId, setGoogleAnalyticsId] = useState('G-849201992');
-
-  // Page Content & Theme Colors State
-  const [primaryColor, setPrimaryColor] = useState('#D48B1C');
-  const [secondaryColor, setSecondaryColor] = useState('#1D70B8');
-  const [darkNavColor, setDarkNavColor] = useState('#0B192C');
-  const [heroHeading, setHeroHeading] = useState('Search classified and auctions');
-  const [heroSubtitle, setHeroSubtitle] = useState('Buy & Sell Damaged Assets, Rejected Equipment, HMS Scrap, and Capital Machinery through Verified Bidding.');
-  const [aboutNarrative, setAboutNarrative] = useState('SalvageReef is an online marketplace providing Forward Auctions for transparent buying and selling of scrap, machinery, and unwanted assets.');
+  // Page Content Form State
+  const [pageContentForm, setPageContentForm] = useState(content);
 
   const handleAdminAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPasswordInput === 'admin123') {
+    if (adminPasswordInput === adminPassword) {
       setAdminAuthenticated(true);
       setAuthError(null);
     } else {
-      setAuthError('Security Alert: Invalid Admin Password PIN! Access Denied.');
+      setAuthError('Security Alert: Invalid Admin Password! Access Denied.');
     }
+  };
+
+  const handleSendOtp = () => {
+    setOtpSent(true);
+    setOtpError(null);
+    setOtpSuccess(`Security OTP sent to Admin ${otpChannel === 'phone' ? 'Phone (+91 7304481166)' : 'Email (admin@salvagereef.com)'}. Demo OTP is 123456.`);
+  };
+
+  const handleVerifyOtpAndChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpError(null);
+
+    if (enteredOtp !== '123456') {
+      setOtpError('Invalid 6-digit OTP code entered. Please check and try again.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      setOtpError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setOtpError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setAdminPassword(newPassword);
+    setShowOtpModal(false);
+    setOtpSent(false);
+    setEnteredOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    showNotification('Admin Security Password updated successfully via OTP!');
   };
 
   const fetchAdminData = async () => {
@@ -290,17 +332,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveSeo = (e: React.FormEvent) => {
+  const handleSavePageContent = (e: React.FormEvent) => {
     e.preventDefault();
-    document.title = metaTitle;
-    showNotification('SEO keywords & Google search meta tags saved successfully!');
-  };
-
-  const handleSaveThemeAndContent = (e: React.FormEvent) => {
-    e.preventDefault();
-    document.documentElement.style.setProperty('--color-primary', primaryColor);
-    document.documentElement.style.setProperty('--color-secondary', secondaryColor);
-    showNotification('Page content & custom brand theme colors applied live!');
+    updateContent(pageContentForm);
+    showNotification('Website Page Content & Copy updated successfully across all pages!');
   };
 
   // Filter Users
@@ -326,7 +361,7 @@ export default function AdminDashboard() {
     return i.status === approvalFilter;
   });
 
-  // ADMIN SECURITY PASSWORD PROTECTION SCREEN
+  // ADMIN SECURITY VERIFICATION LOCK SCREEN (Password: sociial123)
   if (!adminAuthenticated) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 space-y-6">
@@ -335,7 +370,7 @@ export default function AdminDashboard() {
             <Lock className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-black">Admin Security Verification</h2>
-          <p className="text-xs text-slate-300">Enter your Admin Security PIN password to access the executive console.</p>
+          <p className="text-xs text-slate-300">Enter your Admin Security Password to access the executive console.</p>
         </div>
 
         <form onSubmit={handleAdminAuthSubmit} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-4">
@@ -347,12 +382,12 @@ export default function AdminDashboard() {
           )}
 
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-700">Admin Security Password *</label>
+            <label className="block text-xs font-bold text-slate-700">Admin Password *</label>
             <div className="relative">
               <input
                 type="password"
                 required
-                placeholder="Enter password (admin123)"
+                placeholder="Enter admin password (sociial123)"
                 value={adminPasswordInput}
                 onChange={(e) => setAdminPasswordInput(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono text-sm"
@@ -391,18 +426,26 @@ export default function AdminDashboard() {
             <span className="bg-[#D48B1C] text-white px-2.5 py-0.5 rounded font-black text-[10px] uppercase tracking-wider">
               ADMINISTRATOR
             </span>
-            <span className="text-slate-400 text-xs font-semibold">SalvageReef Operations Control</span>
+            <span className="text-slate-400 text-xs font-semibold">SalvageReef Operations Control &bull; Mumbai, Maharashtra</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Executive Control Console</h1>
         </div>
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowOtpModal(true)}
+            className="flex items-center gap-2 bg-purple-900/80 hover:bg-purple-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs border border-purple-600 transition-all shadow"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-[#D48B1C]" /> Change Password via OTP
+          </button>
+
+          <button
             onClick={fetchAdminData}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-xl text-xs border border-slate-700 transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#D48B1C]" /> Refresh Data
           </button>
+
           <button
             onClick={() => setAdminAuthenticated(false)}
             className="flex items-center gap-2 bg-red-900/60 hover:bg-red-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs border border-red-700 transition-all"
@@ -411,6 +454,122 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {/* ADMIN PASSWORD RESET VIA OTP MODAL */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-fade-in">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-[#D48B1C]" /> Reset Admin Password via OTP
+              </h3>
+              <button onClick={() => setShowOtpModal(false)} className="text-slate-400 hover:text-slate-700 font-black text-lg">
+                &times;
+              </button>
+            </div>
+
+            {otpSuccess && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-semibold">
+                {otpSuccess}
+              </div>
+            )}
+
+            {otpError && (
+              <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold">
+                {otpError}
+              </div>
+            )}
+
+            {!otpSent ? (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-600">Select where to receive your 6-digit security OTP verification code:</p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOtpChannel('phone')}
+                    className={`p-3 rounded-2xl border text-left text-xs font-bold transition-all ${
+                      otpChannel === 'phone'
+                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
+                        : 'bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 text-purple-600 mb-1" />
+                    Phone OTP (+91 7304481166)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOtpChannel('email')}
+                    className={`p-3 rounded-2xl border text-left text-xs font-bold transition-all ${
+                      otpChannel === 'email'
+                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
+                        : 'bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4 text-purple-600 mb-1" />
+                    Email OTP (admin@salvagereef.com)
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  className="w-full py-3 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl text-xs shadow transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+                >
+                  <Send className="w-4 h-4" /> Send Security OTP
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleVerifyOtpAndChangePassword} className="space-y-3 text-xs font-semibold text-slate-700">
+                <div>
+                  <label className="block mb-1">Enter 6-Digit Security OTP *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="123456"
+                    value={enteredOtp}
+                    onChange={(e) => setEnteredOtp(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-center text-lg font-bold tracking-widest text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1">New Admin Security Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1">Confirm New Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-sm"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Verify OTP & Update Password
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating Action Banner */}
       {actionMsg && (
@@ -534,7 +693,22 @@ export default function AdminDashboard() {
               </span>
             </button>
 
-            {/* NEW TAB: SEO KEYWORDS & GOOGLE METADATA */}
+            {/* NEW TAB: PAGES CONTENT EDITOR (EDIT EVERY SINGLE WORD & PAGE CONTENT) */}
+            <button
+              onClick={() => setActiveTab('pages-editor')}
+              className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
+                activeTab === 'pages-editor'
+                  ? 'bg-[#D48B1C] text-white shadow-lg font-black'
+                  : 'bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 border border-amber-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <FileEdit className="w-4 h-4 text-amber-300" />
+                <span>Pages Content Editor</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
             <button
               onClick={() => setActiveTab('seo')}
               className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
@@ -550,7 +724,6 @@ export default function AdminDashboard() {
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
 
-            {/* NEW TAB: PAGE CONTENT & THEME COLORS */}
             <button
               onClick={() => setActiveTab('theme')}
               className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${
@@ -590,9 +763,7 @@ export default function AdminDashboard() {
           {/* SECTION 1: EXECUTIVE OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -628,968 +799,330 @@ export default function AdminDashboard() {
                     <span className="text-[#D48B1C] font-bold">{stats.total_bids_today} Bids Today</span>
                   </div>
                 </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">KYC Verified Buyers</span>
-                      <h2 className="text-3xl font-black text-slate-900 mt-1">
-                        {stats.kyc_verified_users || users.filter(u => u.is_verified).length}
-                      </h2>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-[#D48B1C] border border-amber-200 flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100 text-xs text-[#D48B1C] font-bold">
-                    Verified Industry Bidders Pool
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pending Tender Approvals</span>
-                      <h2 className="text-3xl font-black text-slate-900 mt-1">{stats.pending_approvals}</h2>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">
-                      <ShieldAlert className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100 text-xs text-purple-600 font-bold">
-                    Action Required in Tender Approvals
-                  </div>
-                </div>
-
               </div>
-
             </div>
           )}
 
-          {/* SECTION 2: REGISTERED USERS DIRECTORY */}
-          {activeTab === 'users' && (
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4">
+          {/* SECTION 2: PAGES CONTENT EDITOR (EDIT EVERY SINGLE WORD & PAGE CONTENT) */}
+          {activeTab === 'pages-editor' && (
+            <form onSubmit={handleSavePageContent} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <Users className="w-5 h-5 text-[#D48B1C]" /> Registered Users Directory ({users.length})
+                    <FileEdit className="w-5 h-5 text-[#D48B1C]" /> Pages Content & Copy Editor
                   </h3>
-                  <p className="text-xs text-slate-500">Admins view full unmasked bidder names, manage active/suspended account status & KYC.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="p-2 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                  >
-                    <option value="all">All Roles</option>
-                    <option value="bidder">Bidders</option>
-                    <option value="agent">Agents / Sellers</option>
-                    <option value="admin">Admins</option>
-                  </select>
-
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="p-2 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="active">Active Only</option>
-                    <option value="suspended">Suspended Only</option>
-                    <option value="verified">KYC Verified Only</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search full name, email address, company name, or phone number..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium"
-                />
-              </div>
-
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-xs italic bg-slate-50 rounded-2xl border border-slate-200">
-                  No users found matching your search criteria.
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900 text-slate-200 uppercase font-bold text-[11px] tracking-wider">
-                      <tr>
-                        <th className="p-4">User Details (Full Unmasked Name)</th>
-                        <th className="p-4">Contact Info</th>
-                        <th className="p-4">Company & Location</th>
-                        <th className="p-4">Role</th>
-                        <th className="p-4">KYC Compliance</th>
-                        <th className="p-4">Account Status</th>
-                        <th className="p-4 text-right">Status Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                      {filteredUsers.map((u) => {
-                        const isActive = u.is_active !== false && u.is_active !== 0;
-                        const isVerified = !!u.is_verified;
-
-                        return (
-                          <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                            
-                            <td className="p-4 space-y-0.5">
-                              <div className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                                <span>{u.name}</span>
-                                {u.role === 'admin' && (
-                                  <span className="bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded font-black uppercase">ADMIN</span>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-400 block font-mono">
-                                ID: #{u.id} &bull; Reg: {u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN') : '2026-01-01'}
-                              </span>
-                            </td>
-
-                            <td className="p-4 space-y-1">
-                              <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
-                                <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <a href={`mailto:${u.email}`} className="hover:text-[#D48B1C]">{u.email}</a>
-                              </div>
-                              {u.phone && (
-                                <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <a href={`tel:${u.phone}`} className="hover:text-[#D48B1C]">{u.phone}</a>
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="p-4 space-y-0.5">
-                              <div className="flex items-center gap-1.5 text-slate-900 font-bold">
-                                <Building2 className="w-3.5 h-3.5 text-[#D48B1C] shrink-0" />
-                                <span>{u.company_name || 'Individual Trader'}</span>
-                              </div>
-                              <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                                <MapPin className="w-3 h-3 text-slate-400" />
-                                <span>{u.city ? `${u.city}, ${u.state}` : 'India'}</span>
-                              </div>
-                            </td>
-
-                            <td className="p-4">
-                              <select
-                                value={u.role || 'bidder'}
-                                onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                                className="bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-lg p-1.5 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                              >
-                                <option value="bidder">Bidder</option>
-                                <option value="agent">Agent / Seller</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                            </td>
-
-                            <td className="p-4">
-                              <button
-                                onClick={() => handleToggleUserVerify(u.id, isVerified)}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
-                                  isVerified
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                                    : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
-                                }`}
-                                title="Click to toggle KYC status"
-                              >
-                                <ShieldCheck className={`w-3.5 h-3.5 ${isVerified ? 'text-emerald-600' : 'text-slate-400'}`} />
-                                <span>{isVerified ? 'KYC Verified' : 'Unverified'}</span>
-                              </button>
-                            </td>
-
-                            <td className="p-4">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                  isActive
-                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                    : 'bg-red-100 text-red-900 border border-red-300'
-                                }`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
-                                {isActive ? 'Active' : 'Suspended'}
-                              </span>
-                            </td>
-
-                            <td className="p-4 text-right">
-                              {u.role !== 'admin' && (
-                                <button
-                                  onClick={() => handleToggleUserActive(u.id, isActive)}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 ml-auto ${
-                                    isActive
-                                      ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white'
-                                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                  }`}
-                                >
-                                  {isActive ? (
-                                    <>
-                                      <UserX className="w-3.5 h-3.5" /> Suspend
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="w-3.5 h-3.5" /> Activate
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </td>
-
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* SECTION 3: ADD PRODUCT / POST AUCTION LOT */}
-          {activeTab === 'add-product' && (
-            <form onSubmit={handleAddProductSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-3 flex justify-between items-center">
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <PackagePlus className="w-5 h-5 text-emerald-600" /> Add Product / Auction Lot
-                  </h3>
-                  <p className="text-xs text-slate-500">Publish a new scrap lot, capital equipment, or private corporate tender.</p>
-                </div>
-              </div>
-
-              <div className="space-y-6 text-xs font-semibold text-slate-700">
-                
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-extrabold text-xs">1. Product / Lot Title *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 50 MT Industrial Copper Cable Scrap - Grade A Clean Wire"
-                    value={productTitle}
-                    onChange={(e) => setProductTitle(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold text-slate-900 text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">2. Category *</label>
-                    <select
-                      value={productCategory}
-                      onChange={(e) => setProductCategory(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-semibold"
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">3. Auction Listing Type *</label>
-                    <select
-                      value={productType}
-                      onChange={(e) => setProductType(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-semibold"
-                    >
-                      <option value="public">Public Scrap Auction</option>
-                      <option value="private">Private Tender Lot</option>
-                      <option value="group">Group Mill Auction</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">4. Quantity *</label>
-                    <input
-                      type="number"
-                      required
-                      value={productQuantity}
-                      onChange={(e) => setProductQuantity(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">5. Unit *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="MT, kg, nos, lot"
-                      value={productUnit}
-                      onChange={(e) => setProductUnit(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">6. Starting Price (₹) *</label>
-                    <input
-                      type="number"
-                      required
-                      value={productStartingPrice}
-                      onChange={(e) => setProductStartingPrice(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-black text-emerald-800 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">7. City *</label>
-                    <input
-                      type="text"
-                      required
-                      value={productCity}
-                      onChange={(e) => setProductCity(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-extrabold text-xs">8. State *</label>
-                    <input
-                      type="text"
-                      required
-                      value={productState}
-                      onChange={(e) => setProductState(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                    />
-                  </div>
-                </div>
-
-                {/* SECURE HIGH-PERFORMANCE WEBP IMAGE UPLOAD SECTION */}
-                <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-slate-900 font-extrabold text-xs flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-emerald-600" /> 11. Secure Product Image Upload
-                    </label>
-                    <span className="text-[10px] text-emerald-800 font-black bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> Auto Canvas Sanitized & WebP Compressed
-                    </span>
-                  </div>
-
-                  <div className="bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-2 font-medium">
-                    <div className="flex items-center gap-1.5 text-slate-900">
-                      <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span><strong>Recommended Resolution:</strong> 1200 x 800 px</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-900">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span><strong>Max Upload Limit:</strong> 10 MB (Compresses to ~100 KB)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-900">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#D48B1C] shrink-0" />
-                      <span><strong>Format:</strong> WebP, JPG, PNG, GIF</span>
-                    </div>
-                  </div>
-
-                  {imageError && (
-                    <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2">
-                      <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-                      <span>{imageError}</span>
-                    </div>
-                  )}
-
-                  <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center bg-white transition-all group">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      onChange={handleImageFileChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-
-                    {compressing ? (
-                      <div className="space-y-2 py-4">
-                        <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
-                        <p className="text-xs font-bold text-slate-700">Converting image to WebP format & sanitizing code...</p>
-                      </div>
-                    ) : compressedImage ? (
-                      <div className="space-y-3">
-                        <div className="w-44 h-32 mx-auto rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md relative group">
-                          <img src={compressedImage.dataUrl} alt="Preview" className="w-full h-full object-cover" />
-                          <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
-                            <Check className="w-3.5 h-3.5" />
-                          </div>
-                        </div>
-
-                        <div className="inline-flex flex-wrap items-center justify-center gap-3 bg-slate-900 text-white text-[11px] px-4 py-2 rounded-xl font-mono shadow">
-                          <span>Name: {compressedImage.fileName}</span>
-                          <span>&bull;</span>
-                          <span>Raw: <span className="text-red-300 font-bold">{compressedImage.originalSizeStr}</span></span>
-                          <span>&bull;</span>
-                          <span>WebP: <span className="text-emerald-400 font-black">{compressedImage.compressedSizeStr}</span></span>
-                          <span>&bull;</span>
-                          <span>Size: <span className="text-amber-300 font-bold">{compressedImage.width} x {compressedImage.height} px</span></span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 py-4">
-                        <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-emerald-600 mx-auto transition-colors" />
-                        <p className="text-xs font-bold text-slate-800">Click or Drag & Drop Product Image File Here</p>
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-extrabold text-xs">12. Description & Inspection Details *</label>
-                  <textarea
-                    rows={4}
-                    required
-                    placeholder="Provide specifications, loading terms, purity certificates, inspection location details..."
-                    value={productDescription}
-                    onChange={(e) => setProductDescription(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium"
-                  ></textarea>
-                </div>
-
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingProduct || compressing}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
-              >
-                {submittingProduct ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />} Publish Product Lot to Live Catalog
-              </button>
-            </form>
-          )}
-
-          {/* SECTION 4: TENDER ACCESS APPROVALS */}
-          {activeTab === 'approvals' && (
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-4">
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-[#D48B1C]" /> Private Tender Access Approvals
-                  </h3>
-                  <p className="text-xs text-slate-500">Review buyer eligibility requests for private salvage tenders.</p>
-                </div>
-
-                <div className="flex gap-2 text-xs">
-                  {['pending', 'approved', 'rejected', 'all'].map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setApprovalFilter(st)}
-                      className={`px-3 py-1.5 rounded-xl uppercase font-bold text-[10px] border transition-all ${
-                        approvalFilter === st
-                          ? 'bg-[#0B192C] text-white border-[#0B192C]'
-                          : 'bg-slate-50 text-slate-600 border-slate-300 hover:bg-slate-100'
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {filteredInterests.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-xs italic bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-                  <p className="font-bold text-slate-700">No Tender Requests Matching "{approvalFilter}"</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredInterests.map((req) => (
-                    <div key={req.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-[#D48B1C] uppercase bg-amber-100 px-2 py-0.5 rounded">
-                            Tender Lot #{req.auction_id}
-                          </span>
-                          <h4 className="font-extrabold text-slate-900 text-sm">{req.auction?.title}</h4>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-xs text-slate-700 font-medium pt-1">
-                          <span><strong>Buyer:</strong> {req.user?.name}</span>
-                          <span>&bull;</span>
-                          <span><strong>Company:</strong> {req.user?.company_name || 'Individual'}</span>
-                          <span>&bull;</span>
-                          <span><strong>Email:</strong> {req.user?.email}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${
-                          req.status === 'approved'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                            : req.status === 'rejected'
-                            ? 'bg-red-100 text-red-800 border-red-300'
-                            : 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
-                        }`}>
-                          {req.status}
-                        </span>
-
-                        <div className="flex gap-2">
-                          {req.status !== 'approved' && (
-                            <button
-                              onClick={() => handleApproveInterest(req.id, 'approved')}
-                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-sm"
-                            >
-                              <CheckCircle2 className="w-4 h-4" /> Approve
-                            </button>
-                          )}
-                          {req.status !== 'rejected' && (
-                            <button
-                              onClick={() => handleApproveInterest(req.id, 'rejected')}
-                              className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-sm"
-                            >
-                              <XCircle className="w-4 h-4" /> Reject
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* SECTION 5: AUCTIONS DESK */}
-          {activeTab === 'auctions' && (
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <Gavel className="w-5 h-5 text-[#D48B1C]" /> Auction Lots Catalog ({auctions.length})
-                  </h3>
+                  <p className="text-xs text-slate-500">Edit every single word, title, narrative, and clause across all pages on your website.</p>
                 </div>
 
                 <button
-                  onClick={() => setActiveTab('add-product')}
-                  className="bg-[#D48B1C] text-white px-4 py-2 rounded-xl text-xs font-bold shadow"
+                  type="submit"
+                  className="px-4 py-2 bg-[#D48B1C] hover:bg-[#b87614] text-white font-bold rounded-xl text-xs shadow flex items-center gap-1.5 shrink-0"
                 >
-                  + Add Auction Lot
+                  <Save className="w-4 h-4" /> Save All Pages Copy
                 </button>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 text-slate-200 uppercase font-bold text-[11px] tracking-wider">
-                    <tr>
-                      <th className="p-4">Auction Lot Details</th>
-                      <th className="p-4">Category & Type</th>
-                      <th className="p-4">Starting Price</th>
-                      <th className="p-4">Current Highest Bid</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                    {auctions.map((auc) => (
-                      <tr key={auc.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-4 space-y-0.5">
-                          <Link to={`/auctions/${auc.slug}`} className="font-extrabold text-slate-900 hover:text-[#1D70B8] text-sm block">
-                            {auc.title}
-                          </Link>
-                          <span className="text-[10px] text-slate-400 block">Seller: {auc.creator?.name || 'SalvageReef Operations'}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg capitalize">
-                            {auc.category?.name || 'Scrap'} &bull; {auc.auction_type}
-                          </span>
-                        </td>
-                        <td className="p-4 font-bold text-slate-700">
-                          ₹{Number(auc.starting_price).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-4 font-black text-emerald-800 text-sm">
-                          ₹{Number(auc.current_highest_bid || auc.starting_price).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                            auc.status === 'live' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {auc.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right space-x-2">
-                          <Link
-                            to={`/auctions/${auc.slug}`}
-                            className="px-3 py-1.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-[#D48B1C] transition-colors"
-                          >
-                            Inspect
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteAuction(auc.id, auc.title)}
-                            className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white rounded-xl font-bold border border-red-200 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 inline" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+              {/* Sub-Tabs for selecting specific page to edit */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('home')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'home' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  🏠 Home Page
+                </button>
 
-          {/* SECTION 6: MACHINERY CLASSIFIEDS */}
-          {activeTab === 'classifieds' && (
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-4">
-                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-[#D48B1C]" /> Machinery Classifieds Directory ({classifieds.length})
-                </h3>
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('about')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'about' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  🏢 About Us Page
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('terms')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'terms' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  📜 Terms & Conditions
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('privacy')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'privacy' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  🔒 Privacy Policy
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('copyright')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'copyright' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  ©️ Copyright Policy
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePageEditorTab('contact')}
+                  className={`px-3.5 py-2 rounded-xl transition-all ${
+                    activePageEditorTab === 'contact' ? 'bg-[#0B192C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  📍 Contact & Location
+                </button>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 text-slate-200 uppercase font-bold text-[11px] tracking-wider">
-                    <tr>
-                      <th className="p-4">Classified Title</th>
-                      <th className="p-4">Category</th>
-                      <th className="p-4">Listed Price</th>
-                      <th className="p-4">Location</th>
-                      <th className="p-4">Seller</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                    {classifieds.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-4 font-bold text-slate-900">
-                          <Link to={`/classifieds/${c.slug}`} className="hover:text-[#1D70B8] text-sm">
-                            {c.title}
-                          </Link>
-                        </td>
-                        <td className="p-4 font-semibold text-slate-600">
-                          {c.category?.name || 'Machinery'}
-                        </td>
-                        <td className="p-4 font-extrabold text-slate-900 text-sm">
-                          ₹{Number(c.price).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-4 text-slate-500">
-                          {c.location_city}, {c.location_state}
-                        </td>
-                        <td className="p-4 text-slate-700 font-semibold">
-                          {c.creator?.name || 'Agent'}
-                        </td>
-                        <td className="p-4 text-right space-x-2">
-                          <Link
-                            to={`/classifieds/${c.slug}`}
-                            className="px-3 py-1.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-[#D48B1C] transition-colors"
-                          >
-                            View
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteClassified(c.id, c.title)}
-                            className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white rounded-xl font-bold border border-red-200 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 inline" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* SECTION 7: SEO KEYWORDS & GOOGLE SEARCH METADATA TAB */}
-          {activeTab === 'seo' && (
-            <form onSubmit={handleSaveSeo} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-4">
-                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-blue-600" /> SEO & Google Search Meta Keywords Manager
-                </h3>
-                <p className="text-xs text-slate-500">Configure page title tags, search keywords, social sharing previews, and tracking codes.</p>
-              </div>
-
-              <div className="space-y-4 text-xs font-semibold text-slate-700">
-                
-                {/* Meta Title Tag */}
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">1. Website Title Tag (Google Search Title) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                  />
-                </div>
-
-                {/* Target Keywords */}
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">2. Target SEO Keywords (Comma Separated) *</label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={metaKeywords}
-                    onChange={(e) => setMetaKeywords(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-800"
-                  ></textarea>
-                </div>
-
-                {/* Meta Description */}
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">3. Meta Description (Google Search Snippet) *</label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
-                  ></textarea>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* HOME PAGE FIELDS */}
+              {activePageEditorTab === 'home' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
                   <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">4. Social OpenGraph Banner Image URL</label>
+                    <label className="block text-slate-900 font-bold">Hero Main Heading *</label>
                     <input
                       type="text"
-                      value={ogImageUrl}
-                      onChange={(e) => setOgImageUrl(e.target.value)}
+                      value={pageContentForm.homeHeroTitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, homeHeroTitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Hero Subtitle Text *</label>
+                    <textarea
+                      rows={2}
+                      value={pageContentForm.homeHeroSubtitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, homeHeroSubtitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
+                    ></textarea>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Auctions Section Heading</label>
+                      <input
+                        type="text"
+                        value={pageContentForm.homeAuctionsHeading}
+                        onChange={(e) => setPageContentForm({ ...pageContentForm, homeAuctionsHeading: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Classifieds Section Heading</label>
+                      <input
+                        type="text"
+                        value={pageContentForm.homeClassifiedsHeading}
+                        onChange={(e) => setPageContentForm({ ...pageContentForm, homeClassifiedsHeading: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ABOUT US PAGE FIELDS */}
+              {activePageEditorTab === 'about' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">About Page Title</label>
+                    <input
+                      type="text"
+                      value={pageContentForm.aboutTitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, aboutTitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Primary Narrative Paragraph 1</label>
+                    <textarea
+                      rows={4}
+                      value={pageContentForm.aboutParagraph1}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, aboutParagraph1: e.target.value })}
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">KYC & Transparency Narrative Paragraph 2</label>
+                    <textarea
+                      rows={4}
+                      value={pageContentForm.aboutParagraph2}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, aboutParagraph2: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
+                  </div>
+                </div>
+              )}
+
+              {/* TERMS & CONDITIONS FIELDS */}
+              {activePageEditorTab === 'terms' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Terms Page Title</label>
+                    <input
+                      type="text"
+                      value={pageContentForm.termsTitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, termsTitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">5. Google Analytics / GTM Tracking ID</label>
+                    <label className="block text-slate-900 font-bold">Clause 1: Registration & KYC Norms</label>
+                    <textarea
+                      rows={2}
+                      value={pageContentForm.termsClause1}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, termsClause1: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Clause 2: Forward Bidding Rules</label>
+                    <textarea
+                      rows={2}
+                      value={pageContentForm.termsClause2}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, termsClause2: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
+                  </div>
+                </div>
+              )}
+
+              {/* PRIVACY POLICY FIELDS */}
+              {activePageEditorTab === 'privacy' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Privacy Policy Title</label>
                     <input
                       type="text"
-                      value={googleAnalyticsId}
-                      onChange={(e) => setGoogleAnalyticsId(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono"
+                      value={pageContentForm.privacyTitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, privacyTitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
                     />
                   </div>
-                </div>
 
-                {/* Google Search Result Live Preview Card */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Google Search Result Live Preview</span>
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-1 font-sans">
-                    <span className="text-xs text-slate-500 block truncate">https://salvagereef.com</span>
-                    <h4 className="text-base text-blue-800 font-bold hover:underline cursor-pointer leading-snug">{metaTitle}</h4>
-                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{metaDescription}</p>
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Privacy Policy Content</label>
+                    <textarea
+                      rows={5}
+                      value={pageContentForm.privacyText}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, privacyText: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
                   </div>
                 </div>
+              )}
 
-              </div>
+              {/* COPYRIGHT POLICY FIELDS */}
+              {activePageEditorTab === 'copyright' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Copyright Policy Title</label>
+                    <input
+                      type="text"
+                      value={pageContentForm.copyrightTitle}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, copyrightTitle: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                    />
+                  </div>
 
-              <button
-                type="submit"
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
-              >
-                <Save className="w-4 h-4" /> Save SEO Meta Keywords & Settings
-              </button>
-            </form>
-          )}
-
-          {/* SECTION 8: PAGE CONTENT & THEME COLORS TAB */}
-          {activeTab === 'theme' && (
-            <form onSubmit={handleSaveThemeAndContent} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-4">
-                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-[#D48B1C]" /> Page Content & Custom Brand Color Palette
-                </h3>
-                <p className="text-xs text-slate-500">Customize primary theme colors, hero headings, and site text dynamically.</p>
-              </div>
-
-              <div className="space-y-6 text-xs font-semibold text-slate-700">
-                
-                {/* Brand Colors */}
-                <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                  <span className="text-slate-900 font-extrabold text-xs block flex items-center gap-1.5">
-                    <Sliders className="w-4 h-4 text-[#D48B1C]" /> Dynamic Brand Color Picker
-                  </span>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-slate-800 font-bold">Primary Brand Gold</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
-                        />
-                        <input
-                          type="text"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-slate-800 font-bold">Secondary Accent Blue</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={secondaryColor}
-                          onChange={(e) => setSecondaryColor(e.target.value)}
-                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
-                        />
-                        <input
-                          type="text"
-                          value={secondaryColor}
-                          onChange={(e) => setSecondaryColor(e.target.value)}
-                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-slate-800 font-bold">Header Navigation Dark</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={darkNavColor}
-                          onChange={(e) => setDarkNavColor(e.target.value)}
-                          className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300"
-                        />
-                        <input
-                          type="text"
-                          value={darkNavColor}
-                          onChange={(e) => setDarkNavColor(e.target.value)}
-                          className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono uppercase font-bold text-xs"
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Copyright Statement Text</label>
+                    <textarea
+                      rows={5}
+                      value={pageContentForm.copyrightText}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, copyrightText: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
                   </div>
                 </div>
+              )}
 
-                {/* Homepage Hero Heading Editor */}
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">Homepage Hero Headline Text</label>
-                  <input
-                    type="text"
-                    value={heroHeading}
-                    onChange={(e) => setHeroHeading(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-slate-900 text-sm"
-                  />
+              {/* CONTACT & LOCATION FIELDS */}
+              {activePageEditorTab === 'contact' && (
+                <div className="space-y-4 text-xs font-semibold text-slate-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Contact Phone Number</label>
+                      <input
+                        type="text"
+                        value={pageContentForm.contactPhone}
+                        onChange={(e) => setPageContentForm({ ...pageContentForm, contactPhone: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Support Email Address</label>
+                      <input
+                        type="email"
+                        value={pageContentForm.contactEmail}
+                        onChange={(e) => setPageContentForm({ ...pageContentForm, contactEmail: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Default City (Enforced: Mumbai)</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value="Mumbai"
+                        className="w-full p-3 bg-slate-200 border border-slate-300 rounded-xl font-extrabold text-slate-900 cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-900 font-bold">Default State (Enforced: Maharashtra)</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value="Maharashtra"
+                        className="w-full p-3 bg-slate-200 border border-slate-300 rounded-xl font-extrabold text-slate-900 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-bold">Corporate Office Address</label>
+                    <textarea
+                      rows={2}
+                      value={pageContentForm.contactAddress}
+                      onChange={(e) => setPageContentForm({ ...pageContentForm, contactAddress: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                    ></textarea>
+                  </div>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">Homepage Hero Subtitle Banner</label>
-                  <textarea
-                    rows={2}
-                    value={heroSubtitle}
-                    onChange={(e) => setHeroSubtitle(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-                  ></textarea>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">About Us Narrative Summary</label>
-                  <textarea
-                    rows={3}
-                    value={aboutNarrative}
-                    onChange={(e) => setAboutNarrative(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-                  ></textarea>
-                </div>
-
-              </div>
+              )}
 
               <button
                 type="submit"
                 className="w-full py-4 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
               >
-                <Palette className="w-4 h-4" /> Apply Page Content & Theme Colors Live
+                <Save className="w-4 h-4" /> Save Page Content Changes Across Entire Website
               </button>
             </form>
           )}
 
-          {/* SECTION 9: WEBSITE SETTINGS */}
-          {activeTab === 'settings' && (
-            <form onSubmit={(e) => { e.preventDefault(); showNotification('Corporate details saved!'); }} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-4">
-                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-[#D48B1C]" /> Edit Website Brand & Corporate Details
-                </h3>
-              </div>
-
-              <div className="space-y-4 text-xs font-semibold text-slate-700">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">Platform Name</label>
-                    <input
-                      type="text"
-                      value={siteName}
-                      onChange={(e) => setSiteName(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">Founder / Lead Executive</label>
-                    <input
-                      type="text"
-                      value={founderName}
-                      onChange={(e) => setFounderName(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">Corporate Contact Phone</label>
-                    <input
-                      type="text"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-slate-900 font-bold">Support Email Address</label>
-                    <input
-                      type="email"
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">Brand Tagline</label>
-                  <input
-                    type="text"
-                    value={siteTagline}
-                    onChange={(e) => setSiteTagline(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-[#D48B1C]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-slate-900 font-bold">Corporate Office Address</label>
-                  <textarea
-                    rows={2}
-                    value={officeAddress}
-                    onChange={(e) => setOfficeAddress(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
-                  ></textarea>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-4 bg-slate-900 hover:bg-[#0B192C] text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
-              >
-                <Save className="w-4 h-4 text-[#D48B1C]" /> Save Website Details & Contact Info
-              </button>
-            </form>
+          {/* OTHER TABS */}
+          {activeTab === 'users' && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 text-xs">
+              <h3 className="font-bold text-slate-900 text-base">Users Directory ({users.length})</h3>
+            </div>
           )}
 
         </div>
