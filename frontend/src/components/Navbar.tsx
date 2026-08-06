@@ -26,7 +26,7 @@ export default function Navbar() {
             <Logo className="w-10 h-10" showText={true} />
           </Link>
 
-          {/* Navigation Links - Matching SalvorSettlers reference layout */}
+          {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-700">
             <Link
               to="/"
@@ -68,12 +68,15 @@ export default function Navbar() {
             >
               Policies & Terms
             </Link>
-            <a
-              href="mailto:salvagereef@gmail.com"
-              className="hover:text-[#1D70B8] transition-colors"
+            <Link
+              to="/contact"
+              className={`transition-colors ${
+                isActive('/contact') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
+              }`}
             >
               Contact Us
-            </a>
+            </Link>
+
             {isAuthenticated && (user?.role === 'admin' || user?.role === 'agent') && (
               <Link
                 to="/classifieds/post-listing"
@@ -84,7 +87,7 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* Right Controls: Login / Register (Matching SalvorSettlers header) */}
+          {/* Right Controls: Login / Register */}
           <div className="hidden md:flex items-center gap-6 text-sm font-bold">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
@@ -170,6 +173,13 @@ export default function Navbar() {
             className="block text-slate-700 py-2 border-b border-slate-100"
           >
             Policies & Terms
+          </Link>
+          <Link
+            to="/contact"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-slate-700 py-2 border-b border-slate-100 text-[#1D70B8]"
+          >
+            Contact Us
           </Link>
           {isAuthenticated ? (
             <>

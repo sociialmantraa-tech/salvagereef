@@ -19,6 +19,7 @@ import About from './pages/About';
 import TermsAndConditions from './pages/TermsAndConditions';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CopyrightPolicy from './pages/CopyrightPolicy';
+import Contact from './pages/Contact';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -48,6 +49,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/contact-us" element={<Contact />} />
           <Route path="/terms" element={<TermsAndConditions />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
