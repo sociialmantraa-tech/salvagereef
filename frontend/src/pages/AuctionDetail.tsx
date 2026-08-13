@@ -5,13 +5,18 @@ import LiveBiddingWidget from '../components/LiveBiddingWidget';
 import { useAuthStore } from '../store/useAuthStore';
 import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight } from 'lucide-react';
 import { Auction } from '../types';
+import { INITIAL_AUCTIONS } from '../services/mockService';
+
+import SEOHead from '../components/SEOHead';
 
 export default function AuctionDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuthStore();
-  const [auction, setAuction] = useState<Auction | null>(null);
+
+  const initialMatch = INITIAL_AUCTIONS.find((a) => a.slug === slug || a.id.toString() === slug) || INITIAL_AUCTIONS[0];
+  const [auction, setAuction] = useState<Auction | null>(initialMatch);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [activeImage, setActiveImage] = useState<number>(0);
 
   const [interestMsg, setInterestMsg] = useState<string>('');
@@ -19,11 +24,15 @@ export default function AuctionDetail() {
   const [interestSubmitted, setInterestSubmitted] = useState<boolean>(false);
 
   const fetchAuctionDetail = async () => {
-    setLoading(true);
+    if (!auction) {
+      setLoading(true);
+    }
     try {
       const res = await api.get(`/auctions/${slug}`);
-      setAuction(res.data.auction);
-      setIsUnlocked(res.data.is_unlocked);
+      if (res.data?.auction) {
+        setAuction(res.data.auction);
+        setIsUnlocked(res.data.is_unlocked ?? true);
+      }
     } catch (err) {
       console.error('Error loading auction detail:', err);
     } finally {
@@ -77,6 +86,29 @@ export default function AuctionDetail() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <SEOHead
+        title={`${auction.title} (Starting ₹${Number(auction.starting_price).toLocaleString('en-IN')})`}
+        description={`Live Auction Lot #${auction.id}: ${auction.title} located in ${auction.location_city}, ${auction.location_state}. ${auction.description.substring(0, 140)}...`}
+        keywords={`${auction.title}, ${auction.category?.name || 'scrap'}, ${auction.location_city} scrap auction, salvage lot ${auction.id}`}
+        ogImage={images[0]}
+        ogType="product"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: auction.title,
+          description: auction.description,
+          image: images[0],
+          offers: {
+            '@type': 'AggregateOffer',
+            priceCurrency: 'INR',
+            lowPrice: auction.starting_price,
+            highPrice: auction.current_highest_bid || auction.starting_price,
+            offerCount: auction.bids?.length || 1,
+            price: auction.current_highest_bid || auction.starting_price,
+            availability: 'https://schema.org/InStock'
+          }
+        }}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-slate-500">
         <Link to="/" className="hover:text-[#D48B1C]">Home</Link>
@@ -128,14 +160,31 @@ export default function AuctionDetail() {
 
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-[#D48B1C] uppercase tracking-wider mb-1">
-                <span>{auction.category?.name}</span>
-                <span>&bull;</span>
-                <span>Lot #{auction.id}</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                {auction.title}
-              </h1>
+              {(() => {
+                let displayCode = `LOT-#${auction.id}`;
+                let displayTitle = auction.title;
+                if (auction.title && auction.title.includes('|')) {
+                  const parts = auction.title.split('|');
+                  if (parts[0] && parts[0].trim().length <= 15) {
+                    displayCode = parts[0].trim();
+                    displayTitle = parts.slice(1).join('|').trim();
+                  }
+                }
+                return (
+                  <>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2">
+                      <span className="bg-[#0077B6]/15 text-[#0077B6] border border-[#0077B6]/30 font-mono text-xs font-extrabold px-2.5 py-1 rounded-lg uppercase">
+                        {displayCode}
+                      </span>
+                      <span className="text-slate-400">&bull;</span>
+                      <span className="text-[#D48B1C]">{auction.category?.name}</span>
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                      {displayTitle}
+                    </h1>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">

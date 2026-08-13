@@ -4,15 +4,21 @@ import api from '../services/api';
 import AuctionCard from '../components/AuctionCard';
 import ClassifiedCard from '../components/ClassifiedCard';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { Search } from 'lucide-react';
-import { Auction, Classified, Category } from '../types';
+import { Search, ShieldCheck, Gavel, Truck } from 'lucide-react';
+import { Auction, Classified } from '../types';
+import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
+import { useCategoryLocationStore } from '../store/useCategoryLocationStore';
+import { useContentStore } from '../store/useContentStore';
+
+import SEOHead from '../components/SEOHead';
 
 export default function Home() {
   const navigate = useNavigate();
-  const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
-  const [classifieds, setClassifieds] = useState<Classified[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { categories, locations } = useCategoryLocationStore();
+  const { content } = useContentStore();
+  const [liveAuctions, setLiveAuctions] = useState<Auction[]>(INITIAL_AUCTIONS);
+  const [classifieds, setClassifieds] = useState<Classified[]>(INITIAL_CLASSIFIEDS.slice(0, 4));
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Search Form Filters matching Seal The Deal banner
   const [searchCategory, setSearchCategory] = useState<string>('');
@@ -23,15 +29,17 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [aucRes, classRes, catRes] = await Promise.all([
-          api.get('/auctions'),
-          api.get('/classifieds'),
-          api.get('/categories'),
+        const [aucRes, classRes] = await Promise.all([
+          api.get('/auctions').catch(() => null),
+          api.get('/classifieds').catch(() => null),
         ]);
 
-        setLiveAuctions(aucRes.data.data || []);
-        setClassifieds((classRes.data.data || []).slice(0, 4));
-        setCategories(catRes.data || []);
+        if (aucRes?.data?.data && aucRes.data.data.length > 0) {
+          setLiveAuctions(aucRes.data.data);
+        }
+        if (classRes?.data?.data && classRes.data.data.length > 0) {
+          setClassifieds(classRes.data.data.slice(0, 4));
+        }
       } catch (err) {
         console.error('Error fetching home data:', err);
       } finally {
@@ -54,13 +62,28 @@ export default function Home() {
 
   return (
     <div className="bg-[#f8fafc] min-h-screen pb-16 space-y-10">
-      {/* Hero Sunset Cityscape Banner (Exact Seal The Deal layout) */}
+      <SEOHead
+        title={content.siteBrandName ? `${content.siteBrandName} — B2B Salvage Auctions & Heavy Scrap Marketplace` : undefined}
+        description={content.homeHeroTitle ? `${content.homeHeroTitle} on SalvageReef. Bid on industrial scrap metal, damaged plant equipment, and commercial lots across India.` : undefined}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: content.siteBrandName || 'SalvageReef',
+          url: window.location.origin,
+          potentialAction: {
+            '@type': 'SearchAction',
+            target: `${window.location.origin}/auctions?search={search_term_string}`,
+            'query-input': 'required name=search_term_string'
+          }
+        }}
+      />
+      {/* Hero Sunset Cityscape Banner */}
       <section className="relative min-h-[440px] py-12 px-4 bg-slate-900 flex flex-col justify-center items-center overflow-hidden">
         {/* Full-width High-Res City Skyline Sunset Background Image */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80"
-            alt="City Skyline Sunset"
+            src={content.heroBannerUrl || "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80"}
+            alt="Hero Banner"
             className="w-full h-full object-cover object-center opacity-70"
           />
           {/* Subtle gradient overlay */}
@@ -71,7 +94,7 @@ export default function Home() {
         <div className="relative z-10 w-full max-w-3xl mx-auto space-y-6 text-center">
           {/* Main Title Banner Header */}
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-md">
-            Search classified and auctions
+            {content.homeHeroTitle || 'Search classified and auctions'}
           </h1>
 
           {/* Floating Dark Glassmorphism Filter Card */}
@@ -112,11 +135,11 @@ export default function Home() {
                   className="w-full p-3 bg-white text-slate-800 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0096C7] font-medium"
                 >
                   <option value="">Location</option>
-                  <option value="Thane">Thane</option>
-                  <option value="Mumbai">Mumbai</option>
-                  <option value="Pune">Pune</option>
-                  <option value="Gujarat">Gujarat</option>
-                  <option value="Maharashtra">Maharashtra</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.city}>
+                      {loc.city}{loc.state ? `, ${loc.state}` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -127,7 +150,7 @@ export default function Home() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Action Id/Title"
+                    placeholder={content.homeSearchPlaceholder || 'Enter Action Id or Title...'}
                     className="w-full p-3 bg-white text-slate-800 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0096C7] font-medium"
                   />
                 </div>
@@ -146,11 +169,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Feature Value Cards */}
+      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature1Title || 'Verified Corporate Sellers'}</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature1Desc || 'Strict KYC norms ensure reputable sellers and genuine buyers.'}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] flex items-center justify-center shrink-0">
+            <Gavel className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature2Title || 'Transparent Bidding'}</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature2Desc || 'Real-time forward auctions with binding financial offers.'}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Truck className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature3Title || 'Pan-India Logistics'}</h3>
+            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature3Desc || 'Seamless physical inspection and asset handover support in Mumbai.'}</p>
+          </div>
+        </div>
+      </section>
+
       {/* Upcoming Auction Section */}
       <section className="max-w-7xl mx-auto px-4 space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Upcoming Auction
+            {content.homeAuctionsHeading || 'Upcoming Forward Auctions'}
           </h2>
 
           <Link
@@ -176,24 +232,26 @@ export default function Home() {
         )}
       </section>
 
-      {/* Direct Scrap Machinery Classifieds */}
+      {/* Machinery Classifieds Section */}
       <section className="max-w-7xl mx-auto px-4 space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-xl font-bold text-slate-900">Direct Scrap Machinery Classifieds</h2>
-          <Link to="/classifieds" className="text-xs font-bold text-[#0096C7] hover:underline">
-            View All Classifieds &rarr;
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            {content.homeClassifiedsHeading || 'Machinery Classifieds'}
+          </h2>
+
+          <Link
+            to="/classifieds"
+            className="text-xs font-bold text-[#0096C7] hover:underline"
+          >
+            Explore All Classifieds &rarr;
           </Link>
         </div>
 
-        {loading ? (
-          <SkeletonLoader count={4} />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {classifieds.map((cl) => (
-              <ClassifiedCard key={cl.id} classified={cl} />
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {classifieds.map((cls) => (
+            <ClassifiedCard key={cls.id} classified={cls} />
+          ))}
+        </div>
       </section>
     </div>
   );

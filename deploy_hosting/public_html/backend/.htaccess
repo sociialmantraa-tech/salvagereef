@@ -1,0 +1,39 @@
+# ============================================================
+# SalvageReef — Backend .htaccess
+# Place in: public_html/salvagereef.com/backend/.htaccess
+# ============================================================
+
+# ── FORCE HTTPS ───────────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ── ROUTE ALL REQUESTS TO server.php ─────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /backend/
+
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ server.php [QSA,L]
+
+  RewriteRule ^api/ server.php [QSA,L]
+</IfModule>
+
+# ── BLOCK SENSITIVE FILES ─────────────────────────────────────────────────────
+<FilesMatch "\.(env|sqlite|log|json|lock|sh|sql|bak|md)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# ── DISABLE ERROR DISPLAY ─────────────────────────────────────────────────────
+<IfModule mod_php8.c>
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>
+<IfModule mod_php.c>
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>

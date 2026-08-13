@@ -1,21 +1,72 @@
 import { create } from 'zustand';
 
 export interface SiteContent {
-  // Home Page
+  // Global Site & Branding
+  siteBrandName: string;
+  siteTagline: string;
+  siteLogoUrl?: string;
+  footerLogoUrl?: string;
+
+  // Header & Nav Links
+  navHomeText: string;
+  navAuctionsText: string;
+  navClassifiedsText: string;
+  navAboutText: string;
+  navContactText: string;
+  navPostListingButton: string;
+  navSignInText: string;
+  navRegisterText: string;
+
+  // Footer & Value Pillars
+  footerDescription: string;
+  footerBadge1Title: string;
+  footerBadge1Desc: string;
+  footerBadge2Title: string;
+  footerBadge2Desc: string;
+  footerBadge3Title: string;
+  footerBadge3Desc: string;
+  footerCopyrightText: string;
+
+  // Home Page Content
+  homeHeroBadge: string;
   homeHeroTitle: string;
   homeHeroSubtitle: string;
+  heroBannerUrl?: string;
   homeSearchPlaceholder: string;
+  homeFeature1Title: string;
+  homeFeature1Desc: string;
+  homeFeature2Title: string;
+  homeFeature2Desc: string;
+  homeFeature3Title: string;
+  homeFeature3Desc: string;
+  homeHowItWorksTitle: string;
+  homeStep1Title: string;
+  homeStep1Desc: string;
+  homeStep2Title: string;
+  homeStep2Desc: string;
+  homeStep3Title: string;
+  homeStep3Desc: string;
   homeAuctionsHeading: string;
   homeClassifiedsHeading: string;
   homeFooterCallout: string;
 
+  // Auctions & Classifieds Pages
+  auctionsPageTitle: string;
+  auctionsPageSubtitle: string;
+  classifiedsPageTitle: string;
+  classifiedsPageSubtitle: string;
+
   // About Us Page
   aboutTitle: string;
   aboutSubtitle: string;
+  aboutWhoWeAreHeading: string;
   aboutParagraph1: string;
   aboutParagraph2: string;
   aboutKycText: string;
   aboutTeamText: string;
+  aboutVisionTitle: string;
+  aboutProcessTitle: string;
+  aboutProcessText: string;
 
   // Terms & Conditions
   termsTitle: string;
@@ -33,63 +84,197 @@ export interface SiteContent {
   copyrightText: string;
 
   // Contact & Corporate Info
+  contactTitle: string;
+  contactSubtitle: string;
   contactPhone: string;
   contactEmail: string;
   contactAddress: string;
+  contactHours: string;
   locationCity: string;
   locationState: string;
 }
 
-const DEFAULT_CONTENT: SiteContent = {
+export const DEFAULT_CONTENT: SiteContent = {
+  // Global Site & Branding
+  siteBrandName: 'SalvageReef',
+  siteTagline: 'AUCTIONS & CLASSIFIEDS',
+  siteLogoUrl: './logo.png',
+  footerLogoUrl: './logo.png',
+
+  // Header & Nav Links
+  navHomeText: 'Home',
+  navAuctionsText: 'Auction',
+  navClassifiedsText: 'Classifieds',
+  navAboutText: 'About Us',
+  navContactText: 'Contact Us',
+  navPostListingButton: 'Post Listing',
+  navSignInText: 'Sign In',
+  navRegisterText: 'Register Free',
+
+  // Footer & Value Pillars
+  footerDescription: 'SalvageReef is a premier salvage auction and scrap marketplace platform connecting verified scrap metal buyers, industrial sellers, and fleet disposers across India.',
+  footerBadge1Title: 'Sustainable Practices',
+  footerBadge1Desc: 'Responsible recycling & recovery',
+  footerBadge2Title: 'Trusted Service',
+  footerBadge2Desc: 'Verified buyers & transparent tender bidding',
+  footerBadge3Title: 'Better Planet Better Future',
+  footerBadge3Desc: 'Building a cleaner tomorrow',
+  footerCopyrightText: '© 2026 SalvageReef Auctions & Classifieds. All rights reserved.',
+
+  // Home Page Content
+  homeHeroBadge: 'Verified Industrial Marketplace',
   homeHeroTitle: 'Search classified and auctions',
-  homeHeroSubtitle: 'India\'s B2B marketplace for Forward Auctions, industrial scrap, and capital assets.',
-  homeSearchPlaceholder: 'Enter Action Id or Title...',
+  homeHeroSubtitle: 'Connect directly with verified corporate sellers, liquidators, and industrial buyers across India',
+  heroBannerUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80',
+  homeSearchPlaceholder: 'Search scrap category, location, or auction lot...',
+  homeFeature1Title: 'Verified Corporate Sellers',
+  homeFeature1Desc: 'Strict KYC norms ensure reputable sellers and genuine buyers.',
+  homeFeature2Title: 'Transparent Bidding',
+  homeFeature2Desc: 'Real-time forward auctions with binding financial offers.',
+  homeFeature3Title: 'Pan-India Logistics',
+  homeFeature3Desc: 'Seamless physical inspection and asset handover support in Mumbai.',
+  homeHowItWorksTitle: 'How SalvageReef Works',
+  homeStep1Title: '1. Register & KYC',
+  homeStep1Desc: 'Create your account and complete identity verification.',
+  homeStep2Title: '2. Inspect & Bid Live',
+  homeStep2Desc: 'Inspect salvage lots in Mumbai and place competitive bids.',
+  homeStep3Title: '3. Pay & Collect',
+  homeStep3Desc: 'Complete payment upon winning and arrange asset pickup.',
   homeAuctionsHeading: 'Upcoming Forward Auctions',
   homeClassifiedsHeading: 'Machinery Classifieds',
   homeFooterCallout: 'RECOVER. REUSE. RECYCLE.',
 
+  // Auctions & Classifieds Pages
+  auctionsPageTitle: 'Live B2B Forward Auctions',
+  auctionsPageSubtitle: 'Bid on industrial scrap, capital machinery, and salvage lots across India',
+  classifiedsPageTitle: 'Industrial Scrap & Heavy Machinery Classifieds',
+  classifiedsPageSubtitle: 'Direct buy & sell listings for second-hand tools, equipment, and scrap metals',
+
+  // About Us Page
   aboutTitle: 'About SalvageReef',
   aboutSubtitle: 'India\'s Transparent Forward Auction Marketplace for Salvage & Scrap Assets',
+  aboutWhoWeAreHeading: 'Transparent & Efficient Marketplace for Distressed & Idle Assets',
   aboutParagraph1: 'SalvageReef is an online marketplace that provides Forward Auctions for the transparent and efficient buying and selling of damaged, distressed, obsolete, old, rejected, abandoned, second-hand, or otherwise unwanted assets, capital equipment, cargo, and merchandise.',
   aboutParagraph2: 'With a strong focus on transparency at every stage of the online auction process, SalvageReef is committed to offering a superior pool of buyers. Our strict KYC (Know Your Customer) norms ensure that all participating parties are screened and verified through a proper identification process, ensuring that only reputable sellers and genuine buyers participate.',
   aboutKycText: 'Strict Know Your Customer (KYC) verification norms ensure that all participating sellers and buyers are fully verified.',
   aboutTeamText: 'The SalvageReef team comprises professionals with diverse backgrounds who share a common vision of creating a broader marketplace.',
+  aboutVisionTitle: 'Diverse & Experienced Team',
+  aboutProcessTitle: 'Professional & Standardized Process',
+  aboutProcessText: 'Through a professional, standardized, and fair auction process, we help businesses efficiently trade salvage and idle assets while benefiting both industry and the economy.',
 
+  // Terms & Conditions
   termsTitle: 'Terms and Conditions',
   termsIntro: 'These Terms & Conditions govern your access to and use of the SalvageReef platform.',
   termsClause1: '1. Registration & KYC Compliance: All buyers and agents must complete Know Your Customer (KYC) verification before placing bids or posting tenders.',
   termsClause2: '2. Forward Bidding Rules: Bids submitted during live auctions are binding financial offers.',
   termsClause3: '3. Asset Inspection: Physical inspection of salvage lots is hosted in Mumbai, Maharashtra prior to bidding close.',
 
+  // Privacy Policy
   privacyTitle: 'Privacy Policy',
   privacyText: 'SalvageReef respects your privacy and is committed to protecting your personal and corporate data.',
 
+  // Copyright Policy
   copyrightTitle: 'Copyright & Intellectual Property Policy',
   copyrightText: 'All content, branding, trademarks, logos, and software code on SalvageReef are protected by intellectual property laws.',
 
+  // Contact & Corporate Info
+  contactTitle: 'Contact SalvageReef Operations Desk',
+  contactSubtitle: 'Get in touch with our Mumbai team for tender inquiries, listing assistance, or KYC support',
   contactPhone: '+91 7304481166',
   contactEmail: 'salvagereef@gmail.com',
-  contactAddress: '101 Imperial Bldg, Bhayander West, Mumbai, Maharashtra 401101',
+  contactAddress: 'Mumbai, Maharashtra 401101',
+  contactHours: 'Mon - Sat: 9:30 AM - 7:00 PM IST',
   locationCity: 'Mumbai',
   locationState: 'Maharashtra',
 };
 
 interface ContentStore {
   content: SiteContent;
+  previousContentSnapshot: SiteContent | null;
   updateContent: (newContent: Partial<SiteContent>) => void;
   resetContent: () => void;
+  revertToPreviousSnapshot: () => boolean;
+  fetchContentFromApi: () => Promise<void>;
 }
 
+const getInitialContent = (): SiteContent => {
+  let stored: Partial<SiteContent> | null = null;
+  try {
+    stored = JSON.parse(localStorage.getItem('sr_site_content') || 'null');
+    if (stored && stored.contactAddress && (stored.contactAddress.includes('Imperial') || stored.contactAddress.includes('Bhayander'))) {
+      stored.contactAddress = 'Mumbai, Maharashtra 401101';
+      localStorage.setItem('sr_site_content', JSON.stringify({ ...DEFAULT_CONTENT, ...stored }));
+    }
+  } catch (e) {
+    stored = null;
+  }
+  const merged = { ...DEFAULT_CONTENT, ...(stored || {}) };
+  if (!merged.contactAddress || merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
+    merged.contactAddress = 'Mumbai, Maharashtra 401101';
+  }
+  return merged;
+};
+
 export const useContentStore = create<ContentStore>((set) => ({
-  content: JSON.parse(localStorage.getItem('sr_site_content') || 'null') || DEFAULT_CONTENT,
+  content: getInitialContent(),
+  previousContentSnapshot: null,
   updateContent: (newContent) =>
     set((state) => {
       const updated = { ...state.content, ...newContent };
       localStorage.setItem('sr_site_content', JSON.stringify(updated));
-      return { content: updated };
+      return { 
+        previousContentSnapshot: state.content,
+        content: updated 
+      };
     }),
   resetContent: () => {
     localStorage.setItem('sr_site_content', JSON.stringify(DEFAULT_CONTENT));
-    set({ content: DEFAULT_CONTENT });
+    set((state) => ({ previousContentSnapshot: state.content, content: DEFAULT_CONTENT }));
+  },
+  revertToPreviousSnapshot: () => {
+    let success = false;
+    set((state) => {
+      if (state.previousContentSnapshot) {
+        localStorage.setItem('sr_site_content', JSON.stringify(state.previousContentSnapshot));
+        success = true;
+        return {
+          content: state.previousContentSnapshot,
+          previousContentSnapshot: null,
+        };
+      }
+      return state;
+    });
+    return success;
+  },
+  fetchContentFromApi: async () => {
+    try {
+      const apiModule = await import('../services/api');
+      const res = await apiModule.default.get('/system/settings');
+      if (res.data?.settings && typeof res.data.settings === 'object') {
+        const settings = res.data.settings;
+        if (settings.contactAddress && (settings.contactAddress.includes('Imperial') || settings.contactAddress.includes('Bhayander'))) {
+          settings.contactAddress = 'Mumbai, Maharashtra 401101';
+        }
+        set((state) => {
+          const merged = { ...state.content, ...settings };
+          if (merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
+            merged.contactAddress = 'Mumbai, Maharashtra 401101';
+          }
+          localStorage.setItem('sr_site_content', JSON.stringify(merged));
+          return { content: merged };
+        });
+      } else {
+        set((state) => {
+          if (state.content.contactAddress.includes('Imperial') || state.content.contactAddress.includes('Bhayander')) {
+            const cleaned = { ...state.content, contactAddress: 'Mumbai, Maharashtra 401101' };
+            localStorage.setItem('sr_site_content', JSON.stringify(cleaned));
+            return { content: cleaned };
+          }
+          return state;
+        });
+      }
+    } catch (err) {
+      // Fall back silently to cached/default content
+    }
   },
 }));

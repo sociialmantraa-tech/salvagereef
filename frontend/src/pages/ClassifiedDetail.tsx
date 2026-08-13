@@ -3,17 +3,27 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Phone, Mail, User, ShieldCheck, ChevronRight } from 'lucide-react';
 import { Classified } from '../types';
+import { INITIAL_CLASSIFIEDS } from '../services/mockService';
+
+import SEOHead from '../components/SEOHead';
 
 export default function ClassifiedDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const [classified, setClassified] = useState<Classified | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+
+  const initialMatch = INITIAL_CLASSIFIEDS.find((c) => c.slug === slug || c.id.toString() === slug) || INITIAL_CLASSIFIEDS[0];
+  const [classified, setClassified] = useState<Classified | null>(initialMatch);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
+      if (!classified) {
+        setLoading(true);
+      }
       try {
         const res = await api.get(`/classifieds/${slug}`);
-        setClassified(res.data);
+        if (res.data) {
+          setClassified(res.data);
+        }
       } catch (err) {
         console.error('Error fetching classified:', err);
       } finally {
@@ -47,6 +57,26 @@ export default function ClassifiedDetail() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <SEOHead
+        title={`${classified.title} (₹${Number(classified.price).toLocaleString('en-IN')})`}
+        description={`Direct scrap classified listing #${classified.id}: ${classified.title} located in ${classified.location_city}, ${classified.location_state}. Price: ₹${Number(classified.price).toLocaleString('en-IN')}.`}
+        keywords={`${classified.title}, ${classified.location_city} scrap sale, ${classified.category?.name || 'classified'}, buy industrial scrap`}
+        ogImage={primaryImg}
+        ogType="product"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: classified.title,
+          description: classified.description,
+          image: primaryImg,
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'INR',
+            price: classified.price,
+            availability: 'https://schema.org/InStock'
+          }
+        }}
+      />
       <nav className="flex items-center gap-2 text-xs text-slate-500">
         <Link to="/" className="hover:text-[#D48B1C]">Home</Link>
         <ChevronRight className="w-3.5 h-3.5" />

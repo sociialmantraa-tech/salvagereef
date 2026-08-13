@@ -1,0 +1,28 @@
+# SalvageReef Uploads Folder Security
+# Prevents directory listing, PHP execution, and script injection
+
+# Disable directory browsing
+Options -Indexes
+
+# Disable script execution in this folder
+Options -ExecCGI
+RemoveHandler .php .php3 .php4 .php5 .phtml .pl .py .cgi .sh .asp .aspx .rb
+RemoveType .php .php3 .php4 .php5 .phtml .pl .py .cgi .sh .asp .aspx .rb
+
+# Block all PHP and script files from being served
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|js|cgi|sh|asp|aspx|rb|htaccess|htpasswd|xml|json)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Allow only safe image and document types
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|pdf)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Force browser to download instead of executing SVG (XSS prevention)
+<FilesMatch "\.svg$">
+    Header set Content-Type "image/svg+xml"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>

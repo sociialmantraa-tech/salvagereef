@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Auction } from '../types';
+import { Calendar, Clock } from 'lucide-react';
 
 interface AuctionCardProps {
   auction: Auction;
@@ -67,7 +68,17 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     return () => clearInterval(interval);
   }, [auction?.end_time]);
 
-  const lotCode = isGroup ? `STD-GR-${auction.id}` : isPrivate ? `STD-PR-${auction.id}` : `STD-PU-${auction.id}`;
+  // Extract or format Lot Code & Main Title
+  let displayCode = isGroup ? `GR-${auction.id}` : isPrivate ? `PR-${auction.id}` : `PL-${auction.id}`;
+  let displayTitle = auction.title;
+
+  if (auction.title && auction.title.includes('|')) {
+    const parts = auction.title.split('|');
+    if (parts[0] && parts[0].trim().length <= 15) {
+      displayCode = parts[0].trim();
+      displayTitle = parts.slice(1).join('|').trim();
+    }
+  }
 
   return (
     <div className="bg-[#f0f7ff]/90 rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-3">
@@ -77,7 +88,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
         <div className="w-36 sm:w-40 h-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
           <img
             src={imgSrc}
-            alt={auction.title}
+            alt={displayTitle}
             onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
             className="w-full h-full object-cover"
           />
@@ -95,12 +106,16 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-slate-600 font-semibold">Start Time</span>
+            <span className="text-slate-600 font-semibold flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-[#D48B1C] shrink-0" /> Start Time
+            </span>
             <span className="font-bold text-slate-900">{formatDateTime(auction.start_time)}</span>
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-slate-600 font-semibold">End Time</span>
+            <span className="text-slate-600 font-semibold flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> End Time
+            </span>
             <span className="font-bold text-slate-900">{formatDateTime(auction.end_time)}</span>
           </div>
 
@@ -115,13 +130,20 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
         </div>
       </div>
 
-      {/* Title Below Image & Specs */}
-      <div>
+      {/* Title & Lot Code Section - Lot Code smaller with distinct color */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="bg-[#0077B6]/15 text-[#0077B6] border border-[#0077B6]/30 font-mono text-[11px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider shadow-2xs shrink-0">
+            {displayCode}
+          </span>
+          <span className="text-slate-300 font-normal text-xs">|</span>
+        </div>
         <Link
           to={`/auctions/${auction.slug}`}
           className="font-extrabold text-slate-900 hover:text-[#0096C7] text-xs sm:text-sm leading-snug line-clamp-1 block transition-colors tracking-tight"
+          title={displayTitle}
         >
-          {lotCode} | {auction.title}
+          {displayTitle}
         </Link>
       </div>
 

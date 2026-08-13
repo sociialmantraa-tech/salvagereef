@@ -3,19 +3,25 @@ import api from '../services/api';
 import ClassifiedCard from '../components/ClassifiedCard';
 import SkeletonLoader from '../components/SkeletonLoader';
 import { Tag, Search, Filter } from 'lucide-react';
-import { Classified, Category } from '../types';
+import { Classified } from '../types';
+import { INITIAL_CLASSIFIEDS } from '../services/mockService';
+import { useCategoryLocationStore } from '../store/useCategoryLocationStore';
+
+import SEOHead from '../components/SEOHead';
 
 export default function Classifieds() {
-  const [classifieds, setClassifieds] = useState<Classified[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { categories, locations, setCategories } = useCategoryLocationStore();
+  const [classifieds, setClassifieds] = useState<Classified[]>(INITIAL_CLASSIFIEDS);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [search, setSearch] = useState<string>('');
 
   const fetchClassifieds = async () => {
-    setLoading(true);
+    if (classifieds.length === 0) {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       if (category) params.append('category_id', category);
@@ -27,8 +33,12 @@ export default function Classifieds() {
         api.get('/categories'),
       ]);
 
-      setClassifieds(res.data.data || []);
-      setCategories(catRes.data || []);
+      if (res.data?.data && res.data.data.length > 0) {
+        setClassifieds(res.data.data);
+      }
+      if (catRes.data && catRes.data.length > 0) {
+        setCategories(catRes.data);
+      }
     } catch (err) {
       console.error('Error fetching classifieds:', err);
     } finally {
@@ -47,6 +57,11 @@ export default function Classifieds() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <SEOHead
+        title="Industrial Equipment & Scrap Metal Classifieds"
+        description="Direct buy & sell listings for second-hand tools, scrap machinery, electrical motors, and industrial plant surplus in India."
+        keywords="scrap machinery classifieds, buy scrap lathe machine, industrial equipment sale Mumbai, brass shell scrap marketplace"
+      />
       {/* Page Header */}
       <div className="bg-[#0B192C] text-white p-8 rounded-3xl border-b-4 border-[#D48B1C] shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -104,13 +119,18 @@ export default function Classifieds() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-            <input
-              type="text"
+            <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Bhayander, Mumbai..."
-              className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-            />
+              className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-semibold"
+            >
+              <option value="">All Locations</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.city}>
+                  {loc.city}{loc.state ? `, ${loc.state}` : ''}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

@@ -32,3 +32,39 @@
 .animate-bid-pulse {
   animation: bidPulse 1.2s ease-out;
 }
+
+/* WebKit Calendar & Clock Picker Indicator - Crystal Clear Hover */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: 8px;
+  background-color: #FEF3C7;
+  border: 1.5px solid #FCD34D;
+  transition: all 0.2s ease-in-out;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  background-color: #FDE68A;
+  border-color: #D48B1C;
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(212, 139, 28, 0.3);
+}
+
+/* Emerald variant for End Time inputs */
+.datetime-emerald::-webkit-calendar-picker-indicator {
+  background-color: #D1FAE5;
+  border-color: #6EE7B7;
+}
+
+.datetime-emerald::-webkit-calendar-picker-indicator:hover {
+  background-color: #A7F3D0;
+  border-color: #10B981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}

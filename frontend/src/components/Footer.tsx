@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, ShieldCheck, Leaf, Handshake, Globe } from 'lucide-react';
+import { useContentStore } from '../store/useContentStore';
 import Logo from './Logo';
 
 export default function Footer() {
+  const { content } = useContentStore();
+
   return (
     <footer className="bg-[#0B192C] text-slate-300 border-t-4 border-[#D48B1C]">
       {/* Brand Value Pillars Ribbon */}
@@ -14,8 +17,8 @@ export default function Footer() {
               <Leaf className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-white text-xs font-bold uppercase tracking-wide">Sustainable Practices</h4>
-              <p className="text-[11px] text-slate-400">Responsible recycling & recovery</p>
+              <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge1Title || 'Sustainable Practices'}</h4>
+              <p className="text-[11px] text-slate-400">{content.footerBadge1Desc || 'Responsible recycling & recovery'}</p>
             </div>
           </div>
 
@@ -24,8 +27,8 @@ export default function Footer() {
               <Handshake className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-white text-xs font-bold uppercase tracking-wide">Trusted Service</h4>
-              <p className="text-[11px] text-slate-400">Verified buyers & transparent tender bidding</p>
+              <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge2Title || 'Trusted Service'}</h4>
+              <p className="text-[11px] text-slate-400">{content.footerBadge2Desc || 'Verified buyers & transparent tender bidding'}</p>
             </div>
           </div>
 
@@ -34,8 +37,8 @@ export default function Footer() {
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-white text-xs font-bold uppercase tracking-wide">Better Planet Better Future</h4>
-              <p className="text-[11px] text-slate-400">Building a cleaner tomorrow</p>
+              <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge3Title || 'Better Planet Better Future'}</h4>
+              <p className="text-[11px] text-slate-400">{content.footerBadge3Desc || 'Building a cleaner tomorrow'}</p>
             </div>
           </div>
         </div>
@@ -46,16 +49,16 @@ export default function Footer() {
         {/* Col 1: Brand Logo & Description */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Logo className="w-12 h-12" variant="light" showText={true} />
+            <Logo className="w-12 h-12" variant="light" showText={true} isFooter={true} />
           </div>
 
           <p className="text-slate-300 text-xs leading-relaxed">
-            SalvageReef is a premier salvage auction and scrap marketplace platform connecting verified scrap metal buyers, industrial sellers, and fleet disposers across India. Incorporated in 2026.
+            {content.footerDescription || 'SalvageReef is a premier salvage auction and scrap marketplace platform connecting verified scrap metal buyers, industrial sellers, and fleet disposers across India.'}
           </p>
 
           <div className="pt-1">
             <span className="inline-block text-[#D48B1C] text-[10px] font-bold uppercase tracking-widest bg-[#D48B1C]/10 border border-[#D48B1C]/30 px-3 py-1 rounded-lg">
-              RECOVER. REUSE. RECYCLE.
+              {content.homeFooterCallout || 'RECOVER. REUSE. RECYCLE.'}
             </span>
           </div>
         </div>
@@ -66,24 +69,21 @@ export default function Footer() {
             <ShieldCheck className="w-4 h-4 text-[#D48B1C]" /> Contact Details
           </h3>
           <ul className="space-y-3 text-xs text-slate-300">
-            <li className="font-semibold text-white">
-              Neelkanth Sharma <span className="text-[#D48B1C] font-normal text-[10px] uppercase block">Founder</span>
-            </li>
             <li className="flex items-start gap-2.5">
               <Phone className="w-4 h-4 text-[#D48B1C] shrink-0 mt-0.5" />
-              <a href="tel:7304481166" className="hover:text-[#D48B1C] transition-colors font-semibold">
-                +91 7304481166
+              <a href={`tel:${content.contactPhone}`} className="hover:text-[#D48B1C] transition-colors font-semibold">
+                {content.contactPhone || '+91 7304481166'}
               </a>
             </li>
             <li className="flex items-start gap-2.5">
               <Mail className="w-4 h-4 text-[#D48B1C] shrink-0 mt-0.5" />
-              <a href="mailto:salvagereef@gmail.com" className="hover:text-[#D48B1C] transition-colors">
-                salvagereef@gmail.com
+              <a href={`mailto:${content.contactEmail}`} className="hover:text-[#D48B1C] transition-colors">
+                {content.contactEmail || 'salvagereef@gmail.com'}
               </a>
             </li>
             <li className="flex items-start gap-2.5">
               <MapPin className="w-4 h-4 text-[#D48B1C] shrink-0 mt-0.5" />
-              <span>101 Imperial Bldg, Bhayander West, Thane 401101, Maharashtra</span>
+              <span>{content.contactAddress || 'Mumbai, Maharashtra 401101'}</span>
             </li>
           </ul>
         </div>
@@ -119,7 +119,7 @@ export default function Footer() {
       {/* Bottom Copyright Bar */}
       <div className="bg-[#081220] py-4 border-t border-slate-800 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <span>&copy; {new Date().getFullYear()} SalvageReef. All rights reserved.</span>
+          <span>{content.footerCopyrightText || '© 2026 SalvageReef Auctions & Classifieds. All rights reserved.'}</span>
           <div className="flex items-center gap-4 text-[11px]">
             <Link to="/terms" className="hover:text-[#D48B1C]">Terms</Link>
             <span>&bull;</span>

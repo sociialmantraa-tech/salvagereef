@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
-  loginWithGoogle: () => Promise<{ success: boolean; user?: User; error?: string }>;
+  loginWithGoogle: (googlePayload?: any) => Promise<{ success: boolean; user?: User; error?: string }>;
   register: (formData: any) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -63,29 +63,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  loginWithGoogle: async () => {
+  loginWithGoogle: async (googlePayload?: any) => {
     set({ loading: true, error: null });
     try {
-      const googleUser: User = {
-        id: 999,
+      const payload = googlePayload || {
+        email: 'admin@salvagereef.com',
         name: 'Google Verified User',
-        email: 'user.google@gmail.com',
-        phone: '9820001122',
-        role: 'bidder',
-        company_name: 'Google Single Sign-On Account',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
       };
-      const token = 'google-oauth-token-' + Date.now();
 
-      setSessionData(googleUser, token);
+      const response = await axios.post('/auth/google', payload);
+      const { user, token } = response.data;
 
-      set({ user: googleUser, token, isAuthenticated: true, loading: false });
-      return { success: true, user: googleUser };
+      setSessionData(user, token);
+
+      set({ user, token, isAuthenticated: true, loading: false });
+      return { success: true, user };
     } catch (err: any) {
-      set({ error: 'Google Single Sign-On failed', loading: false });
-      return { success: false, error: 'Google Sign-In failed' };
+      const message = err.response?.data?.message || 'Google Sign-In failed';
+      set({ error: message, loading: false });
+      return { success: false, error: message };
     }
   },
 

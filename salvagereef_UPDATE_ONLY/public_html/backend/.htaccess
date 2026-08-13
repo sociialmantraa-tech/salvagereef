@@ -1,0 +1,53 @@
+# ============================================================
+# SalvageReef — Backend /backend/.htaccess
+# Protects the backend folder & routes all API requests
+# to server.php
+# ============================================================
+
+# ── FORCE HTTPS (SSL) ────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /backend/
+
+
+  # Route all API requests to server.php
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ server.php [QSA,L]
+
+  # Also catch /backend/api/v1/* paths
+  RewriteRule ^api/ server.php [QSA,L]
+</IfModule>
+
+# ── Block direct PHP file access (except server.php & index.php) ────────────
+<FilesMatch "^(?!server|index).*\.php$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# ── Block sensitive files from being served directly ─────────────────────────
+<FilesMatch "\.(env|sqlite|log|json|lock|phar|sh|sql|bak|md)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# ── Block directory listing ──────────────────────────────────────────────────
+Options -Indexes
+
+# ── Disable PHP error display (log silently instead) ─────────────────────────
+<IfModule mod_php.c>
+  php_flag  display_errors     Off
+  php_flag  log_errors         On
+  php_value error_log          storage/logs/errors/error.log
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag  display_errors     Off
+  php_flag  log_errors         On
+  php_value error_log          storage/logs/errors/error.log
+</IfModule>

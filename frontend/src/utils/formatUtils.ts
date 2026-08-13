@@ -1,7 +1,7 @@
 /**
  * Formats user/bidder names according to SalvageReef privacy rules:
- * - Admin users see the FULL UNMASKED name (e.g. "Neelkanth Sharma")
- * - Regular users see only the first 2 letters and last 2 letters with "*****" in between (e.g. "Ne*****ma")
+ * - Admin users see the FULL UNMASKED name (e.g. "Rajesh Kumar")
+ * - Regular users see only the first 2 letters and last 2 letters with "*****" in between (e.g. "Ra*****ar")
  */
 export function formatBidderName(name: string | null | undefined, isAdmin: boolean = false): string {
   if (!name) return 'Verified Bidder';

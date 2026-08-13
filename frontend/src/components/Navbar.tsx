@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { useContentStore } from '../store/useContentStore';
 import { LogOut, LayoutDashboard, Menu, X, PlusCircle, AlertCircle } from 'lucide-react';
 import Logo from './Logo';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { content } = useContentStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -36,7 +38,7 @@ export default function Navbar() {
                 isActive('/') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
-              Home
+              {content.navHomeText || 'Home'}
             </Link>
             <Link
               to="/auctions"
@@ -44,7 +46,7 @@ export default function Navbar() {
                 isActive('/auctions') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
-              Auction
+              {content.navAuctionsText || 'Auction'}
             </Link>
             <Link
               to="/classifieds"
@@ -52,7 +54,7 @@ export default function Navbar() {
                 isActive('/classifieds') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
-              Classifieds
+              {content.navClassifiedsText || 'Classifieds'}
             </Link>
             <Link
               to="/about"
@@ -60,7 +62,7 @@ export default function Navbar() {
                 isActive('/about') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
-              About Us
+              {content.navAboutText || 'About Us'}
             </Link>
             <Link
               to="/contact"
@@ -68,7 +70,7 @@ export default function Navbar() {
                 isActive('/contact') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
-              Contact Us
+              {content.navContactText || 'Contact Us'}
             </Link>
 
             {isAuthenticated && (user?.role === 'admin' || user?.role === 'agent') && (
@@ -76,7 +78,7 @@ export default function Navbar() {
                 to="/classifieds/post-listing"
                 className="flex items-center gap-1 text-xs font-bold text-[#D48B1C] bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-[#D48B1C] hover:text-white transition-all"
               >
-                <PlusCircle className="w-3.5 h-3.5" /> Post Listing
+                <PlusCircle className="w-3.5 h-3.5" /> {(content.navPostListingButton || 'Post Listing').replace(/^\+\s*/, '')}
               </Link>
             )}
           </nav>
@@ -108,13 +110,13 @@ export default function Navbar() {
                   to="/login"
                   className="px-4 py-2 rounded-xl border border-slate-300 hover:border-[#1D70B8] text-slate-800 hover:text-[#1D70B8] transition-all flex items-center gap-1.5 shadow-sm bg-slate-50/50"
                 >
-                  Sign In
+                  {content.navSignInText || 'Sign In'}
                 </Link>
                 <Link
                   to="/register"
                   className="px-4 py-2 rounded-xl bg-[#D48B1C] hover:bg-[#b87614] text-white transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg uppercase tracking-wider text-[11px]"
                 >
-                  Register Free
+                  {content.navRegisterText || 'Register Free'}
                 </Link>
               </div>
             )}
@@ -140,35 +142,35 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block text-slate-700 py-2 border-b border-slate-100"
           >
-            Home
+            {content.navHomeText || 'Home'}
           </Link>
           <Link
             to="/auctions"
             onClick={() => setMobileMenuOpen(false)}
             className="block text-slate-700 py-2 border-b border-slate-100"
           >
-            Auction
+            {content.navAuctionsText || 'Auction'}
           </Link>
           <Link
             to="/classifieds"
             onClick={() => setMobileMenuOpen(false)}
             className="block text-slate-700 py-2 border-b border-slate-100"
           >
-            Classifieds
+            {content.navClassifiedsText || 'Classifieds'}
           </Link>
           <Link
             to="/about"
             onClick={() => setMobileMenuOpen(false)}
             className="block text-slate-700 py-2 border-b border-slate-100"
           >
-            About Us
+            {content.navAboutText || 'About Us'}
           </Link>
           <Link
             to="/contact"
             onClick={() => setMobileMenuOpen(false)}
             className="block text-slate-700 py-2 border-b border-slate-100 text-[#1D70B8]"
           >
-            Contact Us
+            {content.navContactText || 'Contact Us'}
           </Link>
           {isAuthenticated ? (
             <>
@@ -196,14 +198,14 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-[#1D70B8] font-bold"
               >
-                Login
+                {content.navSignInText || 'Login'}
               </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-[#1D70B8] font-bold"
               >
-                Register
+                {content.navRegisterText || 'Register'}
               </Link>
             </div>
           )}

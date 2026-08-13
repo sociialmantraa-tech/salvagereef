@@ -3,11 +3,12 @@ export interface User {
   name: string;
   email: string;
   phone?: string | null;
-  role: 'admin' | 'agent' | 'bidder';
+  role?: 'admin' | 'agent' | 'bidder';
   company_name?: string | null;
   city?: string | null;
   state?: string | null;
   is_verified?: boolean;
+  is_active?: boolean;
 }
 
 export interface Category {

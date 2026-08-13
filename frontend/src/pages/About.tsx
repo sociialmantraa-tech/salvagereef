@@ -18,6 +18,8 @@ import {
   MapPin
 } from 'lucide-react';
 
+import SEOHead from '../components/SEOHead';
+
 export default function About() {
   const { content } = useContentStore();
 
@@ -32,6 +34,11 @@ export default function About() {
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen pb-20">
+      <SEOHead
+        title="About Us — SalvageReef Operations Desk"
+        description="Learn about SalvageReef, India's leading digital salvage auction & industrial asset liquidation platform based in Mumbai."
+        keywords="about SalvageReef, salvage auction company India, scrap marketplace Mumbai"
+      />
       
       {/* HIGH-CONTRAST VISIBLE LEGAL SUBNAV BAR */}
       <LegalHeaderNav />

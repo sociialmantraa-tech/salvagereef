@@ -14,6 +14,8 @@ import {
   HelpCircle
 } from 'lucide-react';
 
+import SEOHead from '../components/SEOHead';
+
 export default function TermsAndConditions() {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -222,6 +224,11 @@ export default function TermsAndConditions() {
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen pb-24">
+      <SEOHead
+        title="Terms & Conditions — SalvageReef B2B Marketplace Rules"
+        description="Official terms of use, bidding rules, EMD deposits, and corporate auction buyer agreements for SalvageReef."
+        keywords="salvage auction terms, scrap bidding rules, EMD deposit policy, tender terms India"
+      />
       <LegalHeaderNav />
 
       {/* Top Banner Header */}

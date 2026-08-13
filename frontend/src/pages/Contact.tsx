@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useContentStore } from '../store/useContentStore';
 import { Phone, Mail, MapPin, Send, CheckCircle2, MessageSquare, Clock, ShieldCheck, Building2, HelpCircle } from 'lucide-react';
 
+import SEOHead from '../components/SEOHead';
+
 export default function Contact() {
   const { content } = useContentStore();
   const [formData, setFormData] = useState({
@@ -26,6 +28,11 @@ export default function Contact() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 space-y-10">
+      <SEOHead
+        title="Contact Us — SalvageReef Mumbai Operations Desk"
+        description="Contact SalvageReef Operations Desk for auction registration, tender verification, lot inspection, or scrap listing inquiries."
+        keywords="contact SalvageReef, salvage auction phone number, Mumbai scrap desk, salvagereef@gmail.com"
+      />
       
       {/* HEADER BANNER */}
       <div className="bg-[#0B192C] text-white p-8 rounded-3xl border-b-4 border-[#D48B1C] shadow-xl text-center space-y-3">

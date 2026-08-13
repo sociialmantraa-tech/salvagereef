@@ -145,6 +145,9 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     try {
       const res = await api.post(`/auctions/${auction.id}/bid`, { amount: numAmount });
       setSuccessMsg(res.data.message || 'Bid placed successfully!');
+      if (res.data.new_end_time) {
+        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
+      }
       setCurrentHighest(numAmount);
       setBidAmount(numAmount + 1000);
       if (onBidSuccess) onBidSuccess(res.data);
@@ -160,6 +163,15 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
   const isUpcoming = auction?.status === 'upcoming';
   const isLive = auction?.status === 'live' && !isClosed;
   const isOwner = user?.id === auction?.created_by;
+
+  // WhatsApp Alert helper for ended auction
+  const getWhatsAppAlertUrl = () => {
+    const highestBidderName = bids[0]?.user?.name || bids[0]?.bidder_name || 'Highest Bidder';
+    const text = encodeURIComponent(
+      `SalvageReef Update: Bidding has ENDED for Auction Lot #${auction.id} (${auction.title}). Final Winning Bid: ₹${Number(currentHighest).toLocaleString('en-IN')}. Highest Bidder: ${highestBidderName}.`
+    );
+    return `https://wa.me/917304481166?text=${text}`;
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-6">
@@ -225,12 +237,20 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
       {/* Bid Placement Form */}
       {isClosed ? (
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center space-y-2">
+        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl text-center space-y-3">
           <Trophy className="w-8 h-8 text-[#D48B1C] mx-auto" />
-          <h4 className="font-bold text-slate-800 text-sm">Auction Has Ended</h4>
-          <p className="text-xs text-slate-500">
-            Bidding is now locked for this lot.
+          <h4 className="font-bold text-slate-800 text-sm">Bidding Ended - Pending Confirmation</h4>
+          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+            Bidding for this lot is now closed. The highest bid is under final admin desk review.
           </p>
+          <a
+            href={getWhatsAppAlertUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition-all"
+          >
+            Send WhatsApp Bidding End Alert
+          </a>
         </div>
       ) : isUpcoming ? (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-center space-y-1">

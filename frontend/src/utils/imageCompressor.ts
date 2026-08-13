@@ -23,13 +23,45 @@ export function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+/**
+ * Verifies true file type via Magic Bytes (Binary Header Analysis)
+ */
+function verifyMagicBytes(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = (e) => {
+      if (!e.target?.result) return resolve(false);
+      const arr = new Uint8Array(e.target.result as ArrayBuffer);
+      if (arr.length < 4) return resolve(false);
+
+      // JPEG: FF D8 FF
+      const isJpeg = arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF;
+
+      // PNG: 89 50 4E 47 0D 0A 1A 0A
+      const isPng = arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47;
+
+      // GIF: 47 49 46 (GIF87a / GIF89a)
+      const isGif = arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46;
+
+      // WEBP: RIFF .... WEBP
+      const isWebp =
+        arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+        arr.length >= 12 && arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50;
+
+      resolve(isJpeg || isPng || isGif || isWebp);
+    };
+    reader.onerror = () => resolve(false);
+    reader.readAsArrayBuffer(file.slice(0, 12));
+  });
+}
+
 export function compressAndSanitizeImage(
   file: File,
   maxWidth = 1200,
   maxHeight = 900,
   quality = 0.82
 ): Promise<CompressionResult> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // 1. Strict MIME Type Security Check
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type.toLowerCase())) {
@@ -41,6 +73,12 @@ export function compressAndSanitizeImage(
     const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     if (!allowedExtensions.includes(fileExt)) {
       return reject(new Error('Security Alert: Potentially dangerous file extension detected! Upload blocked.'));
+    }
+
+    // 3. Deep Binary Magic Byte Header Inspection (Prevents Polyglot Script / PHP Shell Injection)
+    const isAuthenticImage = await verifyMagicBytes(file);
+    if (!isAuthenticImage) {
+      return reject(new Error('Security Alert: Malicious file payload or spoofed image header detected! Upload blocked.'));
     }
 
     const originalSizeBytes = file.size;

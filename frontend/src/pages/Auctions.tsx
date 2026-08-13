@@ -3,13 +3,17 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import AuctionCard from '../components/AuctionCard';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { Auction, Category } from '../types';
+import { Auction } from '../types';
+import { INITIAL_AUCTIONS } from '../services/mockService';
+import { useCategoryLocationStore } from '../store/useCategoryLocationStore';
+
+import SEOHead from '../components/SEOHead';
 
 export default function Auctions() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { categories, locations, setCategories } = useCategoryLocationStore();
+  const [auctions, setAuctions] = useState<Auction[]>(INITIAL_AUCTIONS);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const [category, setCategory] = useState<string>(searchParams.get('category_id') || '');
   const [auctionType, setAuctionType] = useState<string>(searchParams.get('auction_type') || '');
@@ -18,7 +22,9 @@ export default function Auctions() {
   const [search, setSearch] = useState<string>(searchParams.get('search') || '');
 
   const fetchAuctions = async () => {
-    setLoading(true);
+    if (auctions.length === 0) {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       if (category) params.append('category_id', category);
@@ -32,8 +38,12 @@ export default function Auctions() {
         api.get('/categories'),
       ]);
 
-      setAuctions(res.data.data || []);
-      setCategories(catRes.data || []);
+      if (res.data?.data && res.data.data.length > 0) {
+        setAuctions(res.data.data);
+      }
+      if (catRes.data && catRes.data.length > 0) {
+        setCategories(catRes.data);
+      }
     } catch (err) {
       console.error('Error fetching auctions:', err);
     } finally {
@@ -61,6 +71,11 @@ export default function Auctions() {
 
   return (
     <div className="bg-[#f2f0e8] min-h-screen py-8 space-y-6">
+      <SEOHead
+        title="Public Scrap Auctions & Private Corporate Tenders"
+        description="Browse and bid on real-time B2B salvage auctions, copper cable scrap, HMS steel, and heavy plant equipment across India."
+        keywords="salvage auctions India, scrap bidding, public scrap tenders, private corporate tenders, copper scrap auctions Mumbai"
+      />
       <div className="max-w-7xl mx-auto px-4 space-y-6">
         {/* Top Search Form Box (Matching SalvorSettlers) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-4">
@@ -68,7 +83,7 @@ export default function Auctions() {
             onSubmit={handleSearchSubmit}
             className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs sm:text-sm font-semibold"
           >
-            <div className="sm:col-span-5">
+            <div className="sm:col-span-4">
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -83,7 +98,22 @@ export default function Auctions() {
               </select>
             </div>
 
-            <div className="sm:col-span-5">
+            <div className="sm:col-span-3">
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full p-3 bg-white border border-slate-300 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D70B8]"
+              >
+                <option value="">All Locations</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.city}>
+                    {loc.city}{loc.state ? `, ${loc.state}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sm:col-span-3">
               <input
                 type="text"
                 value={search}

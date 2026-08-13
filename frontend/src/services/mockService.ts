@@ -23,7 +23,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 2,
-    name: 'Neelkanth Sharma',
+    name: 'Rajesh Kumar',
     email: 'bidder@salvagereef.com',
     phone: '9820123456',
     role: 'bidder',
@@ -72,7 +72,7 @@ export const INITIAL_AUCTIONS: Auction[] = [
     ],
     primary_image: { id: 1, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
     bids: [
-      { id: 501, amount: 4150000, bidder_name: 'Metals & Alloys Co', user: { name: 'Neelkanth Sharma' }, created_at: new Date(Date.now() - 3600000).toISOString() },
+      { id: 501, amount: 4150000, bidder_name: 'Metals & Alloys Co', user: { name: 'Rajesh Kumar' }, created_at: new Date(Date.now() - 3600000).toISOString() },
       { id: 502, amount: 3900000, bidder_name: 'Bharat Scrap Traders', user: { name: 'Bharat Traders' }, created_at: new Date(Date.now() - 7200000).toISOString() },
       { id: 503, amount: 3650000, bidder_name: 'Western Metal Corp', user: { name: 'Western Metal' }, created_at: new Date(Date.now() - 14400000).toISOString() },
     ],
@@ -161,7 +161,7 @@ export const INITIAL_AUCTIONS: Auction[] = [
       { id: 202, title: 'Industrial Boiler Vessel 10 Ton Steam Capacity', slug: 'industrial-boiler-vessel-10-ton-steam-capacity', starting_price: 1000000, quantity: 1, unit: 'nos', location_city: 'Gujarat', location_state: 'Gujarat', category_id: 5, auction_type: 'public', status: 'live', description: 'High pressure steam boiler vessel', created_by: 1 },
     ],
     bids: [
-      { id: 506, amount: 1750000, bidder_name: 'Metals & Alloys Co', user: { name: 'Neelkanth Sharma' }, created_at: new Date(Date.now() - 4000000).toISOString() },
+      { id: 506, amount: 1750000, bidder_name: 'Metals & Alloys Co', user: { name: 'Rajesh Kumar' }, created_at: new Date(Date.now() - 4000000).toISOString() },
     ],
   },
   {
@@ -227,7 +227,7 @@ export const INITIAL_CLASSIFIEDS: Classified[] = [
     status: 'available',
     created_by: 2,
     category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
-    creator: { id: 2, name: 'Neelkanth Sharma', email: 'bidder@salvagereef.com', phone: '9820123456', company_name: 'Metals & Alloys Co' },
+    creator: { id: 2, name: 'Rajesh Kumar', email: 'bidder@salvagereef.com', phone: '9820123456', company_name: 'Metals & Alloys Co' },
     images: [
       { id: 302, image_path: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80', is_primary: true },
     ],
@@ -282,7 +282,7 @@ export const INITIAL_INTERESTS = [
     user_id: 2,
     message: 'Requesting permission to bid on 120 MT HMS plant scrap. Valid GST and PCB recycling license available.',
     status: 'pending',
-    user: { id: 2, name: 'Neelkanth Sharma', email: 'bidder@salvagereef.com', company_name: 'Metals & Alloys Co' },
+    user: { id: 2, name: 'Rajesh Kumar', email: 'bidder@salvagereef.com', company_name: 'Metals & Alloys Co' },
   },
 ];
 
@@ -730,6 +730,29 @@ export function handleMockApi(config: any): any {
     return newAuction;
   }
 
+  // 10i2. POST /admin/auctions (update auction or list)
+  if (url.includes('/admin/auctions') && method === 'post') {
+    const auctions = getMockAuctions();
+    if (bodyData && bodyData.id) {
+      const idx = auctions.findIndex((a) => a.id === bodyData.id);
+      if (idx >= 0) {
+        auctions[idx] = {
+          ...auctions[idx],
+          ...bodyData,
+          images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : auctions[idx].images,
+          primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : auctions[idx].primary_image,
+        };
+      } else {
+        auctions.unshift(bodyData);
+      }
+      setItem('sr_auctions', auctions);
+      return { success: true, message: 'Auction updated', data: auctions[idx] || bodyData };
+    } else if (Array.isArray(bodyData)) {
+      setItem('sr_auctions', bodyData);
+      return { success: true, message: 'Auctions list updated', data: bodyData };
+    }
+  }
+
   // 10j. DELETE /admin/auctions/:id
   if (url.includes('/admin/auctions/') && method === 'delete') {
     const parts = url.split('/');
@@ -769,7 +792,7 @@ export function handleMockApi(config: any): any {
         }
       : {
           id: 2,
-          name: email.split('@')[0] ? email.split('@')[0].replace('.', ' ') : 'Neelkanth Sharma',
+          name: email.split('@')[0] ? email.split('@')[0].replace('.', ' ') : 'Rajesh Kumar',
           email,
           phone: '9820123456',
           role: 'bidder',
@@ -804,8 +827,7 @@ export function handleMockApi(config: any): any {
     return {
       user,
       token,
-      email_otp: '123456',
-      phone_otp: '654321',
+      message: 'User registered successfully',
     };
   }
 
@@ -815,7 +837,7 @@ export function handleMockApi(config: any): any {
     const token = localStorage.getItem('salvagereef_token') || 'mock-jwt-token-verified';
 
     return {
-      message: 'OTP Verified successfully',
+      message: 'Verified successfully',
       is_email_verified: true,
       is_phone_verified: true,
       user: currentUser,
@@ -823,12 +845,29 @@ export function handleMockApi(config: any): any {
     };
   }
 
-  // 15. POST /auth/resend-otp
-  if (url.includes('/auth/resend-otp') && method === 'post') {
+  // 15. POST /forgot-password/send-otp
+  if (url.includes('/forgot-password/send-otp') && method === 'post') {
     return {
-      message: 'OTPs resent successfully',
-      email_otp: '987654',
-      phone_otp: '456789',
+      success: true,
+      message: 'Verification code sent to your email address! (Demo OTP Code: 123456)',
+    };
+  }
+
+  // 16. POST /forgot-password/verify-otp
+  if (url.includes('/forgot-password/verify-otp') && method === 'post') {
+    return {
+      success: true,
+      verified: true,
+      reset_token: 'mock-reset-token-' + Date.now(),
+      message: 'OTP verified successfully.',
+    };
+  }
+
+  // 17. POST /forgot-password/reset
+  if (url.includes('/forgot-password/reset') && method === 'post') {
+    return {
+      success: true,
+      message: 'Password reset successfully.',
     };
   }
 
@@ -841,6 +880,48 @@ export function handleMockApi(config: any): any {
   // 17. POST /auth/logout
   if (url.includes('/auth/logout') && method === 'post') {
     return { message: 'Logged out successfully' };
+  }
+
+  // 18. GET /system/settings
+  if (url.includes('/system/settings') && method === 'get') {
+    let stored = JSON.parse(localStorage.getItem('sr_site_content') || 'null');
+    if (stored && stored.contactAddress && (stored.contactAddress.includes('Imperial') || stored.contactAddress.includes('Bhayander'))) {
+      stored.contactAddress = 'Mumbai, Maharashtra 401101';
+      localStorage.setItem('sr_site_content', JSON.stringify(stored));
+    }
+    return { success: true, settings: stored };
+  }
+
+  // 19. POST /admin/settings
+  if (url.includes('/admin/settings') && method === 'post') {
+    return { success: true, message: 'Settings saved successfully' };
+  }
+
+  // 20. GET /system/status
+  if (url.includes('/system/status') && method === 'get') {
+    const mode = localStorage.getItem('sr_system_mode') || 'online';
+    const mMsg = localStorage.getItem('sr_maintenance_message') || 'SalvageReef is currently undergoing scheduled maintenance.';
+    const tcMsg = localStorage.getItem('sr_temporary_closed_message') || 'SalvageReef is temporarily closed for operations.';
+    let message = '';
+    if (mode === 'maintenance') message = mMsg;
+    if (mode === 'temporary_closed') message = tcMsg;
+    return {
+      success: true,
+      status: mode,
+      system_mode: mode,
+      maintenance_mode: mode !== 'online',
+      message,
+      maintenance_message: mMsg,
+      temporary_closed_message: tcMsg,
+    };
+  }
+
+  // 21. POST /admin/maintenance/toggle
+  if (url.includes('/admin/maintenance/toggle') && method === 'post') {
+    return {
+      success: true,
+      message: 'System mode updated',
+    };
   }
 
   // Default fallback for any unmatched GET endpoint

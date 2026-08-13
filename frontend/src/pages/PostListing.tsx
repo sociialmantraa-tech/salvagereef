@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import api from '../services/api';
 import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
 import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock } from 'lucide-react';
-import { Category } from '../types';
+import { useCategoryLocationStore, STATE_CITIES_MAP, INDIAN_STATES } from '../store/useCategoryLocationStore';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -21,33 +22,62 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+import SEOHead from '../components/SEOHead';
+
 export default function PostListing() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { user, isAuthenticated } = useAuthStore();
+  const { categories, locations } = useCategoryLocationStore();
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // Image Upload State
-  const [compressedImage, setCompressedImage] = useState<CompressionResult | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [compressing, setCompressing] = useState<boolean>(false);
+  // Access Restriction: Only Sellers (Agent) and Admins can post listings!
+  if (!isAuthenticated || !(user?.role === 'admin' || user?.role === 'agent')) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-white rounded-3xl border border-slate-200 shadow-xl text-center space-y-4">
+        <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900">Seller Access Required</h2>
+        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+          Posting scrap classifieds and auction lots is restricted exclusively to verified Sellers (Agents) and Administrators on SalvageReef.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Link to="/login" className="px-5 py-2.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-bold rounded-xl text-xs shadow transition-all">
+            Sign In as Seller / Admin
+          </Link>
+          <Link to="/" className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all">
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      unit: 'nos',
-      location_city: 'Thane',
+      unit: 'MT',
       location_state: 'Maharashtra',
     },
   });
 
-  useEffect(() => {
-    api.get('/categories').then((res) => setCategories(res.data)).catch(console.error);
-  }, []);
+  const [compressedImage, setCompressedImage] = useState<CompressionResult | null>(null);
+  const [compressedImageFile, setCompressedImageFile] = useState<File | null>(null);
+  const [compressing, setCompressing] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  // State/City/Category selectors
+  const [selectedCat, setSelectedCat] = useState<string>('');
+  const [customCat, setCustomCat] = useState<string>('');
+  const [selectedState, setSelectedState] = useState<string>('Maharashtra');
+  const [selectedCity, setSelectedCity] = useState<string>('Mumbai');
+  const [customCity, setCustomCity] = useState<string>('');
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,9 +88,11 @@ export default function PostListing() {
     try {
       const result = await compressAndSanitizeImage(file, 1200, 900, 0.82);
       setCompressedImage(result);
+      setCompressedImageFile(file); // keep original file for server upload
     } catch (err: any) {
       setImageError(err.message || 'Image processing failed');
       setCompressedImage(null);
+      setCompressedImageFile(null);
     } finally {
       setCompressing(false);
     }
@@ -85,6 +117,10 @@ export default function PostListing() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+      <SEOHead
+        title="Post Scrap Classified Listing — SalvageReef Marketplace"
+        description="List your scrap machinery, metal waste, industrial motors, or factory equipment for sale to verified buyers on SalvageReef."
+      />
       <div className="bg-[#0B192C] text-white p-6 rounded-3xl border-b-4 border-[#D48B1C] shadow-lg flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center font-bold">
           <PlusCircle className="w-6 h-6" />
@@ -119,16 +155,31 @@ export default function PostListing() {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Category *</label>
               <select
-                {...register('category_id')}
-                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                value={selectedCat}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCat(val);
+                  setValue('category_id', val === 'custom' ? '1' : val, { shouldValidate: true });
+                }}
+                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
               >
                 <option value="">Select Category</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={c.id.toString()}>
                     {c.name}
                   </option>
                 ))}
+                <option value="custom">➕ Write Own Custom Category...</option>
               </select>
+              {selectedCat === 'custom' && (
+                <input
+                  type="text"
+                  placeholder="Type custom category name..."
+                  value={customCat}
+                  onChange={(e) => setCustomCat(e.target.value)}
+                  className="w-full mt-2 p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                />
+              )}
               {errors.category_id && <p className="text-red-500 text-[11px] mt-1">{errors.category_id.message}</p>}
             </div>
 
@@ -171,25 +222,53 @@ export default function PostListing() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">City *</label>
-              <input
-                type="text"
-                {...register('location_city')}
-                placeholder="Thane"
-                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-              />
-              {errors.location_city && <p className="text-red-500 text-[11px] mt-1">{errors.location_city.message}</p>}
+              <label className="block text-xs font-bold text-slate-700 mb-1">State *</label>
+              <select
+                value={selectedState}
+                onChange={(e) => {
+                  const newState = e.target.value;
+                  setSelectedState(newState);
+                  setValue('location_state', newState);
+                  const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
+                  setSelectedCity(firstCity);
+                  setValue('location_city', firstCity);
+                }}
+                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
+              >
+                {INDIAN_STATES.map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">State *</label>
-              <input
-                type="text"
-                {...register('location_state')}
-                placeholder="Maharashtra"
-                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-              />
-              {errors.location_state && <p className="text-red-500 text-[11px] mt-1">{errors.location_state.message}</p>}
+              <label className="block text-xs font-bold text-slate-700 mb-1">City *</label>
+              <select
+                value={selectedCity}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCity(val);
+                  setValue('location_city', val === 'custom' ? customCity || 'Mumbai' : val);
+                }}
+                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
+              >
+                {(STATE_CITIES_MAP[selectedState] || ['Mumbai']).map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+                <option value="custom">➕ Custom / Other City...</option>
+              </select>
+              {selectedCity === 'custom' && (
+                <input
+                  type="text"
+                  placeholder="Type custom city name..."
+                  value={customCity}
+                  onChange={(e) => {
+                    setCustomCity(e.target.value);
+                    setValue('location_city', e.target.value);
+                  }}
+                  className="w-full mt-2 p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                />
+              )}
             </div>
           </div>
 

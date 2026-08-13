@@ -1,67 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../services/api';
-import { Mail, Phone, AlertTriangle, ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, KeyRound, Eye, EyeOff, Send, Clock, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, RefreshCw, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+
+import SEOHead from '../components/SEOHead';
 
 export default function Register() {
   const navigate = useNavigate();
-  const { loading, error: authError } = useAuthStore();
+  const { error: authError } = useAuthStore();
 
-  // Step 1 vs Step 2 (Verification)
-  const [step, setStep] = useState<number>(1);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
 
-  // Compact Country Code Selector (w-[64px] text-[10px])
+  // Compact Country Code Selector
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Form Fields (Empty Defaults)
+  // Form Fields
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '', // Empty by default
+    phone: '',
     password: '',
     role: 'bidder',
     company_name: '',
     city: 'Mumbai',
     state: 'Maharashtra',
   });
-
-  // User Preference for OTP Channel
-  const [otpPreference, setOtpPreference] = useState<'phone' | 'email'>('phone');
-
-  // Animated OTP Dispatch & Countdown State
-  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
-  const [isResendingOtp, setIsResendingOtp] = useState<boolean>(false);
-  const [otpSentStatus, setOtpSentStatus] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(0);
-  const [generatedOtp, setGeneratedOtp] = useState<string>('');
-  
-  // OTP Input Fields
-  const [emailOtpInput, setEmailOtpInput] = useState<string>('');
-  const [phoneOtpInput, setPhoneOtpInput] = useState<string>('');
-  const [liveOtpNotice, setLiveOtpNotice] = useState<string | null>(null);
-
-  // Verification Statuses
-  const [emailVerified, setEmailVerified] = useState<boolean>(false);
-  const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
-  const [verifyingEmail, setVerifyingEmail] = useState<boolean>(false);
-  const [verifyingPhone, setVerifyingPhone] = useState<boolean>(false);
-  const [verificationSuccess, setVerificationSuccess] = useState<boolean>(false);
-
-  // 30-Second Countdown Timer Effect for Resend OTP
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [countdown]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -130,7 +100,7 @@ export default function Register() {
     validatePassword(formData.password);
   };
 
-  // Step 1: Submit Registration Form
+  // Submit Registration Form Directly
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
@@ -156,190 +126,99 @@ export default function Register() {
       const payload = { ...formData, phone: fullPhone };
       const res = await api.post('/auth/register', payload);
 
-      const dynamicOtp = res.data?.phone_otp || Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(dynamicOtp);
+      const userToSave = res.data?.user || { ...formData, phone: fullPhone, id: Date.now(), is_verified: true };
+      const tokenToSave = res.data?.token || 'verified-user-token-' + Date.now();
 
-      setEmailOtpInput('');
-      setPhoneOtpInput('');
-      setOtpSentStatus(false);
-      setLiveOtpNotice(null);
-      setStep(2);
+      localStorage.setItem('salvagereef_user', JSON.stringify(userToSave));
+      localStorage.setItem('salvagereef_token', tokenToSave);
+      localStorage.setItem('salvagereef_token_exp', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+
+      useAuthStore.setState({ user: userToSave, token: tokenToSave, isAuthenticated: true });
+      setRegistrationSuccess(true);
+
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     } catch (err: any) {
-      setServerError(err.response?.data?.message || 'Registration failed');
+      const backendMsg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.email?.[0] ||
+        err.response?.data?.errors?.password?.[0] ||
+        err.response?.data?.errors?.phone?.[0] ||
+        err.message ||
+        'Registration failed';
+
+      if (backendMsg.toLowerCase().includes('already') || backendMsg.toLowerCase().includes('taken')) {
+        setServerError('This email address is already registered. Please sign in with your account.');
+      } else {
+        setServerError(backendMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Explicit "Send OTP Now" Trigger Button Action
-  const triggerSendOtp = (otpCode?: string) => {
-    setIsSendingOtp(true);
-    setServerError(null);
-    const activeCode = otpCode || generatedOtp || Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(activeCode);
-
-    setTimeout(() => {
-      setIsSendingOtp(false);
-      setOtpSentStatus(true);
-      setCountdown(30);
-      setLiveOtpNotice(
-        otpPreference === 'phone'
-          ? `📲 6-Digit OTP dispatched via SMS to ${countryCode} ${formData.phone}!`
-          : `✉️ 6-Digit OTP dispatched via Gmail to ${formData.email}!`
-      );
-    }, 700);
-  };
-
-  // Animated Resend OTP Handler
-  const handleResendOtps = async () => {
-    if (countdown > 0 || isResendingOtp) return;
-
-    setServerError(null);
-    setIsResendingOtp(true);
-
-    const freshOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(freshOtp);
-
-    try {
-      await api.post('/auth/resend-otp', { email: formData.email });
-    } catch (err) {
-      // Fallback
-    } finally {
-      setTimeout(() => {
-        setIsResendingOtp(false);
-        setOtpSentStatus(true);
-        setCountdown(30);
-        setLiveOtpNotice(`📲 Fresh 6-Digit OTP resent via SMS to ${countryCode} ${formData.phone}!`);
-      }, 700);
-    }
-  };
-
-  // Step 2A: Verify Email OTP
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setServerError(null);
-
-    if (!emailOtpInput || emailOtpInput.length < 4) {
-      setServerError('Please enter the 6-digit OTP code sent to your email.');
-      return;
-    }
-
-    if (emailOtpInput !== generatedOtp && emailOtpInput !== '123456') {
-      setServerError('Incorrect OTP code entered. Please check your SMS/Email messages.');
-      return;
-    }
-
-    setVerifyingEmail(true);
-
-    try {
-      await api.post('/auth/verify-email-otp', {
-        email: formData.email,
-        otp: emailOtpInput,
-      });
-
-      setEmailVerified(true);
-      completeVerification({ token: 'verified-user-token-' + Date.now(), user: { ...formData, id: Date.now() } });
-    } catch (err: any) {
-      setEmailVerified(true);
-      completeVerification({ token: 'verified-user-token-' + Date.now(), user: { ...formData, id: Date.now() } });
-    } finally {
-      setVerifyingEmail(false);
-    }
-  };
-
-  // Step 2B: Verify Mobile Phone OTP
-  const handleVerifyPhone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setServerError(null);
-
-    if (!phoneOtpInput || phoneOtpInput.length < 4) {
-      setServerError('Please enter the 6-digit OTP code sent to your mobile number.');
-      return;
-    }
-
-    if (phoneOtpInput !== generatedOtp && phoneOtpInput !== '123456') {
-      setServerError('Incorrect OTP code entered. Please check your SMS messages.');
-      return;
-    }
-
-    setVerifyingPhone(true);
-
-    try {
-      await api.post('/auth/verify-phone-otp', {
-        email: formData.email,
-        otp: phoneOtpInput,
-      });
-
-      setPhoneVerified(true);
-      completeVerification({ token: 'verified-user-token-' + Date.now(), user: { ...formData, id: Date.now() } });
-    } catch (err: any) {
-      setPhoneVerified(true);
-      completeVerification({ token: 'verified-user-token-' + Date.now(), user: { ...formData, id: Date.now() } });
-    } finally {
-      setVerifyingPhone(false);
-    }
-  };
-
-  const completeVerification = (data: any) => {
-    setVerificationSuccess(true);
-    const userToSave = data.user || { ...formData, id: Date.now(), is_verified: true };
-    const tokenToSave = data.token || 'verified-user-token-' + Date.now();
-
-    localStorage.setItem('salvagereef_user', JSON.stringify(userToSave));
-    localStorage.setItem('salvagereef_token', tokenToSave);
-    localStorage.setItem('salvagereef_token_exp', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
-
-    useAuthStore.setState({ user: userToSave, token: tokenToSave, isAuthenticated: true });
-
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 1200);
-  };
-
   return (
     <div className="max-w-xl mx-auto px-4 py-12 space-y-6">
+      <SEOHead
+        title="Register Verified Scrap Buyer Account — SalvageReef"
+        description="Create your free SalvageReef buyer or seller account to participate in live salvage auctions and industrial asset liquidations across India."
+      />
       {/* Header */}
       <div className="text-center space-y-2">
         <span className="bg-[#D48B1C]/20 text-[#D48B1C] border border-[#D48B1C]/40 text-[10px] uppercase font-black px-3 py-1 rounded-full">
-          {step === 1 ? 'Step 1 of 2: Buyer Registration' : 'Step 2 of 2: OTP Verification'}
+          Instant Registration
         </span>
         <h1 className="text-2xl font-black text-slate-900">
-          {step === 1 ? 'Register Verified Scrap Buyer' : 'Verify Your Account'}
+          Register Verified Scrap Buyer
         </h1>
         <p className="text-xs text-slate-500">
-          {step === 1
-            ? 'Join SalvageReef tender desk for real-time auction access in Mumbai'
-            : `Select channel and click Send OTP to receive your 6-digit verification code`}
+          Join SalvageReef tender desk for real-time auction access in Mumbai
         </p>
       </div>
 
       <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl space-y-6">
         {(serverError || authError) && (
-          <div className="p-3.5 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-xs flex items-center gap-2 font-bold animate-shake">
-            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-            <span>{serverError || authError}</span>
+          <div className="p-3.5 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-xs flex items-center justify-between gap-3 font-bold animate-shake">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>{serverError || authError}</span>
+            </div>
+            {(serverError?.toLowerCase().includes('already') || serverError?.toLowerCase().includes('taken') || serverError?.toLowerCase().includes('sign in')) && (
+              <Link to="/login" className="px-3 py-1.5 bg-[#D48B1C] text-white rounded-xl text-[10px] font-extrabold hover:bg-[#B87514] shrink-0 uppercase tracking-wider shadow">
+                Sign In &rarr;
+              </Link>
+            )}
           </div>
         )}
 
-        {/* STEP 1: REGISTRATION FORM */}
-        {step === 1 && (
+        {registrationSuccess && (
+          <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-2xl text-center space-y-2 animate-bounce">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+            <h4 className="font-bold text-sm">Account Registered Successfully!</h4>
+            <p className="text-xs text-emerald-700">Redirecting to your SalvageReef Dashboard...</p>
+          </div>
+        )}
+
+        {/* REGISTRATION FORM */}
+        {!registrationSuccess && (
           <form onSubmit={handleRegisterSubmit} className="space-y-4 text-xs font-medium">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Full Name *</label>
                 <input
                   type="text"
                   name="name"
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Neelkanth Sharma"
+                  placeholder="e.g. Full Name"
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Company / Firm Name</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Company / Firm Name</label>
                 <input
                   type="text"
                   name="company_name"
@@ -354,7 +233,7 @@ export default function Register() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* EMAIL WITH ONBLUR VALIDATION */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Email Address *</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Email Address *</label>
                 <input
                   type="email"
                   name="email"
@@ -375,9 +254,9 @@ export default function Register() {
                 )}
               </div>
 
-              {/* COMPACT NARROW COUNTRY SELECTOR (W-[64px] TEXT-[10px]) */}
+              {/* COMPACT NARROW COUNTRY SELECTOR */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Phone / Mobile *</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Phone / Mobile *</label>
                 <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:ring-2 focus-within:ring-[#D48B1C]">
                   <select
                     value={countryCode}
@@ -420,7 +299,7 @@ export default function Register() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Account Role</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Account Role</label>
                 <select
                   name="role"
                   value={formData.role}
@@ -432,9 +311,9 @@ export default function Register() {
                 </select>
               </div>
 
-              {/* PASSWORD FIELD WITH SECURITY RULES & ONBLUR VALIDATION */}
+              {/* PASSWORD FIELD WITH SECURITY RULES */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Password *</label>
+                <label className="block font-bold text-[#0F172A] mb-1">Password *</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -471,7 +350,7 @@ export default function Register() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">City (Mumbai Enforced)</label>
+                <label className="block font-bold text-[#0F172A] mb-1">City (Mumbai Enforced)</label>
                 <input
                   type="text"
                   name="city"
@@ -483,7 +362,7 @@ export default function Register() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">State</label>
+                <label className="block font-bold text-[#0F172A] mb-1">State</label>
                 <input
                   type="text"
                   name="state"
@@ -505,222 +384,9 @@ export default function Register() {
               ) : (
                 <ArrowRight className="w-4 h-4" />
               )}
-              Continue to Account Verification
+              Create Account
             </button>
           </form>
-        )}
-
-        {/* STEP 2: ANIMATED REAL OTP DISPATCH & VERIFICATION */}
-        {step === 2 && (
-          <div className="space-y-6 text-xs font-medium">
-            
-            {/* Animated Dispatch Toast Banner */}
-            {liveOtpNotice && (
-              <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-950 rounded-2xl flex items-center justify-between gap-2.5 text-xs font-semibold animate-bounce">
-                <div className="flex items-center gap-2">
-                  <Send className="w-4 h-4 text-[#1D70B8] shrink-0 animate-pulse" />
-                  <span>{liveOtpNotice}</span>
-                </div>
-                {countdown > 0 && (
-                  <span className="bg-blue-100 text-blue-900 font-mono text-[11px] px-2 py-0.5 rounded-full font-bold border border-blue-300 flex items-center gap-1 shrink-0">
-                    <Clock className="w-3 h-3 text-[#1D70B8]" /> {countdown}s
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Complete Success Alert */}
-            {verificationSuccess && (
-              <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-2xl text-center space-y-2 animate-bounce">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                <h4 className="font-bold text-sm">Account Verified Successfully!</h4>
-                <p className="text-xs text-emerald-700">Redirecting to your SalvageReef Dashboard...</p>
-              </div>
-            )}
-
-            {/* SELECT OTP VERIFICATION CHANNEL */}
-            <div className="space-y-2">
-              <label className="block font-bold text-slate-800 text-xs">Select OTP Verification Channel:</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpPreference('phone');
-                    setOtpSentStatus(false);
-                    setLiveOtpNotice(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left font-bold transition-all ${
-                    otpPreference === 'phone'
-                      ? 'bg-amber-50 text-amber-950 border-amber-400 ring-2 ring-[#D48B1C]'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Phone className="w-4 h-4 text-[#D48B1C] mb-1" />
-                  Mobile Phone SMS OTP
-                  <span className="block text-[10px] text-slate-500 font-medium truncate">{countryCode} {formData.phone}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpPreference('email');
-                    setOtpSentStatus(false);
-                    setLiveOtpNotice(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left font-bold transition-all ${
-                    otpPreference === 'email'
-                      ? 'bg-amber-50 text-amber-950 border-amber-400 ring-2 ring-[#D48B1C]'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Mail className="w-4 h-4 text-[#D48B1C] mb-1" />
-                  Gmail / Email OTP
-                  <span className="block text-[10px] text-slate-500 font-medium truncate">{formData.email}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* PROMINENT "SEND VERIFICATION OTP CODE NOW" BUTTON */}
-            {!otpSentStatus ? (
-              <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-4 shadow-inner">
-                <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 text-[#D48B1C] flex items-center justify-center mx-auto shadow-sm">
-                  <Send className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-slate-900 text-sm">Request 6-Digit OTP Security Code</h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Click below to send a 6-digit verification code to{' '}
-                    <span className="font-bold text-slate-800">
-                      {otpPreference === 'phone' ? `${countryCode} ${formData.phone}` : formData.email}
-                    </span>
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => triggerSendOtp()}
-                  disabled={isSendingOtp}
-                  className="w-full py-4 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
-                >
-                  {isSendingOtp ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-white" /> Sending Verification OTP...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" /> Send Verification OTP Code Now
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              /* OTP VERIFICATION CODE FORM (UNLOCKED AFTER CLICKING SEND OTP) */
-              <>
-                {otpPreference === 'phone' && (
-                  <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3 animate-fade-in">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-[#D48B1C]" /> Verify via Mobile SMS ({countryCode} {formData.phone})
-                      </span>
-                      {phoneVerified && (
-                        <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
-                          <CheckCircle2 className="w-4 h-4" /> Verified
-                        </span>
-                      )}
-                    </div>
-
-                    {!phoneVerified && (
-                      <form onSubmit={handleVerifyPhone} className="flex gap-2">
-                        <input
-                          type="text"
-                          required
-                          maxLength={6}
-                          value={phoneOtpInput}
-                          onChange={(e) => setPhoneOtpInput(e.target.value)}
-                          placeholder="Enter 6-digit Mobile OTP"
-                          className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                        />
-                        <button
-                          type="submit"
-                          disabled={verifyingPhone}
-                          className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
-                        >
-                          {verifyingPhone ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Mobile OTP'}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-
-                {otpPreference === 'email' && (
-                  <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3 animate-fade-in">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                        <Mail className="w-4 h-4 text-[#D48B1C]" /> Verify via Gmail ({formData.email})
-                      </span>
-                      {emailVerified && (
-                        <span className="flex items-center gap-1 text-emerald-700 font-extrabold text-xs">
-                          <CheckCircle2 className="w-4 h-4" /> Verified
-                        </span>
-                      )}
-                    </div>
-
-                    {!emailVerified && (
-                      <form onSubmit={handleVerifyEmail} className="flex gap-2">
-                        <input
-                          type="text"
-                          required
-                          maxLength={6}
-                          value={emailOtpInput}
-                          onChange={(e) => setEmailOtpInput(e.target.value)}
-                          placeholder="Enter 6-digit Email OTP"
-                          className="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-mono text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                        />
-                        <button
-                          type="submit"
-                          disabled={verifyingEmail}
-                          className="px-5 py-3 bg-[#0B192C] hover:bg-[#D48B1C] text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 uppercase tracking-wider"
-                        >
-                          {verifyingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify Gmail OTP'}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Resend & Back controls with Spinner & 30s Countdown */}
-            <div className="pt-3 flex justify-between items-center text-xs">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="text-slate-500 hover:text-slate-800 font-semibold"
-              >
-                &larr; Back to Details
-              </button>
-
-              {otpSentStatus && (
-                <button
-                  type="button"
-                  disabled={countdown > 0 || isResendingOtp}
-                  onClick={handleResendOtps}
-                  className={`font-bold flex items-center gap-1.5 transition-all ${
-                    countdown > 0 || isResendingOtp
-                      ? 'text-slate-400 cursor-not-allowed'
-                      : 'text-[#D48B1C] hover:underline'
-                  }`}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isResendingOtp ? 'animate-spin text-[#D48B1C]' : ''}`} />
-                  {isResendingOtp
-                    ? 'Resending OTP...'
-                    : countdown > 0
-                    ? `Resend OTP in ${countdown}s`
-                    : 'Resend 6-Digit OTP Code'}
-                </button>
-              )}
-            </div>
-          </div>
         )}
 
         <p className="text-center text-xs text-slate-500">

@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import SEOHead from '../components/SEOHead';
+
 export default function PrivacyPolicy() {
   const visitDataPoints = [
     { title: 'IP Address', desc: 'Internet protocol address from which the website is accessed.', icon: Globe },
@@ -26,6 +28,11 @@ export default function PrivacyPolicy() {
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen pb-24">
+      <SEOHead
+        title="Privacy Policy — SalvageReef Data Protection"
+        description="SalvageReef privacy policy regarding corporate KYC data, bidder privacy, cookies, and secure information handling."
+        keywords="privacy policy SalvageReef, scrap buyer data privacy, corporate salvage security"
+      />
       <LegalHeaderNav />
 
       {/* Top Hero Banner */}

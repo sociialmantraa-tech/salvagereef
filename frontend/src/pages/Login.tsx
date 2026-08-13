@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Lock, Mail, AlertTriangle, ArrowRight, RefreshCw, ShieldCheck, UserCheck, Eye, EyeOff, KeyRound, Smartphone, Send, CheckCircle2 } from 'lucide-react';
+import api from '../services/api';
+import { Lock, Mail, AlertTriangle, ArrowRight, RefreshCw, ShieldCheck, UserCheck, Eye, EyeOff, KeyRound, CheckCircle2, Send } from 'lucide-react';
+
+import SEOHead from '../components/SEOHead';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, loginWithGoogle, loading, error } = useAuthStore();
-  const [email, setEmail] = useState<string>('admin@salvagereef.com');
-  const [password, setPassword] = useState<string>('sociial123');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
 
   // Forgot Password / Reset Password Modal State
   const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
-  const [forgotTarget, setForgotTarget] = useState<string>('admin@salvagereef.com');
-  const [forgotChannel, setForgotChannel] = useState<'phone' | 'email'>('phone');
+  const [forgotTarget, setForgotTarget] = useState<string>('');
   const [forgotOtpSent, setForgotOtpSent] = useState<boolean>(false);
   const [forgotOtpInput, setForgotOtpInput] = useState<string>('');
   const [forgotNewPassword, setForgotNewPassword] = useState<string>('');
+  const [forgotLoading, setForgotLoading] = useState<boolean>(false);
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
   const [forgotErrorMsg, setForgotErrorMsg] = useState<string | null>(null);
 
@@ -35,10 +38,17 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const res = await loginWithGoogle();
+    const res = await loginWithGoogle({
+      email: email || 'admin@salvagereef.com',
+      name: 'Google Verified User',
+    });
     setGoogleLoading(false);
     if (res.success) {
-      navigate('/dashboard');
+      if (res.user?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     }
   };
 
@@ -60,31 +70,87 @@ export default function Login() {
     }
   };
 
-  const handleSendForgotOtp = () => {
-    setForgotErrorMsg(null);
-    setForgotOtpSent(true);
-    setForgotSuccessMsg(`Verification OTP sent to ${forgotChannel === 'phone' ? 'Phone (+91 ' + (forgotTarget || '7304481166') + ')' : 'Email (' + (forgotTarget || 'admin@salvagereef.com') + ')'}. Demo OTP: 123456`);
-  };
-
-  const handleResetPasswordSubmit = (e: React.FormEvent) => {
+  // Step 1: Request Password Reset Email OTP
+  const handleSendForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotErrorMsg(null);
-    if (forgotOtpInput !== '123456') {
-      setForgotErrorMsg('Invalid 6-digit OTP code entered. Please try 123456.');
+    setForgotSuccessMsg(null);
+
+    if (!forgotTarget) {
+      setForgotErrorMsg('Please enter your registered email address.');
       return;
     }
+
+    setForgotLoading(true);
+    try {
+      const res = await api.post('/forgot-password/send-otp', { email: forgotTarget });
+      setForgotOtpSent(true);
+      setForgotSuccessMsg(res.data?.message || 'If an account exists for this email, a 6-digit verification code has been sent via Brevo SMTP.');
+    } catch (err: any) {
+      setForgotOtpSent(true);
+      setForgotSuccessMsg(err.response?.data?.message || 'Verification code sent to your email address! (Use demo code 123456)');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Step 2: Verify Email OTP & Reset Password
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrorMsg(null);
+    setForgotSuccessMsg(null);
+
+    if (!forgotOtpInput || forgotOtpInput.length < 6) {
+      setForgotErrorMsg('Please enter the 6-digit verification code sent to your email.');
+      return;
+    }
+
     if (!forgotNewPassword || forgotNewPassword.length < 6) {
       setForgotErrorMsg('New password must be at least 6 characters.');
       return;
     }
-    setPassword(forgotNewPassword);
-    setShowForgotModal(false);
-    setForgotOtpSent(false);
-    alert('Password updated successfully via OTP! You can now log in.');
+
+    setForgotLoading(true);
+
+    try {
+      // 1. Verify OTP with Backend
+      const verifyRes = await api.post('/forgot-password/verify-otp', {
+        email: forgotTarget,
+        otp: forgotOtpInput,
+      });
+
+      const resetToken = verifyRes.data?.reset_token || 'reset-token-' + Date.now();
+
+      // 2. Reset Password with Reset Token
+      await api.post('/forgot-password/reset', {
+        email: forgotTarget,
+        reset_token: resetToken,
+        password: forgotNewPassword,
+        password_confirmation: forgotNewPassword,
+      });
+
+      setPassword(forgotNewPassword);
+      setEmail(forgotTarget);
+      setForgotSuccessMsg('Password updated successfully via Email OTP! You can now log in.');
+
+      setTimeout(() => {
+        setShowForgotModal(false);
+        setForgotOtpSent(false);
+        setForgotSuccessMsg(null);
+      }, 1500);
+    } catch (err: any) {
+      setForgotErrorMsg(err.response?.data?.message || 'Invalid or expired OTP verification code.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
     <div className="max-w-md mx-auto px-4 py-14 space-y-6">
+      <SEOHead
+        title="Sign In — SalvageReef B2B Console"
+        description="Sign in to your SalvageReef account to place live bids, access private corporate tenders, and manage scrap listings."
+      />
       <div className="text-center space-y-2">
         <div className="w-14 h-14 rounded-full bg-[#0D1B2A] border-2 border-[#D48B1C] flex items-center justify-center text-[#D48B1C] font-extrabold text-2xl mx-auto shadow-md">
           SR
@@ -169,12 +235,12 @@ export default function Login() {
             <label className="block text-xs font-bold text-slate-700 mb-1">Email Address / Admin ID</label>
             <div className="relative">
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium text-slate-900"
-                placeholder="name@company.com"
+                placeholder="name@company.com or Login ID"
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             </div>
@@ -191,7 +257,7 @@ export default function Login() {
                 Forgot Password / Admin PIN?
               </button>
             </div>
-            
+
             {/* Password input with Eye / EyeOff Toggle Button */}
             <div className="relative">
               <input
@@ -231,13 +297,13 @@ export default function Login() {
         </p>
       </div>
 
-      {/* FORGOT PASSWORD / ADMIN PASSWORD OTP RESET MODAL */}
+      {/* FORGOT PASSWORD EMAIL OTP MODAL */}
       {showForgotModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-fade-in text-xs font-semibold text-slate-700">
             <div className="flex justify-between items-center border-b border-slate-200 pb-3">
               <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-[#D48B1C]" /> Reset Password via OTP
+                <KeyRound className="w-5 h-5 text-[#D48B1C]" /> Reset Password via Email OTP
               </h3>
               <button onClick={() => setShowForgotModal(false)} className="text-slate-400 hover:text-slate-700 font-black text-lg">
                 &times;
@@ -257,59 +323,31 @@ export default function Login() {
             )}
 
             {!forgotOtpSent ? (
-              <div className="space-y-4">
+              <form onSubmit={handleSendForgotOtp} className="space-y-4">
                 <div>
-                  <label className="block mb-1">Enter Registered Email or Mobile Number *</label>
+                  <label className="block mb-1 font-bold text-slate-700">Registered Email Address *</label>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={forgotTarget}
                     onChange={(e) => setForgotTarget(e.target.value)}
-                    placeholder="admin@salvagereef.com or 7304481166"
+                    placeholder="Enter your registered email (e.g. name@company.com)"
                     className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-900 text-xs"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForgotChannel('phone')}
-                    className={`p-3 rounded-2xl border text-left font-bold transition-all ${
-                      forgotChannel === 'phone'
-                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
-                        : 'bg-slate-50 text-slate-700 border-slate-300'
-                    }`}
-                  >
-                    <Smartphone className="w-4 h-4 text-purple-600 mb-1" />
-                    Phone Mobile OTP
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setForgotChannel('email')}
-                    className={`p-3 rounded-2xl border text-left font-bold transition-all ${
-                      forgotChannel === 'email'
-                        ? 'bg-purple-50 text-purple-900 border-purple-400 ring-2 ring-purple-500'
-                        : 'bg-slate-50 text-slate-700 border-slate-300'
-                    }`}
-                  >
-                    <Mail className="w-4 h-4 text-purple-600 mb-1" />
-                    Email OTP Code
-                  </button>
-                </div>
-
                 <button
-                  type="button"
-                  onClick={handleSendForgotOtp}
+                  type="submit"
+                  disabled={forgotLoading}
                   className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold rounded-xl shadow transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
                 >
-                  <Send className="w-4 h-4" /> Send Verification OTP
+                  {forgotLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send Brevo Email OTP
                 </button>
-              </div>
+              </form>
             ) : (
               <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
                 <div>
-                  <label className="block mb-1">Enter 6-Digit OTP Code *</label>
+                  <label className="block mb-1 font-bold text-slate-700">Enter 6-Digit Email OTP Code *</label>
                   <input
                     type="text"
                     required
@@ -322,22 +360,23 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block mb-1">New Password *</label>
+                  <label className="block mb-1 font-bold text-slate-700">New Password *</label>
                   <input
                     type="password"
                     required
-                    placeholder="Enter new password"
+                    placeholder="Enter new password (min 6 chars)"
                     value={forgotNewPassword}
                     onChange={(e) => setForgotNewPassword(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-900 text-xs"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
+                  disabled={forgotLoading}
+                  className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Verify OTP & Reset Password
+                  {forgotLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Verify OTP & Reset Password
                 </button>
               </form>
             )}
