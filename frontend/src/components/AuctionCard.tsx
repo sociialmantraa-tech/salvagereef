@@ -150,8 +150,8 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
       {/* Card Footer: Starts In : 3D 1H 12M 44S Cyan Blocks + Action Buttons */}
       <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2">
         {/* Countdown Timer with Cyan Square Blocks */}
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-          <span>Starts In :</span>
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 flex-wrap sm:flex-nowrap">
+          <span className="shrink-0">Starts In :</span>
           <div className="flex items-center gap-1 font-mono font-black text-xs">
             <span className="bg-[#0096C7] text-white px-2 py-0.5 rounded">{days}</span>
             <span className="bg-[#0096C7] text-white px-2 py-0.5 rounded">{hours}</span>
@@ -160,11 +160,11 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           </div>
         </div>
 
-        {/* Buttons: View & Show Interest */}
-        <div className="flex items-center gap-2">
+        {/* Buttons: View (top) & Show Interest (below View) */}
+        <div className="flex flex-col items-stretch gap-1.5 shrink-0 min-w-[95px]">
           <Link
             to={`/auctions/${auction.slug}`}
-            className="bg-[#0096C7] hover:bg-[#0077B6] text-white px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors"
+            className="bg-[#0096C7] hover:bg-[#0077B6] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center"
           >
             View
           </Link>
@@ -172,7 +172,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           {isPrivate && (
             <Link
               to={`/auctions/${auction.slug}`}
-              className="bg-[#76C893] hover:bg-[#52B788] text-white px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors"
+              className="bg-[#52B788] hover:bg-[#40916C] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center whitespace-nowrap"
             >
               Show Interest
             </Link>
