@@ -564,9 +564,9 @@ export default function PostListing() {
           <button
             type="submit"
             disabled={submitting || compressing}
-            className="w-full py-4 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 uppercase tracking-wider"
+            className="w-full py-3 bg-[#D48B1C] hover:bg-[#B87514] text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-xs disabled:opacity-50 uppercase tracking-wider"
           >
-            {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {submitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Submit Scrap Details to Admin Desk
           </button>
         </form>
