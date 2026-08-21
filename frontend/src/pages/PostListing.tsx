@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import api from '../services/api';
 import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
-import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock, Phone, Mail, Building2, MapPin, FileText, ArrowRight } from 'lucide-react';
+import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock, Phone, Mail, Building2, MapPin, FileText, ArrowRight, Send } from 'lucide-react';
 import { useCategoryLocationStore, STATE_CITIES_MAP, INDIAN_STATES } from '../store/useCategoryLocationStore';
 import SEOHead from '../components/SEOHead';
 
