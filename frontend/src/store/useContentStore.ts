@@ -79,6 +79,10 @@ export interface SiteContent {
   privacyTitle: string;
   privacyText: string;
 
+  // Disclaimer Page
+  disclaimerTitle: string;
+  disclaimerText: string;
+
   // Copyright Policy
   copyrightTitle: string;
   copyrightText: string;
@@ -92,9 +96,26 @@ export interface SiteContent {
   contactHours: string;
   locationCity: string;
   locationState: string;
+
+  // Top Announcement / Offer Banner (Header Banner)
+  offerBannerEnabled: boolean;
+  offerBannerText: string;
+  offerBannerBadgeText: string;
+  offerBannerLinkText: string;
+  offerBannerLinkUrl: string;
+  offerBannerBgColor: string;
+  offerBannerTextColor: string;
 }
 
 export const DEFAULT_CONTENT: SiteContent = {
+  // Top Announcement / Offer Banner
+  offerBannerEnabled: false,
+  offerBannerText: 'Special Industrial Liquidation: 0% Platform Buyer Premium on all Ferrous & Non-Ferrous lots this month!',
+  offerBannerBadgeText: '🔥 SPECIAL OFFER',
+  offerBannerLinkText: 'Explore Auctions →',
+  offerBannerLinkUrl: '/auctions',
+  offerBannerBgColor: '#0B192C',
+  offerBannerTextColor: '#ffffff',
   // Global Site & Branding
   siteBrandName: 'SalvageReef',
   siteTagline: 'AUCTIONS & CLASSIFIEDS',
@@ -107,9 +128,10 @@ export const DEFAULT_CONTENT: SiteContent = {
   navClassifiedsText: 'Classifieds',
   navAboutText: 'About Us',
   navContactText: 'Contact Us',
-  navPostListingButton: 'Post Listing',
+  navPostListingButton: 'Sell Your Scrap',
   navSignInText: 'Sign In',
-  navRegisterText: 'Register Free',
+  navRegisterText: 'Register',
+
 
   // Footer & Value Pillars
   footerDescription: 'SalvageReef is a premier salvage auction and scrap marketplace platform connecting verified scrap metal buyers, industrial sellers, and fleet disposers across India.',
@@ -173,6 +195,10 @@ export const DEFAULT_CONTENT: SiteContent = {
   privacyTitle: 'Privacy Policy',
   privacyText: 'SalvageReef respects your privacy and is committed to protecting your personal and corporate data.',
 
+  // Disclaimer Page
+  disclaimerTitle: 'Legal Disclaimer',
+  disclaimerText: '',
+
   // Copyright Policy
   copyrightTitle: 'Copyright & Intellectual Property Policy',
   copyrightText: 'All content, branding, trademarks, logos, and software code on SalvageReef are protected by intellectual property laws.',
@@ -201,9 +227,23 @@ const getInitialContent = (): SiteContent => {
   let stored: Partial<SiteContent> | null = null;
   try {
     stored = JSON.parse(localStorage.getItem('sr_site_content') || 'null');
-    if (stored && stored.contactAddress && (stored.contactAddress.includes('Imperial') || stored.contactAddress.includes('Bhayander'))) {
-      stored.contactAddress = 'Mumbai, Maharashtra 401101';
-      localStorage.setItem('sr_site_content', JSON.stringify({ ...DEFAULT_CONTENT, ...stored }));
+    if (stored) {
+      let needsSave = false;
+      if (stored.contactAddress && (stored.contactAddress.includes('Imperial') || stored.contactAddress.includes('Bhayander'))) {
+        stored.contactAddress = 'Mumbai, Maharashtra 401101';
+        needsSave = true;
+      }
+      if (!stored.navPostListingButton || stored.navPostListingButton.includes('Post Listing')) {
+        stored.navPostListingButton = 'Sell Your Scrap';
+        needsSave = true;
+      }
+      if (!stored.navRegisterText || stored.navRegisterText === 'Register Free') {
+        stored.navRegisterText = 'Register';
+        needsSave = true;
+      }
+      if (needsSave) {
+        localStorage.setItem('sr_site_content', JSON.stringify({ ...DEFAULT_CONTENT, ...stored }));
+      }
     }
   } catch (e) {
     stored = null;
@@ -212,69 +252,91 @@ const getInitialContent = (): SiteContent => {
   if (!merged.contactAddress || merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
     merged.contactAddress = 'Mumbai, Maharashtra 401101';
   }
+  if (!merged.navPostListingButton || merged.navPostListingButton.includes('Post Listing')) {
+    merged.navPostListingButton = 'Sell Your Scrap';
+  }
+  if (!merged.navRegisterText || merged.navRegisterText === 'Register Free') {
+    merged.navRegisterText = 'Register';
+  }
   return merged;
 };
 
-export const useContentStore = create<ContentStore>((set) => ({
-  content: getInitialContent(),
-  previousContentSnapshot: null,
-  updateContent: (newContent) =>
-    set((state) => {
-      const updated = { ...state.content, ...newContent };
-      localStorage.setItem('sr_site_content', JSON.stringify(updated));
-      return { 
-        previousContentSnapshot: state.content,
-        content: updated 
-      };
-    }),
-  resetContent: () => {
-    localStorage.setItem('sr_site_content', JSON.stringify(DEFAULT_CONTENT));
-    set((state) => ({ previousContentSnapshot: state.content, content: DEFAULT_CONTENT }));
-  },
-  revertToPreviousSnapshot: () => {
-    let success = false;
-    set((state) => {
-      if (state.previousContentSnapshot) {
-        localStorage.setItem('sr_site_content', JSON.stringify(state.previousContentSnapshot));
-        success = true;
-        return {
-          content: state.previousContentSnapshot,
-          previousContentSnapshot: null,
-        };
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
+
+export const useContentStore = create<ContentStore>((set) => {
+  // Subscribe to real-time content changes across all tabs/windows
+  if (typeof window !== 'undefined') {
+    subscribeRealtimeEvents((event) => {
+      if (event.type === 'content_updated' && event.payload) {
+        set((state) => ({ content: { ...state.content, ...event.payload } }));
       }
-      return state;
     });
-    return success;
-  },
-  fetchContentFromApi: async () => {
-    try {
-      const apiModule = await import('../services/api');
-      const res = await apiModule.default.get('/system/settings');
-      if (res.data?.settings && typeof res.data.settings === 'object') {
-        const settings = res.data.settings;
-        if (settings.contactAddress && (settings.contactAddress.includes('Imperial') || settings.contactAddress.includes('Bhayander'))) {
-          settings.contactAddress = 'Mumbai, Maharashtra 401101';
+  }
+
+  return {
+    content: getInitialContent(),
+    previousContentSnapshot: null,
+    updateContent: (newContent) =>
+      set((state) => {
+        const updated = { ...state.content, ...newContent };
+        localStorage.setItem('sr_site_content', JSON.stringify(updated));
+        broadcastRealtimeEvent('content_updated', updated);
+        return { 
+          previousContentSnapshot: state.content,
+          content: updated 
+        };
+      }),
+    resetContent: () => {
+      localStorage.setItem('sr_site_content', JSON.stringify(DEFAULT_CONTENT));
+      broadcastRealtimeEvent('content_updated', DEFAULT_CONTENT);
+      set((state) => ({ previousContentSnapshot: state.content, content: DEFAULT_CONTENT }));
+    },
+    revertToPreviousSnapshot: () => {
+      let success = false;
+      set((state) => {
+        if (state.previousContentSnapshot) {
+          localStorage.setItem('sr_site_content', JSON.stringify(state.previousContentSnapshot));
+          broadcastRealtimeEvent('content_updated', state.previousContentSnapshot);
+          success = true;
+          return {
+            content: state.previousContentSnapshot,
+            previousContentSnapshot: null,
+          };
         }
-        set((state) => {
-          const merged = { ...state.content, ...settings };
-          if (merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
-            merged.contactAddress = 'Mumbai, Maharashtra 401101';
+        return state;
+      });
+      return success;
+    },
+    fetchContentFromApi: async () => {
+      try {
+        const apiModule = await import('../services/api');
+        const res = await apiModule.default.get('/system/settings');
+        if (res.data?.settings && typeof res.data.settings === 'object') {
+          const settings = res.data.settings;
+          if (settings.contactAddress && (settings.contactAddress.includes('Imperial') || settings.contactAddress.includes('Bhayander'))) {
+            settings.contactAddress = 'Mumbai, Maharashtra 401101';
           }
-          localStorage.setItem('sr_site_content', JSON.stringify(merged));
-          return { content: merged };
-        });
-      } else {
-        set((state) => {
-          if (state.content.contactAddress.includes('Imperial') || state.content.contactAddress.includes('Bhayander')) {
-            const cleaned = { ...state.content, contactAddress: 'Mumbai, Maharashtra 401101' };
-            localStorage.setItem('sr_site_content', JSON.stringify(cleaned));
-            return { content: cleaned };
-          }
-          return state;
-        });
+          set((state) => {
+            const merged = { ...state.content, ...settings };
+            if (merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
+              merged.contactAddress = 'Mumbai, Maharashtra 401101';
+            }
+            localStorage.setItem('sr_site_content', JSON.stringify(merged));
+            return { content: merged };
+          });
+        } else {
+          set((state) => {
+            if (state.content.contactAddress.includes('Imperial') || state.content.contactAddress.includes('Bhayander')) {
+              const cleaned = { ...state.content, contactAddress: 'Mumbai, Maharashtra 401101' };
+              localStorage.setItem('sr_site_content', JSON.stringify(cleaned));
+              return { content: cleaned };
+            }
+            return state;
+          });
+        }
+      } catch (err) {
+        // Fall back silently to cached/default content
       }
-    } catch (err) {
-      // Fall back silently to cached/default content
-    }
-  },
-}));
+    },
+  };
+});

@@ -43,21 +43,6 @@ const api = axios.create({
   timeout: 8000, // 8 second timeout — fast fail if server is unreachable
 });
 
-// ─── HMAC Signature Cache (avoid recomputing on every request) ────────────────
-let _cachedSig: string | null = null;
-let _cachedSigTime = 0;
-
-async function getRequestSignature(): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  // Reuse cached signature if it's less than 25 seconds old
-  if (_cachedSig && now - _cachedSigTime < 25) {
-    return _cachedSig;
-  }
-  _cachedSig = await computeRequestSignature(now);
-  _cachedSigTime = now;
-  return _cachedSig;
-}
-
 // ─── Request Interceptor ─────────────────────────────────────────────────────
 // Attaches Bearer token + HMAC-SHA256 signature (only on write requests)
 api.interceptors.request.use(async (config) => {
@@ -68,12 +53,11 @@ api.interceptors.request.use(async (config) => {
   }
 
   // 2. Sign write requests only (POST, PUT, DELETE, PATCH)
-  // GET requests are NOT signed — no crypto overhead on reads
   const method = config.method?.toLowerCase() ?? '';
   if (method === 'post' || method === 'put' || method === 'delete' || method === 'patch') {
     try {
       const timestamp = Math.floor(Date.now() / 1000);
-      const signature = await getRequestSignature(); // uses 25-second cache
+      const signature = await computeRequestSignature(timestamp);
       config.headers['X-App-Timestamp'] = String(timestamp);
       config.headers['X-App-Signature'] = signature;
     } catch {
@@ -87,20 +71,42 @@ api.interceptors.request.use(async (config) => {
 // ─── Response Interceptor ────────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => {
-    // If backend URL returned HTML (e.g. Apache cPanel redirect to index.html with HTTP 200)
-    if (typeof response.data === 'string' && response.data.trim().toLowerCase().startsWith('<')) {
-      try {
-        const mockResult = handleMockApi(response.config);
-        if (mockResult !== undefined) {
-          return { ...response, data: mockResult };
+    // If backend URL returned a string containing JSON with trailing hosting scripts (e.g. GoDaddy mod_layout)
+    if (typeof response.data === 'string') {
+      const trimmed = response.data.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const jsonOnly = trimmed.replace(/<script[\s\S]*$/i, '').trim();
+          response.data = JSON.parse(jsonOnly);
+          return response;
+        } catch (e) {}
+      }
+      // If backend URL returned HTML (e.g. Apache cPanel redirect to index.html with HTTP 200)
+      if (trimmed.toLowerCase().startsWith('<')) {
+        try {
+          const mockResult = handleMockApi(response.config);
+          if (mockResult !== undefined) {
+            return { ...response, data: mockResult };
+          }
+        } catch (mockErr) {
+          console.error('Mock fallback error:', mockErr);
         }
-      } catch (mockErr) {
-        console.error('Mock fallback error:', mockErr);
       }
     }
     return response;
   },
   async (error) => {
+    // 0. Clean trailing script tags from error response data if present
+    if (error.response && typeof error.response.data === 'string') {
+      const trimmed = error.response.data.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const jsonOnly = trimmed.replace(/<script[\s\S]*$/i, '').trim();
+          error.response.data = JSON.parse(jsonOnly);
+        } catch (e) {}
+      }
+    }
+
     // 1. If backend URL returned 404 (e.g. Vite dev server unhandled API route) or network error, fallback to mock API
     if (!error.response || error.response.status === 404) {
       try {
@@ -118,6 +124,7 @@ api.interceptors.response.use(
         console.error('Mock fallback handler error:', mockErr);
       }
     }
+
 
     // 2. Pass real backend HTTP validation errors (e.g. 400, 401, 422, 500) directly to caller
     if (error.response && error.response.status) {

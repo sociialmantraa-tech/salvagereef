@@ -9,43 +9,125 @@ export const INITIAL_CATEGORIES: Category[] = [
   { id: 6, name: 'Vehicle Dismantling & Auto Scrap', slug: 'vehicle-dismantling-auto-scrap', auctions_count: 3, classifieds_count: 5 },
 ];
 
-export const INITIAL_USERS: User[] = [
+export const INITIAL_USERS: (User & { password?: string; login_id?: string })[] = [
+  {
+    id: 3,
+    name: 'Master Admin',
+    email: 'admin@salvagereef.com',
+    login_id: 'SR-ADMIN',
+    phone: '9820999999',
+    role: 'master_admin',
+    company_name: 'SalvageReef Master Operations',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    is_verified: true,
+    is_active: true,
+    password: 'sociial123',
+  },
+  {
+    id: 6,
+    name: 'SalvageReef Executive Desk Admin',
+    email: 'executive@salvagereef.com',
+    login_id: 'SR-EXEC-1',
+    phone: '9820777777',
+    role: 'desk_admin',
+    company_name: 'SalvageReef Executive Desk',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    is_verified: true,
+    is_active: true,
+    password: 'execadmin123',
+  },
+  {
+    id: 5,
+    name: 'SalvageReef Desk Admin (Read-Only)',
+    email: 'inspector@salvagereef.com',
+    login_id: 'SR-DESK-1',
+    phone: '9820888888',
+    role: 'read_only_admin',
+    company_name: 'SalvageReef Audit Desk (Read-Only)',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    is_verified: true,
+    is_active: true,
+    password: 'deskadmin123',
+  },
   {
     id: 1,
     name: 'SalvageReef Verified Seller',
     email: 'seller@salvagereef.com',
+    login_id: 'SR-SELLER-1',
     phone: '7304481166',
     role: 'agent',
     company_name: 'Apex Scrap Recyclers Ltd',
     city: 'Mumbai',
     state: 'Maharashtra',
     is_verified: true,
+    is_active: true,
+    password: 'SellerPass@2026',
+  },
+  {
+    id: 4,
+    name: 'Rajesh Metals Scrap Trader',
+    email: 'rajesh@rajeshmetals.com',
+    login_id: 'SR-SELLER-2',
+    phone: '9820198201',
+    role: 'agent',
+    company_name: 'Rajesh Industrial Scrap Traders',
+    city: 'Bhayander',
+    state: 'Maharashtra',
+    is_verified: false,
+    is_active: false,
+    password: 'Rajesh@2026',
   },
   {
     id: 2,
-    name: 'Rajesh Kumar',
+    name: 'Neelkanth Sharma',
     email: 'bidder@salvagereef.com',
+    login_id: 'SR-BIDDER-1',
     phone: '9820123456',
     role: 'bidder',
     company_name: 'Metals & Alloys Co',
     city: 'Mumbai',
     state: 'Maharashtra',
     is_verified: true,
-  },
-  {
-    id: 3,
-    name: 'SalvageReef Desk Admin',
-    email: 'admin@salvagereef.com',
-    phone: '9820999999',
-    role: 'admin',
-    company_name: 'SalvageReef Operations Desk',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    is_verified: true,
+    is_active: true,
+    password: 'BidderPass@2026',
   },
 ];
 
 export const INITIAL_AUCTIONS: Auction[] = [
+  {
+    id: 999,
+    title: '⚡ 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
+    slug: '2-minute-express-demo-copper-scrap',
+    description: 'Special 2-minute express live auction demo with top 3 bidders (H1, H2, H3). Test winner selection desk in Admin Panel.',
+    category_id: 2,
+    auction_type: 'public',
+    status: 'live',
+    quantity: 15,
+    unit: 'MT',
+    starting_price: 500000,
+    current_highest_bid: 750000,
+    bid_increment: 10000,
+    start_time: new Date(Date.now() - 300000).toISOString(),
+    end_time: new Date(Date.now() + 120000).toISOString(), // 2 minutes from now
+    location_city: 'Mumbai',
+    location_state: 'Maharashtra',
+    is_group: false,
+    created_by: 1,
+    category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
+    creator: { id: 1, name: 'SalvageReef Corporate Disposal', email: 'salvagereef@gmail.com', phone: '7304481166', role: 'admin', company_name: 'SalvageReef Operations' },
+    images: [
+      { id: 99, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }
+    ],
+    primary_image: { id: 99, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    bids: [
+      { id: 901, amount: 750000, bidder_name: 'Neelkanth Sharma (H1 Winner)', user: { name: 'Neelkanth Sharma', email: 'neelkanth@metals.com' }, created_at: new Date(Date.now() - 60000).toISOString() },
+      { id: 902, amount: 720000, bidder_name: 'Bharat Scrap Traders (H2 Winner)', user: { name: 'Bharat Traders', email: 'procurement@bharatscrap.com' }, created_at: new Date(Date.now() - 120000).toISOString() },
+      { id: 903, amount: 690000, bidder_name: 'Western Heavy Recyclers (H3 Winner)', user: { name: 'Western Recyclers', email: 'bids@westernheavy.com' }, created_at: new Date(Date.now() - 180000).toISOString() },
+    ],
+  },
   {
     id: 101,
     title: '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
@@ -190,6 +272,94 @@ export const INITIAL_AUCTIONS: Auction[] = [
     primary_image: { id: 6, image_path: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80', is_primary: true },
     bids: [],
   },
+  {
+    id: 106,
+    title: '25 kW Solar Photovoltaic Panel Scrap & Frame Lot (Demo Item)',
+    slug: '25-kw-solar-pv-panel-scrap-demo-item',
+    description: 'DEMO ITEM FOR TESTING: High-efficiency monocrystalline solar PV panel salvage lot (25 kW total output) with extruded aluminum mounting structures, DC cabling, and inverter junction boxes. Clean grade A salvage condition suitable for silicon recycling or second-life field deployment.',
+    category_id: 4,
+    auction_type: 'public',
+    status: 'live',
+    quantity: 25,
+    unit: 'kW',
+    starting_price: 450000,
+    current_highest_bid: 520000,
+    start_time: new Date(Date.now() - 7200000).toISOString(),
+    end_time: new Date(Date.now() + 259200000).toISOString(),
+    location_city: 'Mumbai',
+    location_state: 'Maharashtra',
+    is_group: false,
+    created_by: 1,
+    category: { id: 4, name: 'E-Waste & Circuit Boards', slug: 'e-waste-circuit-boards' },
+    creator: { id: 1, name: 'Apex Scrap Recyclers Ltd', email: 'seller@salvagereef.com', phone: '7304481166', role: 'agent', company_name: 'Apex Metals' },
+    images: [
+      { id: 1061, image_path: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      { id: 1062, image_path: 'https://images.unsplash.com/photo-1508873696983-2df515122519?w=800&auto=format&fit=crop&q=80', is_primary: false },
+    ],
+    primary_image: { id: 1061, image_path: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    bids: [
+      { id: 507, amount: 520000, bidder_name: 'EcoGreen Solar Recyclers', user: { name: 'EcoGreen Recyclers' }, created_at: new Date(Date.now() - 1800000).toISOString() },
+      { id: 508, amount: 480000, bidder_name: 'SunPower Salvage Ltd', user: { name: 'SunPower Salvage' }, created_at: new Date(Date.now() - 3600000).toISOString() },
+    ],
+  },
+  {
+    id: 107,
+    title: '🔥 5-Minute Flash Auction: 100 kg High-Purity Copper Armature Scrap',
+    slug: '5-minute-flash-auction-100-kg-copper-armature-scrap',
+    description: '⚡ LIVE 5-MINUTE FLASH AUCTION DEMO: Premium 100 kg lot of heavy 99.9% pure copper motor armature windings & bare wire scrap. Auction closes in exactly 5 minutes! Place your bids fast!',
+    category_id: 2,
+    auction_type: 'public',
+    status: 'live',
+    quantity: 100,
+    unit: 'kg',
+    starting_price: 75000,
+    current_highest_bid: 82000,
+    start_time: new Date(Date.now() - 30000).toISOString(),
+    end_time: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    location_city: 'Mumbai',
+    location_state: 'Maharashtra',
+    is_group: false,
+    created_by: 1,
+    category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
+    creator: { id: 1, name: 'Apex Scrap Recyclers Ltd', email: 'seller@salvagereef.com', phone: '7304481166', role: 'agent', company_name: 'Apex Metals' },
+    images: [
+      { id: 1071, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    ],
+    primary_image: { id: 1071, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    bids: [
+      { id: 509, amount: 82000, bidder_name: 'FastMetals India', user: { name: 'FastMetals' }, created_at: new Date(Date.now() - 20000).toISOString() },
+      { id: 510, amount: 78000, bidder_name: 'Apex Recyclers Desk', user: { name: 'Apex Recyclers' }, created_at: new Date(Date.now() - 40000).toISOString() },
+    ],
+  },
+  {
+    id: 108,
+    title: '⚡ High-Voltage Substation Transformer Core Scrap (Demo Auction)',
+    slug: 'high-voltage-substation-transformer-core-scrap-demo',
+    description: 'DEMO AUCTION ITEM: 40 MT silicon steel laminations & high-voltage copper winding transformer core scrap from power grid substation upgrade. Verified high recovery value lot with complete laboratory assay report.',
+    category_id: 1,
+    auction_type: 'public',
+    status: 'live',
+    quantity: 40,
+    unit: 'MT',
+    starting_price: 1850000,
+    current_highest_bid: 2100000,
+    start_time: new Date(Date.now() - 3600000 * 4).toISOString(),
+    end_time: new Date(Date.now() + 86400000 * 2).toISOString(),
+    location_city: 'Navi Mumbai',
+    location_state: 'Maharashtra',
+    is_group: false,
+    created_by: 1,
+    category: { id: 1, name: 'Scrap Heavy Machinery', slug: 'scrap-heavy-machinery' },
+    creator: { id: 1, name: 'Apex Scrap Recyclers Ltd', email: 'seller@salvagereef.com', phone: '7304481166', role: 'agent', company_name: 'Apex Metals' },
+    images: [
+      { id: 1081, image_path: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    ],
+    primary_image: { id: 1081, image_path: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    bids: [
+      { id: 511, amount: 2100000, bidder_name: 'Grid Heavy Recyclers', user: { name: 'Grid Recyclers' }, created_at: new Date(Date.now() - 1800000).toISOString() },
+      { id: 512, amount: 1950000, bidder_name: 'Western Metal Corp', user: { name: 'Western Metal' }, created_at: new Date(Date.now() - 5400000).toISOString() },
+    ],
+  },
 ];
 
 export const INITIAL_CLASSIFIEDS: Classified[] = [
@@ -286,9 +456,55 @@ export const INITIAL_INTERESTS = [
   },
 ];
 
+export const INITIAL_SELL_SCRAP_REQUESTS = [
+  {
+    id: 801,
+    title: '15 MT Heavy Melting Steel & Motor Scrap Lot',
+    category_id: '3',
+    category_name: 'Ferrous Heavy Melting Steel (HMS)',
+    price: 450000,
+    quantity: 15,
+    unit: 'MT',
+    location_state: 'Maharashtra',
+    location_city: 'Mumbai',
+    site_address: 'Plot 42, Kolshet Industrial Area, Thane West',
+    gst_number: '27AAAAA1234A1Z5',
+    seller_name: 'Amit Patel',
+    seller_phone: '9820198201',
+    seller_email: 'amit@patelscrap.com',
+    description: 'Factory clearance HMS 1&2 scrap along with 10 defective electric motors. Inspection invited at site location.',
+    image_url: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80',
+    status: 'pending',
+    submitted_at: new Date(Date.now() - 86400000).toISOString(),
+    user_id: 2,
+  },
+  {
+    id: 802,
+    title: '5 Tons Copper Armature Windings & Heavy Cable Scrap',
+    category_id: '2',
+    category_name: 'Non-Ferrous Copper & Brass',
+    price: 3200000,
+    quantity: 5,
+    unit: 'MT',
+    location_state: 'Maharashtra',
+    location_city: 'Navi Mumbai',
+    site_address: 'Substation Yard 4, Rabale MIDC',
+    gst_number: '27BBBBB5678B1Z2',
+    seller_name: 'Sanjay Deshmukh',
+    seller_phone: '9820771122',
+    seller_email: 'sanjay@deshmukhenterprises.com',
+    description: 'Purity verified high grade copper scrap from power distribution dismantling. Instant loading available.',
+    image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+    status: 'pending',
+    submitted_at: new Date(Date.now() - 172800000).toISOString(),
+    user_id: 1,
+  },
+];
+
 // Helper functions for persistent LocalStorage DB
 const getItem = <T>(key: string, defaultVal: T): T => {
   try {
+    if (typeof localStorage === 'undefined') return defaultVal;
     const val = localStorage.getItem(key);
     return val ? JSON.parse(val) : defaultVal;
   } catch {
@@ -298,16 +514,59 @@ const getItem = <T>(key: string, defaultVal: T): T => {
 
 const setItem = <T>(key: string, val: T): void => {
   try {
-    localStorage.setItem(key, JSON.stringify(val));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(val));
+    }
   } catch (e) {
     console.error('LocalStorage write error:', e);
   }
 };
 
+const getStoredUser = (defaultVal: any = null): any => {
+  try {
+    if (typeof localStorage === 'undefined') return defaultVal;
+    const userStr = localStorage.getItem('salvagereef_user');
+    return userStr ? JSON.parse(userStr) : defaultVal;
+  } catch {
+    return defaultVal;
+  }
+};
+
 export const getMockCategories = (): Category[] => getItem('sr_categories', INITIAL_CATEGORIES);
-export const getMockAuctions = (): Auction[] => getItem('sr_auctions', INITIAL_AUCTIONS);
-export const getMockClassifieds = (): Classified[] => getItem('sr_classifieds', INITIAL_CLASSIFIEDS);
+export const getMockAuctions = (): Auction[] => {
+  let stored = getItem<Auction[]>('sr_auctions', INITIAL_AUCTIONS);
+  const storedIds = new Set(stored.map((a) => a.id));
+  const missing = INITIAL_AUCTIONS.filter((a) => !storedIds.has(a.id));
+  if (missing.length > 0) {
+    stored = [...missing, ...stored];
+    setItem('sr_auctions', stored);
+  }
+  // Ensure 5-minute flash auction (ID 107) has a active 5-minute timer
+  const flashIdx = stored.findIndex((a) => a.id === 107);
+  if (flashIdx !== -1) {
+    const endTimeMs = new Date(stored[flashIdx].end_time).getTime();
+    if (isNaN(endTimeMs) || endTimeMs <= Date.now() || endTimeMs > Date.now() + 5 * 60 * 1000) {
+      stored[flashIdx].start_time = new Date(Date.now() - 30000).toISOString();
+      stored[flashIdx].end_time = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      stored[flashIdx].status = 'live';
+      setItem('sr_auctions', stored);
+    }
+  }
+  return stored;
+};
+export const getMockClassifieds = (): Classified[] => {
+  const stored = getItem<Classified[]>('sr_classifieds', INITIAL_CLASSIFIEDS);
+  const storedIds = new Set(stored.map((c) => c.id));
+  const missing = INITIAL_CLASSIFIEDS.filter((c) => !storedIds.has(c.id));
+  if (missing.length > 0) {
+    const merged = [...missing, ...stored];
+    setItem('sr_classifieds', merged);
+    return merged;
+  }
+  return stored;
+};
 export const getMockInterests = (): any[] => getItem('sr_interests', INITIAL_INTERESTS);
+export const getMockSellScrapRequests = (): any[] => getItem('sr_sell_scrap_requests', INITIAL_SELL_SCRAP_REQUESTS);
 export const getMockUserBids = (): any[] => getItem('sr_user_bids', [
   {
     id: 901,
@@ -423,6 +682,67 @@ export function handleMockApi(config: any): any {
     return { message: 'Interest submitted to admin desk successfully' };
   }
 
+  // 3b. POST /sell-scrap-requests
+  if (cleanUrl.endsWith('/sell-scrap-requests') && method === 'post') {
+    const requests = getMockSellScrapRequests();
+    const currentUser = getStoredUser() || INITIAL_USERS[1];
+
+    const newReq = {
+      id: Date.now(),
+      title: bodyData.title || 'Scrap Lot Submission',
+      category_id: bodyData.category_id || '1',
+      category_name: bodyData.category_name || 'General Scrap',
+      price: Number(bodyData.price || 0),
+      quantity: Number(bodyData.quantity || 1),
+      unit: bodyData.unit || 'MT',
+      location_state: bodyData.location_state || 'Maharashtra',
+      location_city: bodyData.location_city || 'Mumbai',
+      site_address: bodyData.site_address || '',
+      gst_number: bodyData.gst_number || '',
+      seller_name: bodyData.seller_name || currentUser.name,
+      seller_phone: bodyData.seller_phone || currentUser.phone,
+      seller_email: bodyData.seller_email || currentUser.email,
+      description: bodyData.description || '',
+      image_url: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+      status: 'pending',
+      submitted_at: new Date().toISOString(),
+      user_id: currentUser.id,
+    };
+
+    requests.unshift(newReq);
+    setItem('sr_sell_scrap_requests', requests);
+    return { success: true, message: 'Scrap lot details submitted to Admin Desk successfully', data: newReq };
+  }
+
+  // 3c. GET /admin/sell-scrap-requests or GET /sell-scrap-requests
+  if ((cleanUrl.endsWith('/sell-scrap-requests') || cleanUrl.endsWith('/admin/sell-scrap-requests')) && method === 'get') {
+    const data = getMockSellScrapRequests();
+    return { success: true, data, total: data.length };
+  }
+
+  // 3d. PUT /admin/sell-scrap-requests/:id/status
+  if (cleanUrl.includes('/sell-scrap-requests/') && cleanUrl.endsWith('/status') && method === 'put') {
+    const parts = cleanUrl.split('/');
+    const reqId = Number(parts[parts.indexOf('sell-scrap-requests') + 1]);
+    const requests = getMockSellScrapRequests();
+    const idx = requests.findIndex((r: any) => r.id === reqId);
+    if (idx !== -1) {
+      requests[idx].status = bodyData.status || 'contacted';
+      setItem('sr_sell_scrap_requests', requests);
+    }
+    return { success: true, message: 'Scrap request status updated', data: requests[idx] };
+  }
+
+  // 3e. DELETE /admin/sell-scrap-requests/:id
+  if (cleanUrl.includes('/sell-scrap-requests/') && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const reqId = Number(parts[parts.length - 1]);
+    const requests = getMockSellScrapRequests();
+    const updated = requests.filter((r: any) => r.id !== reqId);
+    setItem('sr_sell_scrap_requests', updated);
+    return { success: true, message: 'Scrap request deleted' };
+  }
+
   // 4. GET /auctions/:slug_or_id (Single Auction detail)
   const isSingleAuction = /\/auctions\/[^\/]+$/.test(cleanUrl) && !cleanUrl.endsWith('/auctions');
   if (isSingleAuction && method === 'get') {
@@ -433,7 +753,7 @@ export function handleMockApi(config: any): any {
     const auction = auctions.find((a) => a.slug === slugOrId || String(a.id) === slugOrId) || auctions[0];
 
     const interests = getMockInterests();
-    const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null');
+    const currentUser = getStoredUser();
     const isApproved = interests.some(
       (i) => i.auction_id === auction.id && i.user_id === currentUser?.id && i.status === 'approved'
     );
@@ -620,9 +940,186 @@ export function handleMockApi(config: any): any {
     };
   }
 
+  // 10-analytics. GET /admin/analytics/overview
+  if (url.includes('/admin/analytics/overview') && method === 'get') {
+    const auctions = getMockAuctions();
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const storedBids = getItem('sr_admin_bids', [
+      { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+      { id: 102, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1420000, bidder_name: 'Western Heavy Recyclers', bidder_company: 'Western Recyclers', status: 'approved', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+      { id: 103, auction_id: 102, auction_title: '120 MT HMS 1&2 Heavy Melting Steel Scrap', amount: 4650000, bidder_name: 'Apex Steel Traders', bidder_company: 'Apex Steel Traders', status: 'approved', created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+      { id: 104, auction_id: 103, auction_title: '35 MT Aluminium Extrusion 6063 Scrap', amount: 820000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 4 * 86400000).toISOString() },
+      { id: 105, auction_id: 104, auction_title: '25 MT Electric Motor Scrap (High Copper)', amount: 1250000, bidder_name: 'Bharat Scrap Traders', bidder_company: 'Bharat Scrap Traders', status: 'approved', created_at: new Date(Date.now() - 5 * 86400000).toISOString() },
+      { id: 106, auction_id: 105, auction_title: '80 MT Industrial Machinery Dismantling Scrap', amount: 3200000, bidder_name: 'Gujarat Alloys Corp', bidder_company: 'Gujarat Alloys Corp', status: 'approved', created_at: new Date(Date.now() - 6 * 86400000).toISOString() },
+      { id: 107, auction_id: 106, auction_title: '15 MT Stainless Steel 304 & 316 Scrap', amount: 980000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 7 * 86400000).toISOString() },
+    ]);
+
+    const totalAuctions = auctions.length;
+    const activeAuctions = auctions.filter((a) => a.status === 'live' || a.status === 'upcoming').length;
+    const completedAuctions = auctions.filter((a) => a.status === 'completed' || a.status === 'closed' || a.winner_confirmed).length;
+    const totalUsers = users.length;
+    const totalBids = storedBids.length;
+    const totalAuctionValue = auctions.reduce((acc, a) => acc + (a.current_highest_bid || a.starting_price || 0), 0);
+
+    // Dynamic Bidding Activity series based on stored bids
+    const activityMap: Record<string, { count: number; total: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      const dateKey = d.toISOString().split('T')[0];
+      activityMap[dateKey] = { count: 0, total: 0 };
+    }
+    storedBids.forEach((b: any) => {
+      const dateKey = (b.created_at || '').split('T')[0];
+      if (activityMap[dateKey]) {
+        activityMap[dateKey].count += 1;
+        activityMap[dateKey].total += Number(b.amount) || 0;
+      }
+    });
+    const biddingActivity = Object.keys(activityMap).map((k) => ({
+      bid_date: k,
+      bids_count: activityMap[k].count,
+      total_amount: activityMap[k].total,
+    }));
+
+    // Auction performance by period
+    const auctionPerformance = [
+      { period: 'May 2026', total_auctions: 4, completed_auctions: 3, active_auctions: 1 },
+      { period: 'Jun 2026', total_auctions: 6, completed_auctions: 5, active_auctions: 1 },
+      { period: 'Jul 2026', total_auctions: 7, completed_auctions: 6, active_auctions: 1 },
+      { period: 'Aug 2026', total_auctions: totalAuctions, completed_auctions: completedAuctions, active_auctions: activeAuctions },
+    ];
+
+    // Status breakdown
+    const statusCounts: Record<string, number> = {};
+    auctions.forEach((a) => {
+      const st = (a.status || 'live').toLowerCase();
+      const label = st === 'live' ? 'Live Bidding' : st === 'upcoming' ? 'Upcoming' : st === 'completed' || st === 'closed' ? 'Completed' : 'Draft / Review';
+      statusCounts[label] = (statusCounts[label] || 0) + 1;
+    });
+    const auctionStatus = Object.keys(statusCounts).map((k) => ({
+      status: k,
+      count: statusCounts[k],
+    }));
+
+    // Category performance
+    const catMap: Record<string, { name: string; count: number; total: number }> = {};
+    auctions.forEach((a) => {
+      const catName = typeof a.category === 'object' ? a.category?.name : (a.category || 'Industrial Metals');
+      if (!catMap[catName]) catMap[catName] = { name: catName, count: 0, total: 0 };
+      catMap[catName].count += 1;
+      catMap[catName].total += Number(a.current_highest_bid || a.starting_price || 0);
+    });
+    const categoryPerformance = Object.values(catMap).sort((a, b) => b.total - a.total);
+
+    // Top Bidders
+    const topBidders = [
+      { user_id: 2, bidder_name: 'Neelkanth Sharma', company_name: 'Metals & Alloys Co', total_bids: 8, highest_bid: 1450000, total_bid_volume: 3250000, winning_auctions: 3 },
+      { user_id: 102, bidder_name: 'Western Heavy Recyclers', company_name: 'Western Heavy Corp', total_bids: 5, highest_bid: 1420000, total_bid_volume: 2420000, winning_auctions: 2 },
+      { user_id: 103, bidder_name: 'Apex Steel Traders', company_name: 'Apex Scrap Recyclers Ltd', total_bids: 6, highest_bid: 4650000, total_bid_volume: 4650000, winning_auctions: 2 },
+      { user_id: 105, bidder_name: 'Bharat Scrap Traders', company_name: 'Bharat Scrap Trading Co', total_bids: 4, highest_bid: 1250000, total_bid_volume: 1850000, winning_auctions: 1 },
+      { user_id: 106, bidder_name: 'Gujarat Alloys Corp', company_name: 'Gujarat Industrial Alloys', total_bids: 3, highest_bid: 3200000, total_bid_volume: 3200000, winning_auctions: 1 },
+    ];
+
+    return {
+      kpi: {
+        total_auctions: totalAuctions,
+        active_auctions: activeAuctions,
+        completed_auctions: completedAuctions,
+        total_bids: totalBids,
+        total_users: totalUsers,
+        total_auction_value: totalAuctionValue,
+      },
+      bidding_activity: biddingActivity,
+      auction_performance: auctionPerformance,
+      auction_status: auctionStatus,
+      category_performance: categoryPerformance,
+      top_bidders: topBidders,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // 10b. GET /admin/users
   if (url.includes('/admin/users') && method === 'get') {
-    const users = getItem('sr_all_users', INITIAL_USERS);
+    const rawUsers = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    let masterFound = false;
+    const users = (Array.isArray(rawUsers) ? rawUsers : []).map((u: any) => {
+      const nameLower = (u.name || '').toLowerCase();
+      const emailLower = (u.email || '').toLowerCase();
+      const roleLower = (u.role || '').toLowerCase();
+      const isDeskOnly = (nameLower.includes('desk') || roleLower === 'read_only_admin' || emailLower === 'inspector@salvagereef.com') && !nameLower.includes('executive');
+      const isExecExplicit = nameLower.includes('executive') || emailLower === 'executive@salvagereef.com' || roleLower === 'desk_admin';
+      const isMasterCandidate = (u.id === 3 || roleLower === 'master_admin' || emailLower === 'admin@salvagereef.com' || nameLower === 'master admin') && !isDeskOnly && !isExecExplicit;
+
+      if (isMasterCandidate && !masterFound) {
+        masterFound = true;
+        return {
+          ...u,
+          id: 3,
+          name: 'Master Admin',
+          email: 'admin@salvagereef.com',
+          role: 'master_admin',
+          company_name: 'SalvageReef Master Operations',
+          phone: '9820999999',
+          is_verified: true,
+          is_active: true,
+          password: u.password || 'sociial123',
+        };
+      }
+
+      if ((isMasterCandidate && masterFound) || isExecExplicit) {
+        return {
+          ...u,
+          id: u.id === 3 ? 6 : u.id || 6,
+          name: 'SalvageReef Executive Desk Admin',
+          email: 'executive@salvagereef.com',
+          role: 'desk_admin',
+          company_name: 'SalvageReef Executive Desk',
+          phone: u.phone && u.phone !== '9820999999' ? u.phone : '9820777777',
+          is_verified: true,
+          is_active: true,
+          password: u.password || 'execadmin123',
+        };
+      }
+
+      if (isDeskOnly) {
+        return {
+          ...u,
+          id: u.id === 3 ? 5 : u.id || 5,
+          name: 'SalvageReef Desk Admin (Read-Only)',
+          email: 'inspector@salvagereef.com',
+          role: 'read_only_admin',
+          company_name: 'SalvageReef Audit Desk (Read-Only)',
+          phone: u.phone && u.phone !== '9820999999' ? u.phone : '9820888888',
+          is_verified: true,
+          is_active: true,
+          password: u.password || 'deskadmin123',
+        };
+      }
+
+      if (u.id === 2 || emailLower === 'bidder@salvagereef.com' || nameLower.includes('bidder')) {
+        return {
+          ...u,
+          id: 2,
+          name: u.name || 'Neelkanth Sharma',
+          email: 'bidder@salvagereef.com',
+          role: 'bidder',
+          company_name: u.company_name || 'Metals & Alloys Co',
+          phone: u.phone || '9820123456',
+          is_verified: true,
+          is_active: true,
+          password: u.password || 'BidderPass@2026',
+        };
+      }
+
+      return {
+        ...u,
+        is_active: u.is_active !== false,
+        is_verified: u.is_verified ?? true,
+      };
+    });
+
+    setItem('sr_admin_users', users);
+
     return {
       data: users,
       total: users.length,
@@ -632,14 +1129,71 @@ export function handleMockApi(config: any): any {
     };
   }
 
+  // 10b2. POST /admin/users (Create User)
+  if (url.includes('/admin/users') && method === 'post') {
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const role = bodyData.role || 'bidder';
+    const isExec = role === 'desk_admin';
+    const isReadOnly = role === 'read_only_admin';
+    const isAgent = role === 'agent' || role === 'seller';
+
+    const defaultPass = isExec ? 'execadmin123' : isReadOnly ? 'deskadmin123' : isAgent ? 'SellerPass@2026' : 'BidderPass@2026';
+    const defaultCompany = isExec ? 'SalvageReef Executive Desk' : isReadOnly ? 'SalvageReef Audit Desk (Read-Only)' : isAgent ? 'Scrap Metal Partner' : 'Individual Buyer';
+
+    const newUser: any = {
+      id: Date.now(),
+      name: bodyData.name,
+      email: bodyData.email,
+      phone: bodyData.phone || '9820123456',
+      role: role === 'seller' ? 'agent' : role,
+      company_name: bodyData.company_name || defaultCompany,
+      city: bodyData.city || 'Mumbai',
+      state: bodyData.state || 'Maharashtra',
+      password: bodyData.password || defaultPass,
+      is_verified: bodyData.is_verified ?? true,
+      is_active: bodyData.is_active ?? true,
+      created_at: new Date().toISOString().split('T')[0],
+    };
+    const updated = [newUser, ...users];
+    setItem('sr_admin_users', updated);
+    setItem('sr_all_users', updated);
+    return { message: `User account created successfully with ID #${newUser.id}`, user: newUser };
+  }
+
+  // 10b3. PUT /admin/users/:id (Update User)
+  if (url.includes('/admin/users/') && !url.endsWith('/toggle-active') && !url.endsWith('/verify') && !url.endsWith('/role') && (method === 'put' || method === 'post')) {
+    const parts = url.split('/');
+    const userId = Number(parts[parts.indexOf('users') + 1]);
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const idx = users.findIndex((u: any) => u.id === userId);
+    if (idx !== -1) {
+      users[idx] = { ...users[idx], ...bodyData };
+      setItem('sr_admin_users', users);
+      setItem('sr_all_users', users);
+    }
+    return { message: 'User updated successfully', user: users[idx] };
+  }
+
+  // 10b4. DELETE /admin/users/:id
+  if (url.includes('/admin/users/') && method === 'delete') {
+    const parts = url.split('/');
+    const userId = Number(parts[parts.indexOf('users') + 1]);
+    let users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    users = users.filter((u: any) => u.id !== userId);
+    setItem('sr_admin_users', users);
+    setItem('sr_all_users', users);
+    return { message: 'User deleted successfully' };
+  }
+
   // 10c. PUT /admin/users/:id/toggle-active
   if (url.includes('/admin/users/') && url.endsWith('/toggle-active') && method === 'put') {
     const parts = url.split('/');
     const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_all_users', INITIAL_USERS);
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].is_active = !users[idx].is_active;
+      setItem('sr_admin_users', users);
       setItem('sr_all_users', users);
     }
     return { message: 'User active status updated' };
@@ -649,10 +1203,11 @@ export function handleMockApi(config: any): any {
   if (url.includes('/admin/users/') && url.endsWith('/verify') && method === 'put') {
     const parts = url.split('/');
     const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_all_users', INITIAL_USERS);
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].is_verified = !users[idx].is_verified;
+      setItem('sr_admin_users', users);
       setItem('sr_all_users', users);
     }
     return { message: 'User verification status updated' };
@@ -662,10 +1217,11 @@ export function handleMockApi(config: any): any {
   if (url.includes('/admin/users/') && url.endsWith('/role') && method === 'put') {
     const parts = url.split('/');
     const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_all_users', INITIAL_USERS);
+    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].role = bodyData.role || 'bidder';
+      setItem('sr_admin_users', users);
       setItem('sr_all_users', users);
     }
     return { message: 'User role updated' };
@@ -673,12 +1229,14 @@ export function handleMockApi(config: any): any {
 
   // 10f. GET /admin/auctions/all
   if (url.includes('/admin/auctions/all') && method === 'get') {
-    return getMockAuctions();
+    const data = getMockAuctions();
+    return { data, total: data.length };
   }
 
   // 10g. GET /admin/classifieds/all
   if (url.includes('/admin/classifieds/all') && method === 'get') {
-    return getMockClassifieds();
+    const data = getMockClassifieds();
+    return { data, total: data.length };
   }
 
   // 10h. GET /admin/interests/all
@@ -775,38 +1333,60 @@ export function handleMockApi(config: any): any {
 
   // 12. POST /auth/login
   if (url.includes('/auth/login') && method === 'post') {
-    const email = (bodyData.email || '').toLowerCase();
-    const isAdmin = email.includes('admin');
+    const rawEmail = (bodyData.email || '').trim();
+    const cleanEmail = rawEmail.toLowerCase();
+    const cleanPass = (bodyData.password || '').trim();
 
-    const user: User = isAdmin
-      ? {
-          id: 3,
-          name: 'SalvageReef Desk Admin',
-          email,
-          phone: '9820999999',
-          role: 'admin',
-          company_name: 'SalvageReef Operations Desk',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          is_verified: true,
-        }
-      : {
-          id: 2,
-          name: email.split('@')[0] ? email.split('@')[0].replace('.', ' ') : 'Rajesh Kumar',
-          email,
-          phone: '9820123456',
-          role: 'bidder',
-          company_name: 'Metals & Alloys Co',
-          city: 'Thane',
-          state: 'Maharashtra',
-          is_verified: true,
-        };
+    const storedUsers: (User & { password?: string; login_id?: string })[] =
+      getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
 
-    const token = 'mock-jwt-token-' + Date.now();
-    localStorage.setItem('salvagereef_user', JSON.stringify(user));
+    // Match exact user by email or login_id
+    const matchedUser = storedUsers.find(
+      (u) =>
+        u.email?.toLowerCase() === cleanEmail ||
+        (u.login_id && u.login_id.toLowerCase() === cleanEmail)
+    );
+
+    if (!matchedUser) {
+      throw new Error('Invalid email or Login ID. Please check your credentials.');
+    }
+
+    // Verify password strictly against user's actual password
+    const userPass = matchedUser.password || (
+      matchedUser.role === 'master_admin' ? 'sociial123' :
+      matchedUser.role === 'desk_admin' ? 'execadmin123' :
+      matchedUser.role === 'read_only_admin' ? 'deskadmin123' :
+      matchedUser.role === 'agent' ? 'SellerPass@2026' :
+      'BidderPass@2026'
+    );
+
+    // Accept userPass or standard aliases if matched
+    const isPassCorrect = cleanPass === userPass ||
+      (matchedUser.role === 'agent' && cleanPass === 'seller123') ||
+      (matchedUser.role === 'bidder' && cleanPass === 'bidder123') ||
+      (matchedUser.role === 'master_admin' && (cleanPass === 'admin123' || cleanPass === 'sociial123')) ||
+      (matchedUser.role === 'desk_admin' && (cleanPass === 'execadmin123' || cleanPass === 'desk123')) ||
+      (matchedUser.role === 'read_only_admin' && (cleanPass === 'deskadmin123' || cleanPass === 'desk123'));
+
+    if (!isPassCorrect) {
+      throw new Error('Incorrect password entered. Please check your password.');
+    }
+
+    if (matchedUser.is_active === false) {
+      throw new Error('Account suspended by administrator. Please contact support.');
+    }
+
+    const { password: _p, ...cleanUser } = matchedUser;
+    const token =
+      matchedUser.role === 'master_admin' ? 'sr_master_admin_token' :
+      matchedUser.role === 'desk_admin' ? 'sr_exec_admin_token' :
+      matchedUser.role === 'read_only_admin' ? 'sr_desk_admin_token' :
+      'mock-jwt-token-' + Date.now();
+
+    localStorage.setItem('salvagereef_user', JSON.stringify(cleanUser));
     localStorage.setItem('salvagereef_token', token);
 
-    return { user, token };
+    return { user: cleanUser, token };
   }
 
   // 13. POST /auth/register
@@ -918,9 +1498,45 @@ export function handleMockApi(config: any): any {
 
   // 21. POST /admin/maintenance/toggle
   if (url.includes('/admin/maintenance/toggle') && method === 'post') {
+    const sMode = bodyData.system_mode || (bodyData.maintenance_mode ? 'maintenance' : 'online');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_system_mode', sMode);
+      if (bodyData.maintenance_message) localStorage.setItem('sr_maintenance_message', bodyData.maintenance_message);
+      if (bodyData.temporary_closed_message) localStorage.setItem('sr_temporary_closed_message', bodyData.temporary_closed_message);
+    }
     return {
       success: true,
-      message: 'System mode updated',
+      message: `System mode updated to ${sMode}`,
+      system_mode: sMode,
+    };
+  }
+
+  // 22. GET /admin/errors/stats
+  if (url.includes('/admin/errors/stats') && method === 'get') {
+    const mode = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_system_mode') : null) || 'online';
+    const mMsg = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_maintenance_message') : null) || 'SalvageReef is currently undergoing scheduled platform upgrades to serve you better. We will be back online shortly!';
+    const tcMsg = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_temporary_closed_message') : null) || 'SalvageReef operations are temporarily closed for standard maintenance and operational update. We will reopen shortly!';
+    return {
+      success: true,
+      stats: {
+        total_errors: 0,
+        unresolved_errors: 0,
+        resolved_errors: 0,
+        today_errors: 0,
+        critical_errors: 0,
+        system_mode: mode,
+        is_maintenance: mode !== 'online',
+        maintenance_message: mMsg,
+        temporary_closed_message: tcMsg,
+      },
+    };
+  }
+
+  // 23. GET /admin/errors
+  if (url.includes('/admin/errors') && method === 'get') {
+    return {
+      success: true,
+      data: [],
     };
   }
 

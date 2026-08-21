@@ -23,6 +23,36 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      {/* TOP ANNOUNCEMENT / OFFER BANNER (ABOVE HEADER) */}
+      {content.offerBannerEnabled && content.offerBannerText && (
+        <div
+          style={{
+            backgroundColor: content.offerBannerBgColor || '#0B192C',
+            color: content.offerBannerTextColor || '#ffffff',
+          }}
+          className="py-2 px-4 text-xs font-bold border-b border-amber-500/30 transition-all shadow-inner"
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-center sm:text-left flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2 mx-auto sm:mx-0 flex-wrap justify-center">
+              {content.offerBannerBadgeText && (
+                <span className="px-2.5 py-0.5 rounded-full bg-[#D48B1C] text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                  {content.offerBannerBadgeText}
+                </span>
+              )}
+              <span className="leading-snug">{content.offerBannerText}</span>
+            </div>
+            {content.offerBannerLinkText && (
+              <Link
+                to={content.offerBannerLinkUrl || '/auctions'}
+                className="text-[#D48B1C] hover:text-amber-300 font-extrabold underline underline-offset-2 text-[11px] shrink-0 mx-auto sm:mx-0 transition-colors"
+              >
+                {content.offerBannerLinkText}
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand on Left */}
@@ -73,27 +103,42 @@ export default function Navbar() {
               {content.navContactText || 'Contact Us'}
             </Link>
 
-            {isAuthenticated && (user?.role === 'admin' || user?.role === 'agent') && (
-              <Link
-                to="/classifieds/post-listing"
-                className="flex items-center gap-1 text-xs font-bold text-[#D48B1C] bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-[#D48B1C] hover:text-white transition-all"
-              >
-                <PlusCircle className="w-3.5 h-3.5" /> {(content.navPostListingButton || 'Post Listing').replace(/^\+\s*/, '')}
-              </Link>
-            )}
+            {/* Sell Your Scrap Button - Open for Everyone */}
+            <Link
+              to="/sell-scrap"
+              className="flex items-center gap-1.5 text-xs font-extrabold text-[#D48B1C] bg-amber-50 border border-amber-300 px-3.5 py-1.5 rounded-xl hover:bg-[#D48B1C] hover:text-white transition-all shadow-sm"
+            >
+              <PlusCircle className="w-4 h-4 shrink-0" />
+              <span>
+                {content.navPostListingButton && !content.navPostListingButton.includes('Post Listing')
+                  ? content.navPostListingButton.replace(/^\+\s*/, '')
+                  : 'Sell Your Scrap'}
+              </span>
+            </Link>
           </nav>
 
           {/* Right Controls: Login / Register / Logout */}
           <div className="hidden md:flex items-center gap-6 text-sm font-bold">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
-                <Link
-                  to={user?.role === 'admin' ? '/admin' : '/dashboard'}
-                  className="flex items-center gap-1.5 text-slate-800 hover:text-[#1D70B8] transition-colors"
-                >
-                  <LayoutDashboard className="w-4 h-4 text-[#1D70B8]" />
-                  {user?.role === 'admin' ? 'Admin Desk' : 'Dashboard'}
-                </Link>
+                {(() => {
+                  const isAdmin =
+                    user?.role === 'admin' ||
+                    user?.role === 'master_admin' ||
+                    user?.role === 'desk_admin' ||
+                    user?.role === 'read_only_admin' ||
+                    user?.email === 'admin@salvagereef.com' ||
+                    user?.email === 'executive@salvagereef.com';
+                  return (
+                    <Link
+                      to={isAdmin ? '/admin' : '/dashboard'}
+                      className="flex items-center gap-1.5 text-slate-800 hover:text-[#1D70B8] transition-colors"
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-[#1D70B8]" />
+                      {isAdmin ? 'Admin Desk' : 'Dashboard'}
+                    </Link>
+                  );
+                })()}
                 
                 {/* Logout Button with Confirmation Dialog */}
                 <button
@@ -116,7 +161,9 @@ export default function Navbar() {
                   to="/register"
                   className="px-4 py-2 rounded-xl bg-[#D48B1C] hover:bg-[#b87614] text-white transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg uppercase tracking-wider text-[11px]"
                 >
-                  {content.navRegisterText || 'Register Free'}
+                  {content.navRegisterText && content.navRegisterText.trim() !== 'Register Free'
+                    ? content.navRegisterText
+                    : 'Register'}
                 </Link>
               </div>
             )}
@@ -172,15 +219,41 @@ export default function Navbar() {
           >
             {content.navContactText || 'Contact Us'}
           </Link>
+
+          {/* Mobile "Sell Your Scrap" Button */}
+          <Link
+            to="/sell-scrap"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-1.5 text-amber-700 py-2 border-b border-slate-100 font-bold"
+          >
+            <PlusCircle className="w-4 h-4 text-[#D48B1C]" />
+            <span>
+              {content.navPostListingButton && !content.navPostListingButton.includes('Post Listing')
+                ? content.navPostListingButton.replace(/^\+\s*/, '')
+                : 'Sell Your Scrap'}
+            </span>
+          </Link>
+
           {isAuthenticated ? (
             <>
-              <Link
-                to={user?.role === 'admin' ? '/admin' : '/dashboard'}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-slate-800 py-2 border-b border-slate-100"
-              >
-                Dashboard ({user?.name})
-              </Link>
+              {(() => {
+                const isAdmin =
+                  user?.role === 'admin' ||
+                  user?.role === 'master_admin' ||
+                  user?.role === 'desk_admin' ||
+                  user?.role === 'read_only_admin' ||
+                  user?.email === 'admin@salvagereef.com' ||
+                  user?.email === 'executive@salvagereef.com';
+                return (
+                  <Link
+                    to={isAdmin ? '/admin' : '/dashboard'}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-slate-800 py-2 border-b border-slate-100 font-bold"
+                  >
+                    {isAdmin ? 'Admin Desk' : 'Dashboard'} ({user?.name})
+                  </Link>
+                );
+              })()}
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -205,7 +278,9 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-[#1D70B8] font-bold"
               >
-                {content.navRegisterText || 'Register'}
+                {content.navRegisterText && content.navRegisterText.trim() !== 'Register Free'
+                  ? content.navRegisterText
+                  : 'Register'}
               </Link>
             </div>
           )}

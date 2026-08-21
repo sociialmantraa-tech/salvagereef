@@ -2,45 +2,102 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const distHtml = path.join(__dirname, 'dist', 'index.html');
+const rootDir = path.join(__dirname, '..');
+const distDir = path.join(__dirname, 'dist');
+const deployDir = path.join(rootDir, 'deploy_hosting', 'public_html');
+const distHtml = path.join(distDir, 'index.html');
+
+console.log('📦 Starting SalvageReef Hosting Package Build...');
+
+// 1. Process dist/index.html
 if (fs.existsSync(distHtml)) {
   let content = fs.readFileSync(distHtml, 'utf8');
 
-  // Replace absolute paths with relative ./ paths
-  content = content.replace(/src="\/assets\//g, 'src="./assets/');
-  content = content.replace(/href="\/assets\//g, 'href="./assets/');
-  content = content.replace(/src="\/logo\.png"/g, 'src="./logo.png"');
-  content = content.replace(/href="\/favicon/g, 'href="./favicon');
+  // Ensure <base href="/" /> is present for sub-route asset loading
+  if (!content.includes('<base href="/"')) {
+    content = content.replace('<head>', '<head>\n    <base href="/" />');
+  }
 
   fs.writeFileSync(distHtml, content, 'utf8');
-  console.log('✔ Updated dist/index.html with relative ./ asset paths!');
+  console.log('✔ Updated dist/index.html with <base href="/" />!');
 }
 
-// Also check and fix built JS bundle files in dist/assets
-const assetsDir = path.join(__dirname, 'dist', 'assets');
-if (fs.existsSync(assetsDir)) {
-  const files = fs.readdirSync(assetsDir);
-  for (const file of files) {
-    if (file.endsWith('.js')) {
-      const filePath = path.join(assetsDir, file);
-      let jsContent = fs.readFileSync(filePath, 'utf8');
-      if (jsContent.includes('"/logo.png"')) {
-        jsContent = jsContent.replace(/"\/logo\.png"/g, '"./logo.png"');
-        fs.writeFileSync(filePath, jsContent, 'utf8');
-      }
+// 2. Sync built dist/ files into deploy_hosting/public_html/
+if (fs.existsSync(deployDir)) {
+  const assetsSrc = path.join(distDir, 'assets');
+  const assetsDest = path.join(deployDir, 'assets');
+
+  // Copy assets folder
+  if (fs.existsSync(assetsSrc)) {
+    if (fs.existsSync(assetsDest)) {
+      fs.rmSync(assetsDest, { recursive: true, force: true });
     }
+    fs.mkdirSync(assetsDest, { recursive: true });
+
+    const files = fs.readdirSync(assetsSrc);
+    for (const file of files) {
+      fs.copyFileSync(path.join(assetsSrc, file), path.join(assetsDest, file));
+    }
+    console.log(`✔ Copied ${files.length} compiled assets to deploy_hosting/public_html/assets/!`);
+  }
+
+  // Copy root index.html and favicons
+  if (fs.existsSync(distHtml)) {
+    fs.copyFileSync(distHtml, path.join(deployDir, 'index.html'));
   }
 }
 
-// Automatically package ready-to-upload scrab_dist.zip
-try {
-  const frontendZip = path.join(__dirname, 'scrab_dist.zip');
-  const rootZip = path.join(__dirname, '..', 'scrab_dist.zip');
-  const distFiles = path.join(__dirname, 'dist', '*');
+// 3. Pre-create required backend log and upload directories
+const requiredDirs = [
+  path.join(deployDir, 'backend', 'logs'),
+  path.join(deployDir, 'backend', 'storage', 'logs', 'errors'),
+  path.join(deployDir, 'uploads', 'auction'),
+  path.join(deployDir, 'uploads', 'classified'),
+  path.join(deployDir, 'uploads', 'logo'),
+  path.join(deployDir, 'uploads', 'hero'),
+  path.join(deployDir, 'uploads', 'footer-logo'),
+  path.join(deployDir, 'uploads', 'general'),
+];
 
-  const psCmd = `powershell -Command "Compress-Archive -Path '${distFiles}' -DestinationPath '${frontendZip}' -Force; Copy-Item -Path '${frontendZip}' -Destination '${rootZip}' -Force"`;
-  execSync(psCmd, { stdio: 'inherit' });
-  console.log('✔ Automatically packaged scrab_dist.zip for cPanel upload!');
+for (const dir of requiredDirs) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    const gitkeep = path.join(dir, '.gitkeep');
+    if (!fs.existsSync(gitkeep)) fs.writeFileSync(gitkeep, '');
+  }
+}
+console.log('✔ Pre-created all backend log and upload subdirectories!');
+
+// 4. Create initial error log files if missing
+const errorLogFiles = [
+  path.join(deployDir, 'backend', 'logs', 'error.log'),
+  path.join(deployDir, 'backend', 'logs', 'access.log'),
+  path.join(deployDir, 'backend', 'logs', 'security.log'),
+  path.join(deployDir, 'backend', 'logs', 'upload.log'),
+  path.join(deployDir, 'backend', 'logs', 'fatal.log'),
+  path.join(deployDir, 'backend', 'storage', 'logs', 'errors', 'error_log.txt'),
+];
+
+for (const f of errorLogFiles) {
+  if (!fs.existsSync(f)) {
+    const initialHeader = `=== SALVAGEREEF INITIALIZED LOG FILE (${path.basename(f)}) ===\n`;
+    fs.writeFileSync(f, initialHeader, 'utf8');
+  }
+}
+
+// 5. Automatically package ready-to-upload salvagereef_FULL_UPLOAD.zip using native tar
+try {
+  const fullZipPath = path.join(rootDir, 'salvagereef_FULL_UPLOAD.zip');
+  const scrabZipPath = path.join(rootDir, 'scrab_dist.zip');
+  const frontendZipPath = path.join(__dirname, 'scrab_dist.zip');
+
+  const tarCmd = `tar -a -c -f "${fullZipPath}" -C "${deployDir}" .`;
+  execSync(tarCmd, { stdio: 'inherit' });
+
+  fs.copyFileSync(fullZipPath, scrabZipPath);
+  fs.copyFileSync(fullZipPath, frontendZipPath);
+
+  console.log('🚀 Successfully generated salvagereef_FULL_UPLOAD.zip for cPanel hosting!');
 } catch (e) {
   console.warn('Zip creation notice:', e.message);
 }

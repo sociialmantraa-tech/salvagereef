@@ -3,8 +3,20 @@ export interface User {
   name: string;
   email: string;
   phone?: string | null;
-  role?: 'admin' | 'agent' | 'bidder';
+  role?: 'master_admin' | 'desk_admin' | 'read_only_admin' | 'admin' | 'agent' | 'bidder' | 'seller' | 'buyer';
   company_name?: string | null;
+  entity_type?: string | null;
+  pan_number?: string | null;
+  gst_number?: string | null;
+  registered_address?: string | null;
+  pincode?: string | null;
+  spoc_name?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc_code?: string | null;
+  cheque_file?: string | null;
+  pan_file?: string | null;
+  gst_file?: string | null;
   city?: string | null;
   state?: string | null;
   is_verified?: boolean;
@@ -31,9 +43,11 @@ export interface Bid {
   auction_id?: number;
   user_id?: number;
   amount: number;
+  status?: 'pending' | 'approved' | 'rejected';
   bidder_name?: string;
   user?: {
     name: string;
+    email?: string;
   };
   created_at: string;
 }
@@ -49,7 +63,15 @@ export interface Auction {
   quantity: number;
   unit: string;
   starting_price: number;
+  bid_increment?: number;
   current_highest_bid?: number | null;
+  winner_confirmed?: boolean | number;
+  winner_user_id?: number | null;
+  winner_h1_user_id?: number | null;
+  winner_h2_user_id?: number | null;
+  winner_h3_user_id?: number | null;
+  awarded_winner_type?: 'H1' | 'H2' | 'H3' | null;
+  awarded_winner_id?: number | null;
   start_time?: string;
   end_time?: string;
   location_city: string;

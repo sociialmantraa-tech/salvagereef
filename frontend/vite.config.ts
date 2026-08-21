@@ -11,7 +11,10 @@ function devApiPlugin(): Plugin {
     name: 'dev-api-plugin',
     configureServer(server) {
       server.middlewares.use((req: any, res: any, next: any) => {
-        const url = req.url || '';
+        const url = req.originalUrl || req.url || '';
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         // Handle GET /api/v1/system/settings
         if (req.method === 'GET' && url.includes('/system/settings')) {
@@ -48,6 +51,126 @@ function devApiPlugin(): Plugin {
               res.end(JSON.stringify({ error: 'Failed to write settings file' }));
             }
           });
+          return;
+        }
+
+        // Handle Users Database Persistence (dev_users.json)
+        const usersFilePath = path.resolve(__dirname, 'dev_users.json');
+
+        // Helper to read users from file
+        const readDevUsers = (): any[] => {
+          if (fs.existsSync(usersFilePath)) {
+            try {
+              return JSON.parse(fs.readFileSync(usersFilePath, 'utf-8'));
+            } catch (e) {}
+          }
+          return [];
+        };
+
+        // Helper to write users to file
+        const writeDevUsers = (users: any[]) => {
+          fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2), 'utf-8');
+        };
+
+        // GET /api/v1/admin/users (exact list)
+        if (req.method === 'GET' && (url.endsWith('/admin/users') || url.endsWith('/admin/users/'))) {
+          res.setHeader('Content-Type', 'application/json');
+          const users = readDevUsers();
+          res.end(JSON.stringify({
+            success: true,
+            data: users,
+            total: users.length,
+            active: users.filter((u: any) => u.is_active !== false).length,
+            suspended: users.filter((u: any) => u.is_active === false).length,
+            verified: users.filter((u: any) => u.is_verified).length,
+          }));
+          return;
+        }
+
+        // POST /api/v1/admin/users (create user or save list)
+        if (req.method === 'POST' && (url.endsWith('/admin/users') || url.endsWith('/admin/users/'))) {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              let users = readDevUsers();
+              if (Array.isArray(parsed)) {
+                users = parsed;
+              } else if (parsed && parsed.name) {
+                const newUser = {
+                  id: parsed.id || Date.now(),
+                  name: parsed.name,
+                  email: parsed.email,
+                  phone: parsed.phone || '9820123456',
+                  role: parsed.role || 'bidder',
+                  company_name: parsed.company_name || 'Individual Buyer',
+                  city: parsed.city || 'Mumbai',
+                  state: parsed.state || 'Maharashtra',
+                  password: parsed.password || 'seller123',
+                  is_verified: parsed.is_verified !== false,
+                  is_active: parsed.is_active !== false,
+                  created_at: parsed.created_at || new Date().toISOString().split('T')[0],
+                };
+                users = [newUser, ...users.filter((u: any) => u.id !== newUser.id)];
+              }
+              writeDevUsers(users);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, message: 'User created & saved across all browsers', data: users }));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to save user' }));
+            }
+          });
+          return;
+        }
+
+        // PUT/POST /api/v1/admin/users/:id
+        if ((req.method === 'PUT' || req.method === 'POST') && url.includes('/admin/users/')) {
+          const match = url.match(/\/admin\/users\/(\d+)/);
+          const userId = match ? Number(match[1]) : null;
+          const isVerify = url.endsWith('/verify');
+          const isToggleActive = url.endsWith('/toggle-active');
+          const isRole = url.endsWith('/role');
+
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              let users = readDevUsers();
+              const idx = users.findIndex((u: any) => u.id === userId);
+              if (idx !== -1) {
+                if (isVerify) {
+                  users[idx].is_verified = !users[idx].is_verified;
+                } else if (isToggleActive) {
+                  users[idx].is_active = !users[idx].is_active;
+                } else if (isRole) {
+                  users[idx].role = parsed.role || users[idx].role;
+                } else {
+                  users[idx] = { ...users[idx], ...parsed };
+                }
+                writeDevUsers(users);
+              }
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, message: 'User updated across all browsers', user: idx !== -1 ? users[idx] : null, data: users }));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to update user' }));
+            }
+          });
+          return;
+        }
+
+        // DELETE /api/v1/admin/users/:id
+        if (req.method === 'DELETE' && url.includes('/admin/users/')) {
+          const match = url.match(/\/admin\/users\/(\d+)/);
+          const userId = match ? Number(match[1]) : null;
+          let users = readDevUsers();
+          users = users.filter((u: any) => u.id !== userId);
+          writeDevUsers(users);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true, message: 'User deleted across all browsers', data: users }));
           return;
         }
 
@@ -98,6 +221,26 @@ function devApiPlugin(): Plugin {
               res.end(JSON.stringify({ error: 'Failed to write auctions file' }));
             }
           });
+          return;
+        }
+
+        // Handle GET /api/v1/system/db-status
+        if (req.method === 'GET' && url.includes('/system/db-status')) {
+          res.setHeader('Content-Type', 'application/json');
+          const users = readDevUsers();
+          res.end(JSON.stringify({
+            success: true,
+            connected: true,
+            driver: 'sqlite',
+            engine: 'SQLite 3 (Self-Contained Database)',
+            database_name: 'database.sqlite',
+            database_host: 'Local Server (public_html/backend/database)',
+            table_count: 11,
+            total_users: users.length,
+            total_auctions: 5,
+            status_text: 'CONNECTED & OPERATIONAL',
+            timestamp: new Date().toISOString(),
+          }));
           return;
         }
 

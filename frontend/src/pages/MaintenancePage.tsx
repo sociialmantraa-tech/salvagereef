@@ -85,23 +85,13 @@ export default function MaintenancePage({
             <span>{checking ? 'Checking Status...' : 'Check Server Status'}</span>
           </button>
 
-          {user?.role === 'admin' ? (
-            <Link
-              to="/admin"
-              className="flex-1 inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-lg shadow-emerald-600/25"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Admin Bypass Access</span>
-            </Link>
-          ) : (
-            <Link
-              to="/login"
-              className="flex-1 inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold text-sm transition-all"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Admin Login</span>
-            </Link>
-          )}
+          <Link
+            to="/admin"
+            className="flex-1 inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold text-sm transition-all border border-slate-600 shadow-md"
+          >
+            <LogIn className="w-4 h-4 text-[#D48B1C]" />
+            <span>Admin Login / Console</span>
+          </Link>
         </div>
 
         <div className="mt-8 text-xs text-slate-500">

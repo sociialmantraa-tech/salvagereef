@@ -16,26 +16,50 @@ class CheckMaintenanceMode
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true';
+        $systemMode = SystemSetting::get('system_mode', 'online');
+        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true' || $systemMode !== 'online';
 
         if ($isMaintenance) {
-            // Check if request is system status check or maintenance toggle
-            if ($request->is('api/v1/system/status') || $request->is('api/v1/admin/maintenance/*') || $request->is('api/v1/auth/login')) {
+            // 1. ALWAYS allow system status, admin panel routes, and login/auth endpoints
+            if (
+                $request->is('api/v1/system/status') ||
+                $request->is('api/v1/admin/*') ||
+                $request->is('api/v1/auth/login') ||
+                $request->is('api/v1/auth/me') ||
+                $request->is('api/v1/auth/logout')
+            ) {
                 return $next($request);
             }
 
-            // Allow authenticated admin users to bypass maintenance mode
-            if ($request->user() && $request->user()->role === 'admin') {
+            // 2. Allow authenticated admin users to bypass maintenance mode via Sanctum token check
+            if ($request->bearerToken()) {
+                try {
+                    $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+                    if ($pat && $pat->tokenable && in_array($pat->tokenable->role, ['admin', 'master_admin', 'desk_admin'], true)) {
+                        return $next($request);
+                    }
+                } catch (\Throwable $e) {
+                    // Fallthrough to maintenance block
+                }
+            }
+
+            if ($request->user() && in_array($request->user()->role, ['admin', 'master_admin', 'desk_admin'], true)) {
                 return $next($request);
             }
 
-            $message = SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance. We will be back shortly!');
+            // 3. For public visitors, select appropriate notice copy
+            $mMsg = SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance. We will be back shortly!');
+            $tcMsg = SystemSetting::get('temporary_closed_message', 'SalvageReef operations are temporarily closed for standard maintenance and upgrades.');
+
+            $displayMessage = ($systemMode === 'temporary_closed') ? $tcMsg : $mMsg;
 
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => false,
-                    'status' => 'maintenance',
-                    'message' => $message,
+                    'status' => $systemMode,
+                    'system_mode' => $systemMode,
+                    'maintenance_mode' => true,
+                    'message' => $displayMessage,
                 ], 503);
             }
         }
@@ -43,3 +67,4 @@ class CheckMaintenanceMode
         return $next($request);
     }
 }
+

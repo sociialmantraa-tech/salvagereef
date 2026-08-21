@@ -214,6 +214,25 @@ class AuctionSeeder extends Seeder
                 'created_by' => $admin->id,
                 'image' => 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
             ],
+            // 11. Demo Solar PV Panel Scrap Auction (Demo Item)
+            [
+                'title' => '25 kW Solar Photovoltaic Panel Scrap & Frame Lot (Demo Item)',
+                'description' => 'DEMO ITEM FOR TESTING: High-efficiency monocrystalline solar PV panel salvage lot (25 kW total output) with extruded aluminum mounting structures, DC cabling, and inverter junction boxes.',
+                'category_id' => $catMetals->id,
+                'auction_type' => 'public',
+                'status' => 'live',
+                'quantity' => 25,
+                'unit' => 'kW',
+                'starting_price' => 450000,
+                'current_highest_bid' => 520000,
+                'start_time' => $now->copy()->subHours(2),
+                'end_time' => $now->copy()->addHours(72),
+                'location_city' => 'Mumbai',
+                'location_state' => 'Maharashtra',
+                'is_group' => false,
+                'created_by' => $agent->id,
+                'image' => 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
+            ],
         ];
 
         $parentGroupAuctionId = null;

@@ -10,6 +10,7 @@ use App\Models\EnquiryOrInterest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
@@ -164,4 +165,63 @@ class AdminController extends Controller
 
         return response()->json(['message' => 'Classified listing deleted successfully']);
     }
+
+    public function createUser(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'role' => 'required|string|in:admin,master_admin,desk_admin,read_only_admin,agent,bidder',
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone ?? '9820123456',
+            'role' => $request->role,
+            'company_name' => $request->company_name ?? 'Individual Buyer',
+            'city' => $request->city ?? 'Mumbai',
+            'state' => $request->state ?? 'Maharashtra',
+            'password' => Hash::make($request->password ?? 'seller123'),
+            'is_verified' => true,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'User account created successfully',
+            'user' => $user,
+        ], 201);
+    }
+
+    public function updateUser(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $data = $request->only(['name', 'email', 'phone', 'role', 'company_name', 'city', 'state']);
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+        if ($request->has('is_verified')) {
+            $data['is_verified'] = $request->boolean('is_verified');
+        }
+        if ($request->has('is_active')) {
+            $data['is_active'] = $request->boolean('is_active');
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'message' => 'User account updated successfully',
+            'user' => $user,
+        ]);
+    }
+
+    public function deleteUser($id)
+    {
+        $user = User::findOrFail($id);
+        $user->delete();
+
+        return response()->json(['message' => 'User account deleted successfully']);
+    }
 }
+

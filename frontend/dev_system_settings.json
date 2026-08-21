@@ -2,7 +2,7 @@
   "siteBrandName": "SalvageReef",
   "contactEmail": "salvagereef@gmail.com",
   "contactPhone": "+91 7304481166",
-  "contactAddress": "Maharashtra 401101",
+  "contactAddress": "Mumbai, Maharashtra 401101",
   "whatsappPhone": "7304481166",
   "currencySymbol": "₹ (INR)",
   "operatingHours": "Mon - Sat: 9:30 AM - 7:00 PM IST",
@@ -71,5 +71,13 @@
   "contactHours": "Mon - Sat: 9:30 AM - 7:00 PM IST",
   "locationCity": "Mumbai",
   "locationState": "Maharashtra",
-  "footerFounderName": "Neelkanth Sharma (Founder)"
+  "footerFounderName": "Neelkanth Sharma (Founder)",
+  "siteLogoUrl": "./logo.png",
+  "footerLogoUrl": "./logo.png",
+  "heroBannerUrl": "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80",
+  "_system_mode": "online",
+  "_maintenance_message": "SalvageReef is currently undergoing scheduled platform upgrades to serve you better. We will be back online shortly!",
+  "_temporary_closed_message": "SalvageReef operations are temporarily closed for standard maintenance and operational update. We will reopen shortly!",
+  "disclaimerTitle": "Legal Disclaimer",
+  "disclaimerText": "demo"
 }

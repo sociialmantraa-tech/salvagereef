@@ -65,7 +65,7 @@ define('SR_BLOCKED_AGENTS', [
     'metasploit',
     'python-requests/2.', // raw Python requests library (often used for bots)
     'go-http-client',
-    'curl/',              // direct curl (uncomment if you want to block)
+    // 'curl/',           // commented out so health checks work
     'scrapy',
     'zgrab',
     'nessus',

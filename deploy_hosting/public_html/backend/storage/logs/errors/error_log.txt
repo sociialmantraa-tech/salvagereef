@@ -1,0 +1,1 @@
+=== SALVAGEREEF INITIALIZED LOG FILE (error_log.txt) ===

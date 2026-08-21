@@ -57,8 +57,10 @@ class SystemErrorController extends Controller
         $resolvedCount = ErrorLog::where('status', 'resolved')->count();
         $todayCount = ErrorLog::where('created_at', '>=', $today)->count();
         $criticalCount = ErrorLog::where('severity', 'critical')->count();
-        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true';
+        $systemMode = SystemSetting::get('system_mode', 'online');
+        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true' || $systemMode === 'maintenance';
         $maintenanceMessage = SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance.');
+        $temporaryClosedMessage = SystemSetting::get('temporary_closed_message', 'SalvageReef operations are temporarily closed for standard maintenance and operational update.');
 
         return response()->json([
             'success' => true,
@@ -68,8 +70,10 @@ class SystemErrorController extends Controller
                 'resolved_errors' => $resolvedCount,
                 'today_errors' => $todayCount,
                 'critical_errors' => $criticalCount,
+                'system_mode' => $systemMode,
                 'is_maintenance' => $isMaintenance,
                 'maintenance_message' => $maintenanceMessage,
+                'temporary_closed_message' => $temporaryClosedMessage,
             ],
         ]);
     }
@@ -138,18 +142,67 @@ class SystemErrorController extends Controller
     }
 
     /**
+     * Stream raw server error logs for Admin Console live terminal.
+     */
+    public function getRawLogs(Request $request)
+    {
+        $fileParam = preg_replace('/[^a-z_]/', '', strtolower($request->query('file', 'error')));
+        $linesParam = min((int)$request->query('lines', 300), 1000);
+
+        $allowedFiles = ['error', 'access', 'security', 'upload', 'fatal', 'php_native'];
+        if (!in_array($fileParam, $allowedFiles, true)) {
+            $fileParam = 'error';
+        }
+
+        $logDir = storage_path('logs/errors');
+        $logFile = $logDir . '/' . $fileParam . '.log';
+
+        if (!File::exists($logFile) || File::size($logFile) === 0) {
+            $logFile = storage_path('logs/laravel.log');
+        }
+
+        if (!File::exists($logFile)) {
+            return response()->json([
+                'success' => true,
+                'logs' => "[SERVER LOG ACTIVE]\n[" . date('Y-m-d H:i:s') . "] No uncaught errors logged. Platform operating normally.",
+                'count' => 0,
+                'file' => $fileParam,
+            ]);
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $recentLines = array_slice($lines, -$linesParam);
+
+        return response()->json([
+            'success' => true,
+            'logs' => implode("\n", $recentLines),
+            'count' => count($lines),
+            'file' => $fileParam,
+        ]);
+    }
+
+    /**
      * Public system status endpoint.
      */
     public function getSystemStatus()
     {
-        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true';
-        $message = SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance. We will be back shortly!');
+        $systemMode = SystemSetting::get('system_mode', 'online');
+        $isMaintenance = SystemSetting::get('maintenance_mode', 'false') === 'true' || $systemMode === 'maintenance';
+        $mMsg = SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance. We will be back shortly!');
+        $tcMsg = SystemSetting::get('temporary_closed_message', 'SalvageReef operations are temporarily closed for standard maintenance and upgrades.');
+
+        $displayMessage = '';
+        if ($systemMode === 'maintenance') $displayMessage = $mMsg;
+        if ($systemMode === 'temporary_closed') $displayMessage = $tcMsg;
 
         return response()->json([
             'success' => true,
-            'status' => $isMaintenance ? 'maintenance' : 'online',
+            'status' => $systemMode,
+            'system_mode' => $systemMode,
             'maintenance_mode' => $isMaintenance,
-            'message' => $message,
+            'message' => $displayMessage,
+            'maintenance_message' => $mMsg,
+            'temporary_closed_message' => $tcMsg,
             'timestamp' => now()->toIso8601String(),
         ]);
     }
@@ -159,23 +212,36 @@ class SystemErrorController extends Controller
      */
     public function toggleMaintenance(Request $request)
     {
-        $request->validate([
-            'maintenance_mode' => 'required|boolean',
-            'message' => 'nullable|string|max:500',
-        ]);
+        $systemMode = $request->input('system_mode');
+        $maintenanceModeInput = $request->input('maintenance_mode');
 
-        $mode = $request->maintenance_mode ? 'true' : 'false';
-        SystemSetting::set('maintenance_mode', $mode);
+        if ($systemMode && in_array($systemMode, ['online', 'maintenance', 'temporary_closed'], true)) {
+            $isMaintenance = ($systemMode === 'maintenance');
+        } else {
+            $isMaintenance = filter_var($maintenanceModeInput, FILTER_VALIDATE_BOOLEAN);
+            $systemMode = $isMaintenance ? 'maintenance' : 'online';
+        }
 
-        if ($request->has('message') && !empty($request->message)) {
-            SystemSetting::set('maintenance_message', $request->message);
+        SystemSetting::set('system_mode', $systemMode);
+        SystemSetting::set('maintenance_mode', $isMaintenance ? 'true' : 'false');
+
+        if ($request->filled('maintenance_message')) {
+            SystemSetting::set('maintenance_message', $request->input('maintenance_message'));
+        }
+        if ($request->filled('message')) {
+            SystemSetting::set('maintenance_message', $request->input('message'));
+        }
+        if ($request->filled('temporary_closed_message')) {
+            SystemSetting::set('temporary_closed_message', $request->input('temporary_closed_message'));
         }
 
         return response()->json([
             'success' => true,
-            'message' => $request->maintenance_mode ? 'Maintenance mode enabled.' : 'Maintenance mode disabled.',
-            'maintenance_mode' => $request->maintenance_mode,
-            'maintenance_message' => SystemSetting::get('maintenance_message'),
+            'message' => "System operational mode updated to '{$systemMode}'.",
+            'system_mode' => $systemMode,
+            'maintenance_mode' => $isMaintenance,
+            'maintenance_message' => SystemSetting::get('maintenance_message', 'SalvageReef is currently undergoing scheduled maintenance.'),
+            'temporary_closed_message' => SystemSetting::get('temporary_closed_message', 'SalvageReef operations are temporarily closed for standard maintenance.'),
         ]);
     }
 }

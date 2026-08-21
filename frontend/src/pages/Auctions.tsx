@@ -55,6 +55,36 @@ export default function Auctions() {
     fetchAuctions();
   }, [category, auctionType, status, location]);
 
+  // Real-time synchronization for auctions list
+  useEffect(() => {
+    const importAndSubscribe = async () => {
+      const { subscribeRealtimeEvents } = await import('../services/realtimeSync');
+      return subscribeRealtimeEvents((event) => {
+        if (
+          event.type === 'auction_created' ||
+          event.type === 'auction_updated' ||
+          event.type === 'auction_deleted' ||
+          event.type === 'bid_status_updated' ||
+          event.type === 'winner_confirmed'
+        ) {
+          fetchAuctions();
+        }
+      });
+    };
+
+    let unsub: any = null;
+    importAndSubscribe().then((fn) => { unsub = fn; });
+
+    const pollInterval = setInterval(() => {
+      fetchAuctions();
+    }, 4000);
+
+    return () => {
+      if (unsub) unsub();
+      clearInterval(pollInterval);
+    };
+  }, [category, auctionType, status, location, search]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchAuctions();

@@ -1,39 +1,78 @@
 # ============================================================
 # SalvageReef — Backend .htaccess
-# Place in: public_html/salvagereef.com/backend/.htaccess
+# Place at: public_html/backend/.htaccess
+# Apache 2.4 | cPanel / GoDaddy / HostGator / Namecheap
 # ============================================================
+
+Options -Indexes
+ServerSignature Off
+
+# Disable GoDaddy / cPanel mod_layout tracking script injection on API JSON responses
+<IfModule mod_layout.c>
+  LayoutEngine Off
+</IfModule>
 
 # ── FORCE HTTPS ───────────────────────────────────────────────────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# ── ROUTE ALL REQUESTS TO server.php ─────────────────────────────────────────
+# ── ROUTE ALL API REQUESTS TO server.php ─────────────────────────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /backend/
 
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # Let real files and directories through
   RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Route everything else to server.php
   RewriteRule ^ server.php [QSA,L]
 
+  # Explicit API path routing
   RewriteRule ^api/ server.php [QSA,L]
 </IfModule>
 
-# ── BLOCK SENSITIVE FILES ─────────────────────────────────────────────────────
-<FilesMatch "\.(env|sqlite|log|json|lock|sh|sql|bak|md)$">
+# ── CORS HEADERS FOR API ──────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+  # IMPORTANT: Set your exact domain below before going live
+  # Header always set Access-Control-Allow-Origin "https://yourdomain.com"
+  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-App-Timestamp, X-App-Signature"
+  Header always set Access-Control-Allow-Credentials "true"
+  Header always set Access-Control-Max-Age "86400"
+</IfModule>
+
+# ── BLOCK SENSITIVE FILES ──────────────────────────────────────────────────────
+<FilesMatch "\.(env|sqlite|log|bak|md|sh|sql)$">
   Order allow,deny
   Deny from all
 </FilesMatch>
 
-# ── DISABLE ERROR DISPLAY ─────────────────────────────────────────────────────
+<FilesMatch "composer\.(json|lock)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# ── PHP ERROR DISPLAY (PRODUCTION: OFF) ───────────────────────────────────────
 <IfModule mod_php8.c>
   php_flag display_errors Off
   php_flag log_errors On
+  php_value error_reporting 32767
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 60
+  php_value memory_limit 256M
 </IfModule>
 <IfModule mod_php.c>
   php_flag display_errors Off
   php_flag log_errors On
+  php_value error_reporting 32767
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 60
+  php_value memory_limit 256M
 </IfModule>

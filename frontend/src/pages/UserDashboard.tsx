@@ -50,44 +50,52 @@ export default function UserDashboard() {
       <div className="bg-[#0B192C] text-white p-6 sm:p-8 rounded-3xl border-b-4 border-[#D48B1C] shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-[#D48B1C] text-xs font-bold uppercase tracking-wider block mb-1">
-            SalvageReef Buyer Dashboard
+            {user?.role === 'agent' ? 'SalvageReef Verified Seller Dashboard' : 'SalvageReef Buyer Dashboard'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-white">Welcome back, {user?.name}</h1>
           <p className="text-xs text-slate-300 mt-1 flex items-center gap-2">
-            <span>{user?.company_name || 'Independent Buyer'}</span>
+            <span>{user?.company_name || (user?.role === 'agent' ? 'Scrap Vendor' : 'Independent Buyer')}</span>
             <span>&bull;</span>
             <span className="text-[#D48B1C] font-semibold">{user?.city}, {user?.state}</span>
           </p>
         </div>
 
-        {/* Top Tab Bar */}
-        <div className="flex bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700 text-xs font-bold">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-xl transition-colors ${
-              activeTab === 'overview' ? 'bg-[#D48B1C] text-white shadow' : 'text-slate-300 hover:text-white'
-            }`}
+        {/* Action Button & Tabs */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            to="/sell-scrap"
+            className="px-4 py-2 bg-[#D48B1C] hover:bg-[#b87614] text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
           >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('bids')}
-            className={`px-4 py-2 rounded-xl transition-colors ${
-              activeTab === 'bids' ? 'bg-[#D48B1C] text-white shadow' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            My Bids
-          </button>
-          {my_listings.length > 0 && (
+            <Tag className="w-3.5 h-3.5" /> + Sell Your Scrap
+          </Link>
+
+          {/* Top Tab Bar */}
+          <div className="flex bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700 text-xs font-bold">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-xl transition-colors ${
+                activeTab === 'overview' ? 'bg-[#D48B1C] text-white shadow' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('bids')}
+              className={`px-4 py-2 rounded-xl transition-colors ${
+                activeTab === 'bids' ? 'bg-[#D48B1C] text-white shadow' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              My Bids
+            </button>
             <button
               onClick={() => setActiveTab('listings')}
               className={`px-4 py-2 rounded-xl transition-colors ${
                 activeTab === 'listings' ? 'bg-[#D48B1C] text-white shadow' : 'text-slate-300 hover:text-white'
               }`}
             >
-              My Listings ({my_listings.length})
+              My Products ({my_listings.length})
             </button>
-          )}
+          </div>
         </div>
       </div>
 

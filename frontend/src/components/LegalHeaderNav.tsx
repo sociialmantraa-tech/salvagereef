@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Info, Scale, ShieldCheck, Copyright } from 'lucide-react';
+import { Info, Scale, ShieldCheck, ShieldAlert, Copyright } from 'lucide-react';
 
 export default function LegalHeaderNav() {
   const location = useLocation();
@@ -9,6 +9,7 @@ export default function LegalHeaderNav() {
     { name: 'About Us', path: '/about', icon: Info },
     { name: 'Terms & Conditions', path: '/terms', icon: Scale },
     { name: 'Privacy Policy', path: '/privacy-policy', icon: ShieldCheck },
+    { name: 'Legal Disclaimer', path: '/disclaimer', icon: ShieldAlert },
     { name: 'Copyright Policy', path: '/copyright-policy', icon: Copyright },
   ];
 

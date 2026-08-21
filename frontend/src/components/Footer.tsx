@@ -111,6 +111,7 @@ export default function Footer() {
             <li><Link to="/about" className="hover:text-[#D48B1C] transition-colors font-medium">About Us</Link></li>
             <li><Link to="/terms" className="hover:text-[#D48B1C] transition-colors font-medium">Terms & Conditions</Link></li>
             <li><Link to="/privacy-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Privacy Policy</Link></li>
+            <li><Link to="/disclaimer" className="hover:text-[#D48B1C] transition-colors font-medium">Legal Disclaimer</Link></li>
             <li><Link to="/copyright-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Copyright Policy</Link></li>
           </ul>
         </div>
@@ -124,6 +125,8 @@ export default function Footer() {
             <Link to="/terms" className="hover:text-[#D48B1C]">Terms</Link>
             <span>&bull;</span>
             <Link to="/privacy-policy" className="hover:text-[#D48B1C]">Privacy</Link>
+            <span>&bull;</span>
+            <Link to="/disclaimer" className="hover:text-[#D48B1C]">Disclaimer</Link>
             <span>&bull;</span>
             <Link to="/copyright-policy" className="hover:text-[#D48B1C]">Copyright</Link>
           </div>

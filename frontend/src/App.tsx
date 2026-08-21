@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -22,6 +22,7 @@ const AdminDashboard  = lazy(() => import('./pages/AdminDashboard'));
 const About           = lazy(() => import('./pages/About'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const PrivacyPolicy   = lazy(() => import('./pages/PrivacyPolicy'));
+const Disclaimer      = lazy(() => import('./pages/Disclaimer'));
 const CopyrightPolicy = lazy(() => import('./pages/CopyrightPolicy'));
 const Contact         = lazy(() => import('./pages/Contact'));
 const ErrorPage       = lazy(() => import('./pages/ErrorPage'));
@@ -54,13 +55,34 @@ interface ProtectedRouteProps {
 function ProtectedRoute({ children, roleRequired }: ProtectedRouteProps) {
   const { user, isAuthenticated } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (roleRequired && user?.role !== roleRequired && user?.role !== 'admin') {
+  const isAdminRole = user?.role === 'admin' || user?.role === 'master_admin' || user?.role === 'desk_admin' || user?.role === 'read_only_admin';
+  const isSellerRole = user?.role === 'agent' || user?.role === 'seller';
+  if (roleRequired === 'agent' && !isSellerRole && !isAdminRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated } = useAuthStore();
+  const isAdmin =
+    user?.role === 'admin' ||
+    user?.role === 'master_admin' ||
+    user?.role === 'desk_admin' ||
+    user?.role === 'read_only_admin' ||
+    user?.email === 'admin@salvagereef.com' ||
+    user?.email === 'executive@salvagereef.com' ||
+    localStorage.getItem('sr_admin_auth') === 'true' ||
+    sessionStorage.getItem('sr_admin_auth') === 'true';
+
+  if (isAuthenticated && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }
 
 export default function App() {
+  const location = useLocation();
   const { user, checkAuth } = useAuthStore();
   const [initialChecking, setInitialChecking] = useState(true);
   const [isMaintenance, setIsMaintenance]     = useState(false);
@@ -69,7 +91,7 @@ export default function App() {
 
   const checkSystemStatus = async () => {
     try {
-      const res = await api.get('/system/status');
+      const res = await api.get('/system/status', { params: { _t: Date.now() } });
       const mode = res.data?.system_mode || (res.data?.maintenance_mode ? 'maintenance' : 'online');
       setSystemMode(mode);
       if (mode !== 'online') {
@@ -77,8 +99,8 @@ export default function App() {
         setMaintenanceMessage(
           res.data.message ||
             (mode === 'temporary_closed'
-              ? 'SalvageReef is temporarily closed for operations. We will reopen shortly!'
-              : 'SalvageReef is currently undergoing scheduled maintenance.')
+              ? 'SalvageReef operations are temporarily closed for standard maintenance and operational update. We will reopen shortly!'
+              : 'SalvageReef is currently undergoing scheduled platform upgrades to serve you better. We will be back online shortly!')
         );
       } else {
         setIsMaintenance(false);
@@ -89,17 +111,23 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Instantly remove HTML static preloader if present
+    const preloader = document.getElementById('app-preloader');
+    if (preloader) {
+      preloader.style.opacity = '0';
+      preloader.style.transition = 'opacity 0.2s ease-out';
+      setTimeout(() => preloader.remove(), 200);
+    }
+
     const init = async () => {
-      // ── Run all startup tasks in parallel with a hard 3-second cap ──────────
-      // If the API is slow or unreachable, we NEVER block the user more than 3s.
+      // Run startup tasks with 2.5s cap for reliable status detection on simple page refresh
       await Promise.all([
-        withTimeout(checkAuth(), 3000),
-        withTimeout(checkSystemStatus(), 3000),
-        // Fetch DB content non-critically in background (no await needed)
+        withTimeout(checkAuth(), 2000),
+        withTimeout(checkSystemStatus(), 2500),
+        // Fetch DB content non-critically in background
         (async () => {
           try {
             const { useContentStore } = await import('./store/useContentStore');
-            // Fire and forget — don't block initial render
             useContentStore.getState().fetchContentFromApi().catch(() => {});
           } catch {}
         })(),
@@ -107,16 +135,43 @@ export default function App() {
       setInitialChecking(false);
     };
 
-    // Absolute hard cap: show the site after 4 seconds no matter what
-    const hardCap = setTimeout(() => setInitialChecking(false), 4000);
+    // Absolute hard cap: show the site after 1.2 seconds no matter what
+    const hardCap = setTimeout(() => setInitialChecking(false), 1200);
     init().finally(() => clearTimeout(hardCap));
   }, []);
+
+  // Instant local synchronization when admin changes mode
+  useEffect(() => {
+    const handleModeChange = (e: any) => {
+      const mode = e.detail?.mode || 'online';
+      setSystemMode(mode);
+      setIsMaintenance(mode !== 'online');
+      if (mode === 'temporary_closed') {
+        setMaintenanceMessage(e.detail?.temporaryClosedMessage || 'SalvageReef operations are temporarily closed for standard maintenance and operational update. We will reopen shortly!');
+      } else if (mode === 'maintenance') {
+        setMaintenanceMessage(e.detail?.message || 'SalvageReef is currently undergoing scheduled platform upgrades to serve you better. We will be back online shortly!');
+      }
+    };
+    window.addEventListener('sr_system_mode_changed', handleModeChange);
+    return () => window.removeEventListener('sr_system_mode_changed', handleModeChange);
+  }, []);
+
+  // Real-time synchronization across all browsers: Check status on every navigation and every 4 seconds
+  useEffect(() => {
+    checkSystemStatus();
+    const interval = setInterval(() => {
+      checkSystemStatus();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   if (initialChecking) {
     return <PageLoading message="Initializing B2B Auctions & Scrap Desk..." />;
   }
 
-  if (isMaintenance && user?.role !== 'admin' && window.location.pathname !== '/login') {
+  const isBypassPath = location.pathname.startsWith('/admin');
+
+  if (isMaintenance && !isBypassPath) {
     return (
       <Suspense fallback={<PageLoading />}>
         <MaintenancePage
@@ -142,15 +197,32 @@ export default function App() {
               <Route path="/terms"                 element={<TermsAndConditions />} />
               <Route path="/terms-and-conditions"  element={<TermsAndConditions />} />
               <Route path="/privacy-policy"        element={<PrivacyPolicy />} />
+              <Route path="/disclaimer"            element={<Disclaimer />} />
               <Route path="/copyright-policy"      element={<CopyrightPolicy />} />
               <Route path="/auctions"              element={<Auctions />} />
               <Route path="/auctions/:slug"        element={<AuctionDetail />} />
               <Route path="/classifieds"           element={<Classifieds />} />
               <Route path="/classifieds/:slug"     element={<ClassifiedDetail />} />
               <Route
+                path="/sell-scrap"
+                element={
+                  <ProtectedRoute>
+                    <PostListing />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sell-your-scrap"
+                element={
+                  <ProtectedRoute>
+                    <PostListing />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/classifieds/post-listing"
                 element={
-                  <ProtectedRoute roleRequired="agent">
+                  <ProtectedRoute>
                     <PostListing />
                   </ProtectedRoute>
                 }
@@ -168,9 +240,9 @@ export default function App() {
               <Route
                 path="/admin"
                 element={
-                  <ProtectedRoute roleRequired="admin">
+                  <AdminRoute>
                     <AdminDashboard />
-                  </ProtectedRoute>
+                  </AdminRoute>
                 }
               />
               <Route path="/maintenance" element={<MaintenancePage message={maintenanceMessage} onCheckStatus={checkSystemStatus} />} />
