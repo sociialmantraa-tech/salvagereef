@@ -38,6 +38,7 @@ import {
   Layers,
   Sparkles,
   ChevronRight,
+  Menu,
   Filter,
   UploadCloud,
   Image as ImageIcon,
