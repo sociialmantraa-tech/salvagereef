@@ -2579,16 +2579,22 @@ export default function AdminDashboard() {
         {!mobileShowMenu && (
           <div className="lg:hidden col-span-1 space-y-4">
             <div className="bg-[#0B192C] p-4 sm:p-5 rounded-3xl border border-slate-700 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C]">
-                  ⚡ Quick Navigation — Jump to any Admin Section
+              <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-800/80">
+                <div className="space-y-0.5">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-[#D48B1C] flex items-center gap-1">
+                    ⚡ Quick Navigation
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-medium">
+                    Tap any section to open
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileShowMenu(true)}
-                  className="text-[10px] bg-slate-800 text-slate-300 font-bold px-2.5 py-1 rounded-lg border border-slate-700 hover:text-white"
+                  className="shrink-0 whitespace-nowrap bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] flex items-center gap-1.5 shadow-xs"
                 >
-                  📋 Show Menu
+                  <Menu className="w-3.5 h-3.5 text-[#D48B1C]" />
+                  <span>All Options</span>
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
@@ -2621,8 +2627,8 @@ export default function AdminDashboard() {
         {/* Sidebar Nav (Desktop always visible; Mobile visible only when mobileShowMenu is true) */}
         <div className={`lg:col-span-3 space-y-2 ${mobileShowMenu ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-[#0B192C] text-white p-4 rounded-3xl border border-slate-800 shadow-lg space-y-1">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C] px-3 py-1 block">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C] px-1 block">
                 ADMIN OPTIONS MENU
               </span>
               <button
@@ -2631,7 +2637,7 @@ export default function AdminDashboard() {
                   setMobileShowMenu(false);
                   setActiveTab('overview');
                 }}
-                className="lg:hidden text-[10px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-2.5 py-1 rounded-xl border border-amber-300 flex items-center gap-1 shadow-sm"
+                className="lg:hidden text-[10px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-2.5 py-1 rounded-xl border border-amber-300 flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap"
               >
                 ← Quick Nav
               </button>
