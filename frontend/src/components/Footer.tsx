@@ -11,41 +11,41 @@ export default function Footer() {
     <footer className="bg-[#0B192C] text-slate-300 border-t-4 border-[#D48B1C]">
       {/* Brand Value Pillars Ribbon */}
       <div className="bg-[#0D1B2A] py-6 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-3 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
-              <Leaf className="w-5 h-5" />
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6 text-left">
+          <div className="flex items-center gap-3 bg-slate-900/60 p-3 sm:p-3.5 rounded-2xl border border-slate-800">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
+              <Leaf className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge1Title || 'Sustainable Practices'}</h4>
-              <p className="text-[11px] text-slate-400">{content.footerBadge1Desc || 'Responsible recycling & recovery'}</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug">{content.footerBadge1Desc || 'Responsible recycling & recovery'}</p>
             </div>
           </div>
 
-          <div className="flex items-center justify-center md:justify-start gap-3 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
-              <Handshake className="w-5 h-5" />
+          <div className="flex items-center gap-3 bg-slate-900/60 p-3 sm:p-3.5 rounded-2xl border border-slate-800">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
+              <Handshake className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge2Title || 'Trusted Service'}</h4>
-              <p className="text-[11px] text-slate-400">{content.footerBadge2Desc || 'Verified buyers & transparent tender bidding'}</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug">{content.footerBadge2Desc || 'Verified buyers & transparent tender bidding'}</p>
             </div>
           </div>
 
-          <div className="flex items-center justify-center md:justify-start gap-3 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
-              <Globe className="w-5 h-5" />
+          <div className="flex items-center gap-3 bg-slate-900/60 p-3 sm:p-3.5 rounded-2xl border border-slate-800">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#D48B1C]/20 text-[#D48B1C] flex items-center justify-center shrink-0">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-white text-xs font-bold uppercase tracking-wide">{content.footerBadge3Title || 'Better Planet Better Future'}</h4>
-              <p className="text-[11px] text-slate-400">{content.footerBadge3Desc || 'Building a cleaner tomorrow'}</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug">{content.footerBadge3Desc || 'Building a cleaner tomorrow'}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Footer Body */}
-      <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 py-10 sm:py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* Col 1: Brand Logo & Description */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -88,32 +88,35 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* Col 3: Auction Platform Links */}
-        <div>
-          <h3 className="text-white font-bold text-xs uppercase tracking-wider mb-4 border-b border-[#D48B1C]/40 pb-2">
-            Auction Platform
-          </h3>
-          <ul className="space-y-2.5 text-xs">
-            <li><Link to="/auctions?auction_type=public" className="hover:text-[#D48B1C] transition-colors">Public Scrap Auctions</Link></li>
-            <li><Link to="/auctions?auction_type=private" className="hover:text-[#D48B1C] transition-colors">Private Tenders & Lots</Link></li>
-            <li><Link to="/auctions?auction_type=group" className="hover:text-[#D48B1C] transition-colors">Group Mill Auctions</Link></li>
-            <li><Link to="/classifieds" className="hover:text-[#D48B1C] transition-colors">Scrap Machinery Classifieds</Link></li>
-            <li><Link to="/register" className="hover:text-[#D48B1C] transition-colors">Register as Buyer</Link></li>
-          </ul>
-        </div>
+        {/* Col 3 & 4: Side-by-side on mobile view */}
+        <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 sm:gap-8">
+          {/* Auction Platform Links */}
+          <div>
+            <h3 className="text-white font-bold text-xs uppercase tracking-wider mb-4 border-b border-[#D48B1C]/40 pb-2">
+              Auction Platform
+            </h3>
+            <ul className="space-y-2.5 text-xs">
+              <li><Link to="/auctions?auction_type=public" className="hover:text-[#D48B1C] transition-colors">Public Scrap Auctions</Link></li>
+              <li><Link to="/auctions?auction_type=private" className="hover:text-[#D48B1C] transition-colors">Private Tenders & Lots</Link></li>
+              <li><Link to="/auctions?auction_type=group" className="hover:text-[#D48B1C] transition-colors">Group Mill Auctions</Link></li>
+              <li><Link to="/classifieds" className="hover:text-[#D48B1C] transition-colors">Scrap Machinery Classifieds</Link></li>
+              <li><Link to="/register" className="hover:text-[#D48B1C] transition-colors">Register as Buyer</Link></li>
+            </ul>
+          </div>
 
-        {/* Col 4: Company & Legal Policies */}
-        <div>
-          <h3 className="text-white font-bold text-xs uppercase tracking-wider mb-4 border-b border-[#D48B1C]/40 pb-2">
-            Company & Policies
-          </h3>
-          <ul className="space-y-2.5 text-xs">
-            <li><Link to="/about" className="hover:text-[#D48B1C] transition-colors font-medium">About Us</Link></li>
-            <li><Link to="/terms" className="hover:text-[#D48B1C] transition-colors font-medium">Terms & Conditions</Link></li>
-            <li><Link to="/privacy-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Privacy Policy</Link></li>
-            <li><Link to="/disclaimer" className="hover:text-[#D48B1C] transition-colors font-medium">Legal Disclaimer</Link></li>
-            <li><Link to="/copyright-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Copyright Policy</Link></li>
-          </ul>
+          {/* Company & Legal Policies */}
+          <div>
+            <h3 className="text-white font-bold text-xs uppercase tracking-wider mb-4 border-b border-[#D48B1C]/40 pb-2">
+              Company & Policies
+            </h3>
+            <ul className="space-y-2.5 text-xs">
+              <li><Link to="/about" className="hover:text-[#D48B1C] transition-colors font-medium">About Us</Link></li>
+              <li><Link to="/terms" className="hover:text-[#D48B1C] transition-colors font-medium">Terms & Conditions</Link></li>
+              <li><Link to="/privacy-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Privacy Policy</Link></li>
+              <li><Link to="/disclaimer" className="hover:text-[#D48B1C] transition-colors font-medium">Legal Disclaimer</Link></li>
+              <li><Link to="/copyright-policy" className="hover:text-[#D48B1C] transition-colors font-medium">Copyright Policy</Link></li>
+            </ul>
+          </div>
         </div>
       </div>
 

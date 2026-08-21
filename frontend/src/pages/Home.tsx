@@ -170,34 +170,34 @@ export default function Home() {
       </section>
 
       {/* Feature Value Cards */}
-      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-6 h-6" />
+      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature1Title || 'Verified Corporate Sellers'}</h3>
-            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature1Desc || 'Strict KYC norms ensure reputable sellers and genuine buyers.'}</p>
+            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-tight">{content.homeFeature1Title || 'Verified Corporate Sellers'}</h3>
+            <p className="text-slate-600 text-[11px] sm:text-xs leading-relaxed">{content.homeFeature1Desc || 'Strict KYC norms ensure reputable sellers and genuine buyers.'}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] flex items-center justify-center shrink-0">
-            <Gavel className="w-6 h-6" />
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 text-[#D48B1C] flex items-center justify-center shrink-0">
+            <Gavel className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature2Title || 'Transparent Bidding'}</h3>
-            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature2Desc || 'Real-time forward auctions with binding financial offers.'}</p>
+            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-tight">{content.homeFeature2Title || 'Transparent Bidding'}</h3>
+            <p className="text-slate-600 text-[11px] sm:text-xs leading-relaxed">{content.homeFeature2Desc || 'Real-time forward auctions with binding financial offers.'}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <Truck className="w-6 h-6" />
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Truck className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-extrabold text-slate-900 text-base">{content.homeFeature3Title || 'Pan-India Logistics'}</h3>
-            <p className="text-slate-600 text-xs leading-relaxed">{content.homeFeature3Desc || 'Seamless physical inspection and asset handover support in Mumbai.'}</p>
+            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-tight">{content.homeFeature3Title || 'Pan-India Logistics'}</h3>
+            <p className="text-slate-600 text-[11px] sm:text-xs leading-relaxed">{content.homeFeature3Desc || 'Seamless physical inspection and asset handover support in Mumbai.'}</p>
           </div>
         </div>
       </section>

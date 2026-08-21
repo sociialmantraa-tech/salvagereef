@@ -475,12 +475,14 @@ export default function PostListing() {
 
           {/* SECTION 3: WEBP COMPRESSED PRODUCT PHOTO UPLOAD */}
           <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-            <div className="flex items-center justify-between">
-              <label className="block text-slate-900 font-extrabold text-xs flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-emerald-600" /> Secure Product Photo Upload
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+              <label className="text-slate-900 font-extrabold text-xs flex items-center gap-1.5 shrink-0">
+                <ImageIcon className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Secure Product Photo Upload</span>
               </label>
-              <span className="text-[10px] text-emerald-800 font-black bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                <Lock className="w-3 h-3" /> Canvas WebP Compression & Security Sanitized
+              <span className="text-[10px] text-emerald-800 font-black bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1 shrink-0 whitespace-nowrap self-start sm:self-auto">
+                <Lock className="w-3 h-3 text-emerald-700 shrink-0" />
+                <span>Canvas WebP Compression & Security Sanitized</span>
               </span>
             </div>
 
