@@ -562,6 +562,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'sell-scrap-requests' | 'users' | 'add-product' | 'categories-locations' | 'approvals' | 'bid-approvals' | 'auctions' | 'classifieds' | 'pages-editor' | 'seo' | 'settings' | 'errors-maintenance'
   >('overview');
+  const [mobileShowMenu, setMobileShowMenu] = useState<boolean>(false);
 
   // Sell Scrap Requests State
   const [scrapRequestsFilter, setScrapRequestsFilter] = useState<string>('all');
@@ -2574,12 +2575,67 @@ export default function AdminDashboard() {
       {/* Main Layout Content - Expanded Max-Width */}
       <div className="max-w-[1750px] w-full mx-auto px-4 sm:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Sidebar Nav */}
-        <div className="lg:col-span-3 space-y-2">
+        {/* MOBILE FIRST: QUICK NAVIGATION PANEL (Visible on mobile when menu is NOT opened) */}
+        {!mobileShowMenu && (
+          <div className="lg:hidden col-span-1 space-y-4">
+            <div className="bg-[#0B192C] p-4 sm:p-5 rounded-3xl border border-slate-700 shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C]">
+                  ⚡ Quick Navigation — Jump to any Admin Section
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileShowMenu(true)}
+                  className="text-[10px] bg-slate-800 text-slate-300 font-bold px-2.5 py-1 rounded-lg border border-slate-700 hover:text-white"
+                >
+                  📋 Show Menu
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
+                  { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+                  { label: '🔖 Tender Approvals', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                  { label: '⚖️ Bid Approvals Desk', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
+                  { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
+                  { label: '📋 Classifieds Manager', tab: 'classifieds', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
+                  { label: '👥 Users & Status', tab: 'users', color: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
+                  { label: '⚠️ Errors & Maintenance', tab: 'errors-maintenance', color: 'bg-red-700 hover:bg-red-800 text-white' },
+                ].map((btn) => (
+                  <button
+                    key={btn.tab}
+                    onClick={() => {
+                      setActiveTab(btn.tab as any);
+                      setMobileShowMenu(true);
+                    }}
+                    className={`w-full flex items-center justify-center text-center px-3 py-2.5 rounded-2xl text-xs font-extrabold transition-all shadow ${btn.color} whitespace-nowrap overflow-hidden text-ellipsis`}
+                  >
+                    <span className="truncate">{btn.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sidebar Nav (Desktop always visible; Mobile visible only when mobileShowMenu is true) */}
+        <div className={`lg:col-span-3 space-y-2 ${mobileShowMenu ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-[#0B192C] text-white p-4 rounded-3xl border border-slate-800 shadow-lg space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C] px-3 py-1 block">
-              ADMIN OPTIONS MENU
-            </span>
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C] px-3 py-1 block">
+                ADMIN OPTIONS MENU
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileShowMenu(false);
+                  setActiveTab('overview');
+                }}
+                className="lg:hidden text-[10px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-2.5 py-1 rounded-xl border border-amber-300 flex items-center gap-1 shadow-sm"
+              >
+                ← Quick Nav
+              </button>
+            </div>
 
             {[
               { id: 'overview', label: 'Executive Overview', icon: LayoutDashboard },
@@ -2601,7 +2657,10 @@ export default function AdminDashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as any)}
+                  onClick={() => {
+                    setActiveTab(item.id as any);
+                    if (item.id === 'overview') setMobileShowMenu(false);
+                  }}
                   className={`w-full flex items-center justify-between p-3 rounded-2xl text-xs font-bold transition-all ${
                     item.highlight && !isActive
                       ? 'bg-emerald-950/70 hover:bg-emerald-900 text-emerald-400 border border-emerald-800/80 font-black'
@@ -2631,12 +2690,31 @@ export default function AdminDashboard() {
         {/* Main Content Area */}
         <div className="lg:col-span-9 space-y-6">
           
+          {/* MOBILE BACK/NAV TOGGLE BAR (Visible on mobile when in a tab section) */}
+          {mobileShowMenu && (
+            <div className="lg:hidden bg-[#0B192C] p-3 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between text-xs text-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileShowMenu(false);
+                  setActiveTab('overview');
+                }}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl shadow border border-amber-300 text-[11px]"
+              >
+                ← Quick Shortcuts
+              </button>
+              <span className="font-bold text-amber-400 text-[11px] truncate max-w-[150px]">
+                {activeTab.replace(/-/g, ' ').toUpperCase()}
+              </span>
+            </div>
+          )}
+
           {/* TAB 1: EXECUTIVE OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
 
-              {/* Quick Navigation Shortcuts — 2 Per Line on Mobile, 4 Per Line on Desktop */}
-              <div className="bg-[#0B192C] p-4 sm:p-5 rounded-3xl border border-slate-700 shadow-lg">
+              {/* Desktop Quick Navigation Shortcuts (Hidden on mobile as it's shown at top) */}
+              <div className="hidden lg:block bg-[#0B192C] p-4 sm:p-5 rounded-3xl border border-slate-700 shadow-lg">
                 <div className="text-[10px] font-black uppercase tracking-widest text-[#D48B1C] mb-3">⚡ Quick Navigation — Jump to any Admin Section</div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   {[
