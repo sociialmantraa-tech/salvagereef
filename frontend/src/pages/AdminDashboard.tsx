@@ -1941,7 +1941,7 @@ export default function AdminDashboard() {
       broadcastRealtimeEvent('location_deleted', { id, name });
       showNotification(`✓ Location "${name}" deleted permanently.`);
     } else if (type === 'auction') {
-      const aucToDelete = auctionsPersisted.find((a) => a.id === id);
+      const aucToDelete = auctions.find((a) => a.id === id);
       try {
         await api.delete(`/admin/auctions/${id}`);
         setAuctionsPersisted((prev) => {

@@ -640,18 +640,39 @@ export function handleMockApi(config: any): any {
 
       auctions[aucIndex].bids!.unshift(newBid);
       setItem('sr_auctions', auctions);
+      setItem('sr_admin_auctions', auctions);
 
       // Save to user bids
       const userBids = getMockUserBids();
       userBids.unshift({
-        id: Date.now(),
+        id: newBid.id || Date.now(),
         auction_title: auctions[aucIndex].title,
         auction_slug: auctions[aucIndex].slug,
-        created_at: new Date().toISOString(),
+        created_at: newBid.created_at,
         bid_amount: amount,
         my_status: 'winning',
       });
       setItem('sr_user_bids', userBids);
+
+      // Save to admin bids for graph and stats update
+      const adminBids = getItem<any[]>('sr_admin_bids', [
+        { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+        { id: 102, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1420000, bidder_name: 'Western Heavy Recyclers', bidder_company: 'Western Recyclers', status: 'approved', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+        { id: 103, auction_id: 102, auction_title: '120 MT HMS 1&2 Heavy Melting Steel Scrap', amount: 4650000, bidder_name: 'Apex Steel Traders', bidder_company: 'Apex Steel Traders', status: 'approved', created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+      ]);
+      const newAdminBid = {
+        id: newBid.id || Date.now(),
+        auction_id: auctions[aucIndex].id,
+        auction_title: auctions[aucIndex].title,
+        amount: amount,
+        status: 'pending',
+        bidder_name: currentUser.name || 'Registered Bidder',
+        bidder_email: currentUser.email || 'bidder@salvagereef.com',
+        bidder_company: currentUser.company_name || 'Metals & Scrap Trader',
+        created_at: new Date().toISOString(),
+      };
+      const updatedAdminBids = [newAdminBid, ...adminBids.filter((b: any) => b.id !== newAdminBid.id)];
+      setItem('sr_admin_bids', updatedAdminBids);
     }
 
     return {
@@ -942,7 +963,7 @@ export function handleMockApi(config: any): any {
 
   // 10-analytics. GET /admin/analytics/overview
   if (url.includes('/admin/analytics/overview') && method === 'get') {
-    const auctions = getMockAuctions();
+    const auctions = getItem<Auction[]>('sr_admin_auctions', getMockAuctions());
     const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     const storedBids = getItem('sr_admin_bids', [
       { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
@@ -956,30 +977,34 @@ export function handleMockApi(config: any): any {
 
     const totalAuctions = auctions.length;
     const activeAuctions = auctions.filter((a) => a.status === 'live' || a.status === 'upcoming').length;
-    const completedAuctions = auctions.filter((a) => a.status === 'completed' || a.status === 'closed' || a.winner_confirmed).length;
+    const completedAuctions = auctions.filter((a) => (a.status as string) === 'completed' || a.status === 'closed' || a.winner_confirmed).length;
     const totalUsers = users.length;
     const totalBids = storedBids.length;
     const totalAuctionValue = auctions.reduce((acc, a) => acc + (a.current_highest_bid || a.starting_price || 0), 0);
 
-    // Dynamic Bidding Activity series based on stored bids
+    // Dynamic Bidding Activity series based on requested range
+    const selectedRange = queryParams.get('range') || '30d';
+    const daysToShow = selectedRange === '7d' ? 7 : selectedRange === '30d' ? 14 : selectedRange === '3m' ? 30 : 14;
     const activityMap: Record<string, { count: number; total: number }> = {};
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysToShow - 1; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000);
       const dateKey = d.toISOString().split('T')[0];
       activityMap[dateKey] = { count: 0, total: 0 };
     }
     storedBids.forEach((b: any) => {
-      const dateKey = (b.created_at || '').split('T')[0];
+      const dateKey = (b.created_at || new Date().toISOString()).split('T')[0];
       if (activityMap[dateKey]) {
         activityMap[dateKey].count += 1;
         activityMap[dateKey].total += Number(b.amount) || 0;
       }
     });
-    const biddingActivity = Object.keys(activityMap).map((k) => ({
-      bid_date: k,
-      bids_count: activityMap[k].count,
-      total_amount: activityMap[k].total,
-    }));
+    const biddingActivity = Object.keys(activityMap)
+      .sort()
+      .map((k) => ({
+        bid_date: k,
+        bids_count: activityMap[k].count,
+        total_amount: activityMap[k].total,
+      }));
 
     // Auction performance by period
     const auctionPerformance = [
@@ -1011,14 +1036,41 @@ export function handleMockApi(config: any): any {
     });
     const categoryPerformance = Object.values(catMap).sort((a, b) => b.total - a.total);
 
-    // Top Bidders
-    const topBidders = [
-      { user_id: 2, bidder_name: 'Neelkanth Sharma', company_name: 'Metals & Alloys Co', total_bids: 8, highest_bid: 1450000, total_bid_volume: 3250000, winning_auctions: 3 },
-      { user_id: 102, bidder_name: 'Western Heavy Recyclers', company_name: 'Western Heavy Corp', total_bids: 5, highest_bid: 1420000, total_bid_volume: 2420000, winning_auctions: 2 },
-      { user_id: 103, bidder_name: 'Apex Steel Traders', company_name: 'Apex Scrap Recyclers Ltd', total_bids: 6, highest_bid: 4650000, total_bid_volume: 4650000, winning_auctions: 2 },
-      { user_id: 105, bidder_name: 'Bharat Scrap Traders', company_name: 'Bharat Scrap Trading Co', total_bids: 4, highest_bid: 1250000, total_bid_volume: 1850000, winning_auctions: 1 },
-      { user_id: 106, bidder_name: 'Gujarat Alloys Corp', company_name: 'Gujarat Industrial Alloys', total_bids: 3, highest_bid: 3200000, total_bid_volume: 3200000, winning_auctions: 1 },
-    ];
+    // Dynamic Top Bidders aggregated from actual stored bids
+    const bidderMap: Record<string, { user_id: number; bidder_name: string; company_name: string; total_bids: number; highest_bid: number; total_bid_volume: number; winning_auctions: number }> = {};
+    storedBids.forEach((b: any) => {
+      const bidderName = b.bidder_name || b.user?.name || 'Registered Bidder';
+      const companyName = b.bidder_company || 'Metals & Alloys Partner';
+      const amt = Number(b.amount) || 0;
+      if (!bidderMap[bidderName]) {
+        bidderMap[bidderName] = {
+          user_id: b.user_id || (Math.abs(bidderName.split('').reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0)) % 1000 + 1),
+          bidder_name: bidderName,
+          company_name: companyName,
+          total_bids: 0,
+          highest_bid: 0,
+          total_bid_volume: 0,
+          winning_auctions: 0,
+        };
+      }
+      bidderMap[bidderName].total_bids += 1;
+      bidderMap[bidderName].highest_bid = Math.max(bidderMap[bidderName].highest_bid, amt);
+      bidderMap[bidderName].total_bid_volume += amt;
+      if (b.status === 'approved' || b.my_status === 'winning') {
+        bidderMap[bidderName].winning_auctions += 1;
+      }
+    });
+
+    const topBidders = Object.values(bidderMap)
+      .sort((a, b) => b.total_bid_volume - a.total_bid_volume)
+      .slice(0, 5);
+
+    if (topBidders.length === 0) {
+      topBidders.push(
+        { user_id: 2, bidder_name: 'Neelkanth Sharma', company_name: 'Metals & Alloys Co', total_bids: 8, highest_bid: 1450000, total_bid_volume: 3250000, winning_auctions: 3 },
+        { user_id: 102, bidder_name: 'Western Heavy Recyclers', company_name: 'Western Heavy Corp', total_bids: 5, highest_bid: 1420000, total_bid_volume: 2420000, winning_auctions: 2 }
+      );
+    }
 
     return {
       kpi: {

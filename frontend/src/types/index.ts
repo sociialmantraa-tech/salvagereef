@@ -2,6 +2,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  login_id?: string | null;
   phone?: string | null;
   role?: 'master_admin' | 'desk_admin' | 'read_only_admin' | 'admin' | 'agent' | 'bidder' | 'seller' | 'buyer';
   company_name?: string | null;

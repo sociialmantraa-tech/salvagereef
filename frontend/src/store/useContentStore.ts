@@ -196,8 +196,8 @@ export const DEFAULT_CONTENT: SiteContent = {
   privacyText: 'SalvageReef respects your privacy and is committed to protecting your personal and corporate data.',
 
   // Disclaimer Page
-  disclaimerTitle: 'Legal Disclaimer',
-  disclaimerText: '',
+  disclaimerTitle: 'Disclaimer',
+  disclaimerText: `All the contents of this website are provided by Salvagereef for general information and informational purposes only. They do not constitute professional, financial, legal, commercial, or any other form of advice and should not be relied upon in making, or refraining from making, any decision.\n\nSalvagereef makes reasonable efforts to ensure that the information provided on this website is accurate and up to date; however, Salvagereef makes no representation or warranty, express or implied, regarding the quality, accuracy, timeliness, correctness, completeness, reliability, performance, availability, or fitness for a particular purpose of the website or any of its contents, including but not limited to any information, prices, tools, listings, data, or other materials made available through the website.\n\nSalvagereef shall not be liable for any direct, indirect, incidental, consequential, special, or other damages, including without limitation loss of business, loss of profits, loss of opportunities, loss of data, or any other losses or damages arising out of, or in connection with, the use of or inability to use this website or any of its contents, or from any action taken or refrained from being taken based on the information contained on the website.\n\nSalvagereef does not warrant that the website or its contents will always be available, uninterrupted, secure, error-free, or free from viruses or other harmful, contaminating, or destructive components.\n\nUsers are advised to independently verify all information and, where appropriate, obtain professional advice before relying on any information available through this website.\n\nBy accessing and using this website, you acknowledge and agree to the terms of this Disclaimer.`,
 
   // Copyright Policy
   copyrightTitle: 'Copyright & Intellectual Property Policy',

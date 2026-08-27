@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import LegalHeaderNav from '../components/LegalHeaderNav';
 import { 
-  Scale, 
   Search, 
   AlertTriangle, 
-  CheckCircle2, 
-  ShieldAlert, 
   FileText, 
   Gavel, 
   Printer, 
@@ -88,25 +85,50 @@ export default function TermsAndConditions() {
     {
       id: 'clause-7',
       number: '7',
-      title: 'Payment',
+      title: 'Auction Fees',
       content: [
-        '7.1 Buyers shall make payment strictly as per the payment terms specified in the auction.',
-        '7.2 Delay in payment may result in cancellation of the auction, forfeiture of Earnest Money Deposit (EMD), suspension of account, or any other action deemed appropriate.',
-        '7.3 SalvageReef is not responsible for payment disputes between buyers and sellers.'
+        '7.1 Auction fees are mandatory for participation in any auction or tender conducted through SalvageReef.',
+        '7.2 Applicable auction fees, processing fees, platform fees, and other associated charges shall be payable as specified by SalvageReef.',
+        '7.3 Auction fees and other associated fees are non-refundable unless specifically stated otherwise by SalvageReef in writing.'
       ]
     },
     {
       id: 'clause-8',
       number: '8',
-      title: 'Delivery & Transportation',
+      title: 'Payment',
       content: [
-        '8.1 Delivery, loading, transportation, insurance, permits, taxes, labour, statutory approvals, and logistics shall be the sole responsibility of the buyer unless otherwise specified.',
-        '8.2 SalvageReef shall not be liable for delays, shortages, transportation losses, or damages occurring during loading or transit.'
+        '8.1 Buyers shall make payment strictly as per the payment terms specified in the auction.',
+        '8.2 Delay in payment may result in cancellation of the auction, forfeiture of Earnest Money Deposit (EMD), suspension of account, or any other action deemed appropriate.',
+        '8.3 SalvageReef is not responsible for payment disputes between buyers and sellers.'
       ]
     },
     {
       id: 'clause-9',
       number: '9',
+      title: 'Holding of EMDs for Top Bidders',
+      content: [
+        '9.1 To ensure a seamless transition in the event of default by the highest bidder (H1), the Earnest Money Deposits (EMDs) of the second highest bidder (H2) and third highest bidder (H3) shall be retained until the material is finally disposed of. During this period, the EMDs of H2 and H3 shall not be refunded or released.',
+        '9.2 If the highest bidder (H1) fails to fulfil the obligations applicable to the successful bidder, the Seller reserves the right to offer the material to the next highest bidder (H2) at H2’s bid price.',
+        '9.3 If H2 declines the offer or fails to fulfil the applicable obligations within the stipulated period, the opportunity may be extended to H3 at H3’s bid price and on similar terms.',
+        '9.4 If neither H2 nor H3 accepts the offer or fulfils the applicable obligations, the Seller may, at its discretion, re-auction the material or take any other appropriate action.',
+        '9.5 The EMD of H2 and/or H3 shall be liable to forfeiture if the respective bidder accepts the offer but subsequently fails to fulfil the obligations applicable to the purchase, including payment or any other conditions specified in the auction.',
+        '9.6 The EMDs of all unsuccessful bidders other than H2 and H3 (i.e., H4 and subsequent bidders) shall be refunded within three (3) working days after completion of the e-Auction, subject to applicable terms and conditions.',
+        '9.7 The Earnest Money Deposit shall not carry or accrue any interest, irrespective of the period for which it is retained by SalvageReef or the Seller.',
+        '9.8 The provisions relating to retention and forfeiture of EMDs shall be subject to the specific terms and conditions of the respective auction and any additional conditions notified to the bidders.'
+      ]
+    },
+    {
+      id: 'clause-10',
+      number: '10',
+      title: 'Delivery & Transportation',
+      content: [
+        '10.1 Delivery, loading, transportation, insurance, permits, taxes, labour, statutory approvals, and logistics shall be the sole responsibility of the buyer unless otherwise specified.',
+        '10.2 SalvageReef shall not be liable for delays, shortages, transportation losses, or damages occurring during loading or transit.'
+      ]
+    },
+    {
+      id: 'clause-11',
+      number: '11',
       title: 'Quality, Quantity & Documentation',
       content: [
         'SalvageReef does not guarantee:',
@@ -122,8 +144,8 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-10',
-      number: '10',
+      id: 'clause-12',
+      number: '12',
       title: 'Limitation of Liability',
       content: [
         'SalvageReef shall not be liable for any direct, indirect, incidental, consequential, punitive, special, or business losses arising from:',
@@ -139,8 +161,8 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-11',
-      number: '11',
+      id: 'clause-13',
+      number: '13',
       title: 'User Responsibilities',
       content: [
         'Users agree that they shall:',
@@ -153,8 +175,8 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-12',
-      number: '12',
+      id: 'clause-14',
+      number: '14',
       title: 'Cancellation & Suspension',
       content: [
         'SalvageReef reserves the absolute right to:',
@@ -167,8 +189,8 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-13',
-      number: '13',
+      id: 'clause-15',
+      number: '15',
       title: 'Disputes',
       content: [
         'Any dispute relating to quality, quantity, payment, transportation, documentation, delivery, or any contractual obligation shall be resolved directly between the buyer and seller.',
@@ -176,24 +198,24 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-14',
-      number: '14',
+      id: 'clause-16',
+      number: '16',
       title: 'Compliance with Laws',
       content: [
         'Users shall comply with all applicable central, state, and local laws, environmental regulations, GST provisions, labour laws, transportation rules, pollution control regulations, and any other statutory requirements.'
       ]
     },
     {
-      id: 'clause-15',
-      number: '15',
+      id: 'clause-17',
+      number: '17',
       title: 'Intellectual Property',
       content: [
         'All website content including logos, trademarks, designs, text, graphics, software, and other materials are the exclusive property of SalvageReef and shall not be copied, reproduced, or distributed without prior written permission.'
       ]
     },
     {
-      id: 'clause-16',
-      number: '16',
+      id: 'clause-18',
+      number: '18',
       title: 'Governing Law & Jurisdiction',
       content: [
         'These Terms & Conditions shall be governed by the laws of India.',
@@ -201,8 +223,16 @@ export default function TermsAndConditions() {
       ]
     },
     {
-      id: 'clause-17',
-      number: '17',
+      id: 'clause-19',
+      number: '19',
+      title: 'Changes to Policy',
+      content: [
+        'SalvageReef reserves the right to update, modify, amend, or revise these Terms & Conditions and related policies at any time without prior notice. Continued use of the SalvageReef website or participation in any auction after such changes shall constitute acceptance of the updated terms.'
+      ]
+    },
+    {
+      id: 'clause-20',
+      number: '20',
       title: 'Acceptance',
       content: [
         'By registering, listing materials, participating in auctions, placing bids, or using the SalvageReef website, every user confirms that they have read, understood, and agreed to these Terms & Conditions in full.'
@@ -254,7 +284,7 @@ export default function TermsAndConditions() {
           <div className="space-y-1">
             <p className="font-bold text-slate-900">Important Notice for All Platform Users:</p>
             <p className="text-slate-700 leading-relaxed">
-              By registering, listing materials, participating in auctions, or purchasing items through the website, all users (including Sellers, Buyers, Bidders, and Visitors) agree to comply with these Terms & Conditions. SalvageReef reserves the right to amend, modify, or update these Terms & Conditions at any time without prior notice.
+              These Terms & Conditions govern the use of the SalvageReef website and its online auction marketplace. By registering, listing materials, participating in auctions, or purchasing items through the website, all users (including Sellers, Buyers, Bidders, and Visitors) agree to comply with these Terms & Conditions.
             </p>
           </div>
         </div>

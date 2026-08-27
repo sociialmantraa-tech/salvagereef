@@ -181,9 +181,11 @@ function devApiPlugin(): Plugin {
             try {
               const data = fs.readFileSync(auctionsFilePath, 'utf-8');
               const parsed = JSON.parse(data);
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ success: true, data: parsed }));
-              return;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: true, data: parsed }));
+                return;
+              }
             } catch (e) {}
           }
         }

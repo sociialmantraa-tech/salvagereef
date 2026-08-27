@@ -135,14 +135,8 @@ export default function AdminAnalyticsDashboard({
       });
 
       if (res.data && res.data.kpi) {
-        setData((prev) => {
-          if (prev && JSON.stringify(prev.kpi) === JSON.stringify(res.data.kpi) && JSON.stringify(prev.bidding_activity) === JSON.stringify(res.data.bidding_activity)) {
-            return prev;
-          }
-          return res.data;
-        });
+        setData(res.data);
       } else {
-
         throw new Error('Invalid analytics response format');
       }
       setLastRefreshedTime(
@@ -156,7 +150,7 @@ export default function AdminAnalyticsDashboard({
       console.error('Error fetching analytics overview:', err);
       // Fallback: Construct accurate local aggregate if network error occurs
       try {
-        const storedAuctions = JSON.parse(localStorage.getItem('sr_admin_auctions') || '[]');
+        const storedAuctions = JSON.parse(localStorage.getItem('sr_admin_auctions') || localStorage.getItem('sr_auctions') || '[]');
         const storedUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
         const storedBids = JSON.parse(localStorage.getItem('sr_admin_bids') || '[]');
 
@@ -174,7 +168,7 @@ export default function AdminAnalyticsDashboard({
         const activityMap: Record<string, { count: number; total: number }> = {};
         
         // Populate timeline dates dynamically
-        const daysToShow = range === '7d' ? 7 : range === '30d' ? 14 : range === '3m' ? 30 : 7;
+        const daysToShow = range === '7d' ? 7 : range === '30d' ? 14 : range === '3m' ? 30 : 14;
         for (let i = daysToShow - 1; i >= 0; i--) {
           const d = new Date(Date.now() - i * 86400000);
           const dateStr = d.toISOString().split('T')[0];
@@ -212,7 +206,7 @@ export default function AdminAnalyticsDashboard({
           auction_performance: [
             { period: 'May 2026', total_auctions: 4, completed_auctions: 3, active_auctions: 1 },
             { period: 'Jun 2026', total_auctions: 6, completed_auctions: 5, active_auctions: 1 },
-            { period: 'Jul 2026', total_auctions: 8, completed_auctions: 6, active_auctions: 2 },
+            { period: 'Jul 2026', total_auctions: 7, completed_auctions: 6, active_auctions: 1 },
             { period: 'Aug 2026', total_auctions: totAuc, completed_auctions: compAuc, active_auctions: actAuc },
           ],
           auction_status: [
@@ -245,9 +239,9 @@ export default function AdminAnalyticsDashboard({
 
   useEffect(() => {
     fetchAnalytics();
-  }, [range]);
+  }, [range, auctionsCount, usersCount, bidsCount]);
 
-  // Real-time synchronization subscription for live bidding updates
+  // Real-time synchronization subscription for live bidding updates & storage events
   useEffect(() => {
     const importAndSub = async () => {
       try {
@@ -258,8 +252,12 @@ export default function AdminAnalyticsDashboard({
             event.type === 'bid_status_updated' ||
             event.type === 'bid_deleted' ||
             event.type === 'auction_created' ||
+            event.type === 'auction_updated' ||
             event.type === 'auction_deleted' ||
-            event.type === 'user_created'
+            event.type === 'user_created' ||
+            event.type === 'user_updated' ||
+            event.type === 'user_deleted' ||
+            event.type === 'winner_confirmed'
           ) {
             fetchAnalytics(false);
           }
@@ -272,10 +270,24 @@ export default function AdminAnalyticsDashboard({
     let unsub: any = null;
     importAndSub().then((fn) => { unsub = fn; });
 
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === 'sr_admin_auctions' ||
+        e.key === 'sr_auctions' ||
+        e.key === 'sr_admin_bids' ||
+        e.key === 'sr_admin_users'
+      ) {
+        fetchAnalytics(false);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       if (unsub) unsub();
+      window.removeEventListener('storage', handleStorageChange);
     };
-  }, [range]);
+  }, [range, auctionsCount, usersCount, bidsCount]);
 
 
   const handleManualRefresh = () => {

@@ -1,20 +1,36 @@
 import React from 'react';
 import LegalHeaderNav from '../components/LegalHeaderNav';
-import { ShieldAlert, FileText, CheckCircle2, Building, Info } from 'lucide-react';
+import { ShieldAlert, FileText } from 'lucide-react';
 import { useContentStore } from '../store/useContentStore';
 import SEOHead from '../components/SEOHead';
+
+const EXACT_DISCLAIMER_TEXT = `All the contents of this website are provided by Salvagereef for general information and informational purposes only. They do not constitute professional, financial, legal, commercial, or any other form of advice and should not be relied upon in making, or refraining from making, any decision.
+
+Salvagereef makes reasonable efforts to ensure that the information provided on this website is accurate and up to date; however, Salvagereef makes no representation or warranty, express or implied, regarding the quality, accuracy, timeliness, correctness, completeness, reliability, performance, availability, or fitness for a particular purpose of the website or any of its contents, including but not limited to any information, prices, tools, listings, data, or other materials made available through the website.
+
+Salvagereef shall not be liable for any direct, indirect, incidental, consequential, special, or other damages, including without limitation loss of business, loss of profits, loss of opportunities, loss of data, or any other losses or damages arising out of, or in connection with, the use of or inability to use this website or any of its contents, or from any action taken or refrained from being taken based on the information contained on the website.
+
+Salvagereef does not warrant that the website or its contents will always be available, uninterrupted, secure, error-free, or free from viruses or other harmful, contaminating, or destructive components.
+
+Users are advised to independently verify all information and, where appropriate, obtain professional advice before relying on any information available through this website.
+
+By accessing and using this website, you acknowledge and agree to the terms of this Disclaimer.`;
 
 export default function Disclaimer() {
   const { content } = useContentStore();
 
-  const title = content.disclaimerTitle || 'Legal Disclaimer';
-  const rawText = content.disclaimerText || '';
+  const title = content.disclaimerTitle || 'Disclaimer';
+  const rawText = (content.disclaimerText && content.disclaimerText.trim() !== '' && content.disclaimerText !== 'demo')
+    ? content.disclaimerText
+    : EXACT_DISCLAIMER_TEXT;
+
+  const paragraphs = rawText.split('\n\n').filter(p => p.trim() !== '');
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen pb-24 font-sans">
       <SEOHead
         title={`${title} — SalvageReef`}
-        description="Official legal disclaimer for SalvageReef auction lots, tender bidding, asset valuations, and platform terms."
+        description="Official legal disclaimer for SalvageReef website content, general informational purposes, and liability limitations."
       />
       <LegalHeaderNav />
 
@@ -28,7 +44,7 @@ export default function Disclaimer() {
             {title}
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-2xl mx-auto">
-            Important legal terms, asset inspection disclosures, and liability limitations for SalvageReef tender auctions.
+            General information and legal disclosures for visitors, bidders, buyers, and sellers on SalvageReef.
           </p>
         </div>
       </section>
@@ -42,32 +58,16 @@ export default function Disclaimer() {
             </div>
             <div>
               <h2 className="text-lg font-extrabold">{title}</h2>
-              <span className="text-xs text-slate-400 font-medium">SalvageReef Operations & Tender Desk</span>
+              <span className="text-xs text-slate-400 font-medium">SalvageReef Operations & Legal Disclosures</span>
             </div>
           </div>
 
-          {rawText.trim() === '' ? (
-            <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-8 rounded-2xl text-center space-y-3 text-slate-500">
-              <Info className="w-8 h-8 text-[#D48B1C] mx-auto" />
-              <h4 className="font-extrabold text-slate-800 text-sm">Disclaimer Content Available Soon</h4>
-              <p className="text-xs max-w-md mx-auto leading-relaxed">
-                The detailed disclaimer text will be published here. Admins can edit and update this disclaimer content at any time via the Admin Panel.
+          <div className="space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+            {paragraphs.map((para, idx) => (
+              <p key={idx} className="leading-relaxed">
+                {para}
               </p>
-            </div>
-          ) : (
-            <div className="prose max-w-none text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line font-medium">
-              {rawText}
-            </div>
-          )}
-
-          {/* STANDARD PLATFORM NOTICE */}
-          <div className="bg-amber-50/80 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-2">
-            <span className="font-extrabold block uppercase tracking-wider text-[10px] text-amber-800">
-              ⚠️ General Notice on Salvage Assets
-            </span>
-            <p className="leading-relaxed">
-              All salvage materials, distressed goods, machinery, and scrap lots auctioned on SalvageReef are sold on an <strong>"As-Is, Where-Is"</strong> basis without any representation or warranty, express or implied. Bidders are advised to perform physical inspection in Mumbai prior to bidding.
-            </p>
+            ))}
           </div>
         </div>
       </div>
