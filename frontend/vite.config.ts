@@ -311,6 +311,132 @@ function devApiPlugin(): Plugin {
           return;
         }
 
+        // Handle POST /api/v1/errors/report & /api/v1/admin/errors/report
+        const errorsFilePath = path.resolve(__dirname, 'dev_errors.json');
+        const readDevErrors = (): any[] => {
+          if (fs.existsSync(errorsFilePath)) {
+            try { return JSON.parse(fs.readFileSync(errorsFilePath, 'utf-8')); } catch (e) {}
+          }
+          return [];
+        };
+        const writeDevErrors = (errs: any[]) => {
+          fs.writeFileSync(errorsFilePath, JSON.stringify(errs.slice(0, 300), null, 2), 'utf-8');
+        };
+
+        if (req.method === 'POST' && (url.includes('/errors/report') || url.includes('/admin/errors/report'))) {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const newErr = {
+                id: parsed.id || Date.now(),
+                severity: parsed.severity || 'error',
+                message: parsed.message || 'Client Exception',
+                exception_class: parsed.exception_class || 'RuntimeError',
+                file: parsed.file || 'frontend',
+                line: parsed.line || 1,
+                url: parsed.url || '/admin',
+                method: parsed.method || 'POST',
+                status: parsed.status || 'unresolved',
+                user: parsed.user || null,
+                created_at: parsed.created_at || new Date().toISOString(),
+                stack_trace: parsed.stack_trace || '',
+                source: parsed.source || 'frontend',
+              };
+              let currentErrors = readDevErrors();
+              currentErrors = [newErr, ...currentErrors.filter((e: any) => e.id !== newErr.id)];
+              writeDevErrors(currentErrors);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, message: 'Error logged to dev_errors.json', error: newErr }));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to record error' }));
+            }
+          });
+          return;
+        }
+
+        // Handle GET /api/v1/admin/errors/stats
+        if (req.method === 'GET' && url.includes('/admin/errors/stats')) {
+          const errs = readDevErrors();
+          let sysMode = 'online';
+          let mMsg = 'SalvageReef is currently undergoing scheduled maintenance.';
+          let tcMsg = 'SalvageReef operations are temporarily closed.';
+          if (fs.existsSync(settingsFilePath)) {
+            try {
+              const s = JSON.parse(fs.readFileSync(settingsFilePath, 'utf-8'));
+              if (s._system_mode) sysMode = s._system_mode;
+              if (s._maintenance_message) mMsg = s._maintenance_message;
+              if (s._temporary_closed_message) tcMsg = s._temporary_closed_message;
+            } catch (e) {}
+          }
+          const todayStr = new Date().toISOString().split('T')[0];
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: true,
+            stats: {
+              total_errors: errs.length,
+              unresolved_errors: errs.filter((e: any) => e.status === 'unresolved').length,
+              resolved_errors: errs.filter((e: any) => e.status === 'resolved').length,
+              today_errors: errs.filter((e: any) => (e.created_at || '').startsWith(todayStr)).length,
+              critical_errors: errs.filter((e: any) => e.severity === 'critical' || e.severity === 'fatal').length,
+              system_mode: sysMode,
+              is_maintenance: sysMode !== 'online',
+              maintenance_message: mMsg,
+              temporary_closed_message: tcMsg,
+            }
+          }));
+          return;
+        }
+
+        // Handle GET /api/v1/admin/errors
+        if (req.method === 'GET' && (url.endsWith('/admin/errors') || url.includes('/admin/errors?'))) {
+          const errs = readDevErrors();
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: true,
+            data: {
+              data: errs,
+              total: errs.length,
+              current_page: 1,
+              last_page: 1,
+            }
+          }));
+          return;
+        }
+
+        // Handle PUT /api/v1/admin/errors/:id/status
+        if ((req.method === 'PUT' || req.method === 'PATCH') && url.includes('/admin/errors/') && url.includes('/status')) {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const parts = url.split('/');
+              const statusIdx = parts.indexOf('status');
+              const id = parts[statusIdx - 1];
+              let errs = readDevErrors();
+              errs = errs.map((e: any) => String(e.id) === String(id) ? { ...e, status: parsed.status || 'resolved' } : e);
+              writeDevErrors(errs);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, message: 'Status updated' }));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to update error status' }));
+            }
+          });
+          return;
+        }
+
+        // Handle DELETE /api/v1/admin/errors/clear
+        if (req.method === 'DELETE' && url.includes('/admin/errors/clear')) {
+          writeDevErrors([]);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true, message: 'All error records cleared' }));
+          return;
+        }
+
         next();
       });
     },

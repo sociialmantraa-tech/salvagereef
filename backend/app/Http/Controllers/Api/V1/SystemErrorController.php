@@ -12,6 +12,52 @@ use Illuminate\Support\Facades\File;
 class SystemErrorController extends Controller
 {
     /**
+     * Store and log reported error from client or server.
+     */
+    public function reportError(Request $request)
+    {
+        $message = $request->input('message', 'Unspecified Error');
+        $severity = $request->input('severity', 'error');
+        $exceptionClass = $request->input('exception_class', 'ClientException');
+        $file = $request->input('file', 'frontend');
+        $line = $request->input('line', 1);
+        $url = $request->input('url', $request->fullUrl());
+        $stackTrace = $request->input('stack_trace', '');
+        $userId = $request->user()?->id ?? ($request->input('user.id') ?? null);
+
+        // Record in SQLite / MySQL Database
+        $errorLog = ErrorLog::create([
+            'user_id' => $userId,
+            'message' => substr($message, 0, 1000),
+            'severity' => in_array($severity, ['critical', 'error', 'warning', 'info']) ? $severity : 'error',
+            'status' => 'unresolved',
+            'exception_class' => $exceptionClass,
+            'file' => $file,
+            'line' => (int)$line,
+            'url' => $url,
+            'method' => $request->method(),
+            'stack_trace' => $stackTrace,
+        ]);
+
+        // Also append to server log file
+        try {
+            $logDir = storage_path('logs/errors');
+            if (!File::exists($logDir)) {
+                File::makeDirectory($logDir, 0755, true);
+            }
+            $logFile = $logDir . '/error.log';
+            $logLine = sprintf("[%s] [%s] [%s] %s in %s:%s (URL: %s)\n", date('Y-m-d H:i:s'), strtoupper($severity), $exceptionClass, $message, $file, $line, $url);
+            File::append($logFile, $logLine);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Error successfully logged to system database',
+            'data' => $errorLog,
+        ]);
+    }
+
+    /**
      * Get paginated error logs with filtering & search.
      */
     public function index(Request $request)

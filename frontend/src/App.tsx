@@ -8,25 +8,25 @@ import { useAuthStore } from './store/useAuthStore';
 import api from './services/api';
 import PageLoading from './components/PageLoading';
 
-// ─── Lazy-loaded pages (code splitting — each page loads only when visited) ───
-const Home            = lazy(() => import('./pages/Home'));
-const Auctions        = lazy(() => import('./pages/Auctions'));
-const AuctionDetail   = lazy(() => import('./pages/AuctionDetail'));
-const Classifieds     = lazy(() => import('./pages/Classifieds'));
-const ClassifiedDetail= lazy(() => import('./pages/ClassifiedDetail'));
-const PostListing     = lazy(() => import('./pages/PostListing'));
-const Login           = lazy(() => import('./pages/Login'));
-const Register        = lazy(() => import('./pages/Register'));
-const UserDashboard   = lazy(() => import('./pages/UserDashboard'));
-const AdminDashboard  = lazy(() => import('./pages/AdminDashboard'));
-const About           = lazy(() => import('./pages/About'));
-const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
-const PrivacyPolicy   = lazy(() => import('./pages/PrivacyPolicy'));
-const Disclaimer      = lazy(() => import('./pages/Disclaimer'));
-const CopyrightPolicy = lazy(() => import('./pages/CopyrightPolicy'));
-const Contact         = lazy(() => import('./pages/Contact'));
-const ErrorPage       = lazy(() => import('./pages/ErrorPage'));
-const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
+// ─── Lazy-loaded views (code splitting — each view loads only when visited) ───
+const Home            = lazy(() => import('./views/Home'));
+const Auctions        = lazy(() => import('./views/Auctions'));
+const AuctionDetail   = lazy(() => import('./views/AuctionDetail'));
+const Classifieds     = lazy(() => import('./views/Classifieds'));
+const ClassifiedDetail= lazy(() => import('./views/ClassifiedDetail'));
+const PostListing     = lazy(() => import('./views/PostListing'));
+const Login           = lazy(() => import('./views/Login'));
+const Register        = lazy(() => import('./views/Register'));
+const UserDashboard   = lazy(() => import('./views/UserDashboard'));
+const AdminDashboard  = lazy(() => import('./views/AdminDashboard'));
+const About           = lazy(() => import('./views/About'));
+const TermsAndConditions = lazy(() => import('./views/TermsAndConditions'));
+const PrivacyPolicy   = lazy(() => import('./views/PrivacyPolicy'));
+const Disclaimer      = lazy(() => import('./views/Disclaimer'));
+const CopyrightPolicy = lazy(() => import('./views/CopyrightPolicy'));
+const Contact         = lazy(() => import('./views/Contact'));
+const ErrorPage       = lazy(() => import('./views/ErrorPage'));
+const MaintenancePage = lazy(() => import('./views/MaintenancePage'));
 
 // Lightweight inline fallback — no Logo import needed, avoids circular load
 const RouteFallback = () => (

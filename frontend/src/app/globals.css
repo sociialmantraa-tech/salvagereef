@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-navy-900: #0B192C;
+    --color-navy-800: #0D1B2A;
+    --color-navy-700: #1E293B;
+    --color-amber-500: #D48B1C;
+    --color-amber-600: #B87514;
+    --color-amber-100: #FEF3C7;
+  }
+
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Pulse highlight animation for live bids */
+@keyframes bidPulse {
+  0% {
+    background-color: rgba(212, 139, 28, 0.25);
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.animate-bid-pulse {
+  animation: bidPulse 1.2s ease-out;
+}
+
+/* WebKit Calendar & Clock Picker Indicator - Crystal Clear Hover */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: 8px;
+  background-color: #FEF3C7;
+  border: 1.5px solid #FCD34D;
+  transition: all 0.2s ease-in-out;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  background-color: #FDE68A;
+  border-color: #D48B1C;
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(212, 139, 28, 0.3);
+}
+
+/* Emerald variant for End Time inputs */
+.datetime-emerald::-webkit-calendar-picker-indicator {
+  background-color: #D1FAE5;
+  border-color: #6EE7B7;
+}
+
+.datetime-emerald::-webkit-calendar-picker-indicator:hover {
+  background-color: #A7F3D0;
+  border-color: #10B981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}

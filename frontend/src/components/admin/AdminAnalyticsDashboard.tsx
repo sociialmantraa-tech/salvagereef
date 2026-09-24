@@ -320,13 +320,14 @@ export default function AdminAnalyticsDashboard({
   // Line Chart Calculations (Bidding Activity)
   const lineChartData = useMemo(() => {
     const points = data?.bidding_activity || [];
-    if (points.length === 0) return { maxVal: 1, points: [], svgPath: '', areaPath: '' };
-
-    const maxVal = Math.max(...points.map((p) => p.bids_count), 5);
     const width = 800;
     const height = 240;
     const paddingX = 40;
     const paddingY = 30;
+
+    if (points.length === 0) return { maxVal: 1, points: [], coords: [], svgPath: '', areaPath: '', width, height, paddingX, paddingY };
+
+    const maxVal = Math.max(...points.map((p) => p.bids_count), 5);
 
     const coords = points.map((p, i) => {
       const x = paddingX + (i / Math.max(points.length - 1, 1)) * (width - paddingX * 2);
@@ -334,7 +335,7 @@ export default function AdminAnalyticsDashboard({
       return { x, y, data: p };
     });
 
-    if (coords.length === 0) return { maxVal, points: [], svgPath: '', areaPath: '' };
+    if (coords.length === 0) return { maxVal, points: [], coords: [], svgPath: '', areaPath: '', width, height, paddingX, paddingY };
 
     const lineCmds = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
     const firstX = coords[0].x.toFixed(1);

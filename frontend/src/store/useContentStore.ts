@@ -223,10 +223,21 @@ interface ContentStore {
   fetchContentFromApi: () => Promise<void>;
 }
 
+const safeGetItem = (key: string): string | null => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+
+const safeSetItem = (key: string, val: string) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(key, val); } catch {}
+};
+
 const getInitialContent = (): SiteContent => {
   let stored: Partial<SiteContent> | null = null;
   try {
-    stored = JSON.parse(localStorage.getItem('sr_site_content') || 'null');
+    const raw = safeGetItem('sr_site_content');
+    stored = raw ? JSON.parse(raw) : null;
     if (stored) {
       let needsSave = false;
       if (stored.contactAddress && (stored.contactAddress.includes('Imperial') || stored.contactAddress.includes('Bhayander'))) {
@@ -242,7 +253,7 @@ const getInitialContent = (): SiteContent => {
         needsSave = true;
       }
       if (needsSave) {
-        localStorage.setItem('sr_site_content', JSON.stringify({ ...DEFAULT_CONTENT, ...stored }));
+        safeSetItem('sr_site_content', JSON.stringify({ ...DEFAULT_CONTENT, ...stored }));
       }
     }
   } catch (e) {
@@ -279,7 +290,7 @@ export const useContentStore = create<ContentStore>((set) => {
     updateContent: (newContent) =>
       set((state) => {
         const updated = { ...state.content, ...newContent };
-        localStorage.setItem('sr_site_content', JSON.stringify(updated));
+        safeSetItem('sr_site_content', JSON.stringify(updated));
         broadcastRealtimeEvent('content_updated', updated);
         return { 
           previousContentSnapshot: state.content,
@@ -287,7 +298,7 @@ export const useContentStore = create<ContentStore>((set) => {
         };
       }),
     resetContent: () => {
-      localStorage.setItem('sr_site_content', JSON.stringify(DEFAULT_CONTENT));
+      safeSetItem('sr_site_content', JSON.stringify(DEFAULT_CONTENT));
       broadcastRealtimeEvent('content_updated', DEFAULT_CONTENT);
       set((state) => ({ previousContentSnapshot: state.content, content: DEFAULT_CONTENT }));
     },
@@ -295,7 +306,7 @@ export const useContentStore = create<ContentStore>((set) => {
       let success = false;
       set((state) => {
         if (state.previousContentSnapshot) {
-          localStorage.setItem('sr_site_content', JSON.stringify(state.previousContentSnapshot));
+          safeSetItem('sr_site_content', JSON.stringify(state.previousContentSnapshot));
           broadcastRealtimeEvent('content_updated', state.previousContentSnapshot);
           success = true;
           return {
@@ -321,14 +332,14 @@ export const useContentStore = create<ContentStore>((set) => {
             if (merged.contactAddress.includes('Imperial') || merged.contactAddress.includes('Bhayander')) {
               merged.contactAddress = 'Mumbai, Maharashtra 401101';
             }
-            localStorage.setItem('sr_site_content', JSON.stringify(merged));
+            safeSetItem('sr_site_content', JSON.stringify(merged));
             return { content: merged };
           });
         } else {
           set((state) => {
             if (state.content.contactAddress.includes('Imperial') || state.content.contactAddress.includes('Bhayander')) {
               const cleaned = { ...state.content, contactAddress: 'Mumbai, Maharashtra 401101' };
-              localStorage.setItem('sr_site_content', JSON.stringify(cleaned));
+              safeSetItem('sr_site_content', JSON.stringify(cleaned));
               return { content: cleaned };
             }
             return state;

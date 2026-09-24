@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
-    // Public System Status & Health Check
+    // Public System Status, Health Check & Error Ingestion
     Route::get('/system/status', [SystemErrorController::class, 'getSystemStatus']);
+    Route::post('/errors/report', [SystemErrorController::class, 'reportError']);
 
     // Public Authentication & Password Reset Routes
     Route::post('/auth/register', [AuthController::class, 'register']);

@@ -544,7 +544,8 @@ export const getMockAuctions = (): Auction[] => {
   // Ensure 5-minute flash auction (ID 107) has a active 5-minute timer
   const flashIdx = stored.findIndex((a) => a.id === 107);
   if (flashIdx !== -1) {
-    const endTimeMs = new Date(stored[flashIdx].end_time).getTime();
+    const rawEndTime = stored[flashIdx].end_time;
+    const endTimeMs = rawEndTime ? new Date(rawEndTime).getTime() : NaN;
     if (isNaN(endTimeMs) || endTimeMs <= Date.now() || endTimeMs > Date.now() + 5 * 60 * 1000) {
       stored[flashIdx].start_time = new Date(Date.now() - 30000).toISOString();
       stored[flashIdx].end_time = new Date(Date.now() + 5 * 60 * 1000).toISOString();
@@ -1563,19 +1564,67 @@ export function handleMockApi(config: any): any {
     };
   }
 
-  // 22. GET /admin/errors/stats
+  // 22. POST /errors/report & POST /admin/errors/report
+  if ((url.includes('/errors/report') || url.includes('/admin/errors/report')) && method === 'post') {
+    let currentLogs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
+    const newErr = {
+      id: bodyData.id || Date.now(),
+      severity: bodyData.severity || 'error',
+      message: bodyData.message || 'Client Exception',
+      exception_class: bodyData.exception_class || 'RuntimeError',
+      file: bodyData.file || (typeof window !== 'undefined' ? window.location.pathname : 'app'),
+      line: bodyData.line || 1,
+      url: bodyData.url || (typeof window !== 'undefined' ? window.location.href : '/admin'),
+      method: bodyData.method || 'POST',
+      status: bodyData.status || 'unresolved',
+      user: bodyData.user || null,
+      created_at: bodyData.created_at || new Date().toISOString(),
+      stack_trace: bodyData.stack_trace || '',
+      source: bodyData.source || 'frontend',
+    };
+    currentLogs = [newErr, ...currentLogs.filter(e => e.id !== newErr.id)].slice(0, 300);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_system_error_logs', JSON.stringify(currentLogs));
+    }
+    return {
+      success: true,
+      message: 'Error logged successfully',
+      error: newErr,
+    };
+  }
+
+  // 23. GET /admin/errors/stats
   if (url.includes('/admin/errors/stats') && method === 'get') {
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
     const mode = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_system_mode') : null) || 'online';
     const mMsg = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_maintenance_message') : null) || 'SalvageReef is currently undergoing scheduled platform upgrades to serve you better. We will be back online shortly!';
     const tcMsg = (typeof localStorage !== 'undefined' ? localStorage.getItem('sr_temporary_closed_message') : null) || 'SalvageReef operations are temporarily closed for standard maintenance and operational update. We will reopen shortly!';
+
+    const totalErrors = logs.length;
+    const unresolvedErrors = logs.filter(l => l.status === 'unresolved').length;
+    const resolvedErrors = logs.filter(l => l.status === 'resolved').length;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayErrors = logs.filter(l => (l.created_at || '').startsWith(todayStr)).length;
+    const criticalErrors = logs.filter(l => l.severity === 'critical' || l.severity === 'fatal').length;
+
     return {
       success: true,
       stats: {
-        total_errors: 0,
-        unresolved_errors: 0,
-        resolved_errors: 0,
-        today_errors: 0,
-        critical_errors: 0,
+        total_errors: totalErrors,
+        unresolved_errors: unresolvedErrors,
+        resolved_errors: resolvedErrors,
+        today_errors: todayErrors,
+        critical_errors: criticalErrors,
         system_mode: mode,
         is_maintenance: mode !== 'online',
         maintenance_message: mMsg,
@@ -1584,11 +1633,86 @@ export function handleMockApi(config: any): any {
     };
   }
 
-  // 23. GET /admin/errors
+  // 24. GET /admin/errors
   if (url.includes('/admin/errors') && method === 'get') {
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
     return {
       success: true,
-      data: [],
+      data: {
+        data: logs,
+        total: logs.length,
+        current_page: 1,
+        last_page: 1,
+      },
+    };
+  }
+
+  // 25. PUT /admin/errors/{id}/status
+  if (url.includes('/admin/errors/') && url.includes('/status') && (method === 'put' || method === 'patch')) {
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
+    const parts = url.split('/');
+    const statusIdx = parts.indexOf('status');
+    const id = parts[statusIdx - 1];
+    const newStatus = bodyData.status || 'resolved';
+
+    logs = logs.map(l => String(l.id) === String(id) ? { ...l, status: newStatus, resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null } : l);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_system_error_logs', JSON.stringify(logs));
+    }
+    return {
+      success: true,
+      message: `Error status marked as ${newStatus}`,
+    };
+  }
+
+  // 26. DELETE /admin/errors/clear
+  if (url.includes('/admin/errors/clear') && method === 'delete') {
+    const clearMode = bodyData?.mode || 'resolved';
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
+    if (clearMode === 'all') {
+      logs = [];
+    } else {
+      logs = logs.filter(l => l.status !== 'resolved');
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_system_error_logs', JSON.stringify(logs));
+    }
+    return {
+      success: true,
+      message: clearMode === 'all' ? 'All system error logs have been cleared.' : 'Resolved error logs have been deleted.',
+    };
+  }
+
+  // 27. GET /admin/logs
+  if (url.includes('/admin/logs') && method === 'get') {
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
+    const formatted = logs.length > 0
+      ? logs.map(l => `[${l.created_at}] [${(l.severity || 'ERROR').toUpperCase()}] [${l.exception_class || 'Exception'}] ${l.message} (${l.file}:${l.line})`).join('\n')
+      : `[${new Date().toISOString()}] [INFO] SalvageReef Server Active & Monitoring. Zero fatal crashes reported.`;
+    return {
+      success: true,
+      logs: `[SERVER LOG ALIVE]\n${formatted}`,
+      count: logs.length,
     };
   }
 

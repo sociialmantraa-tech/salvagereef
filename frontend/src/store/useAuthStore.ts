@@ -18,11 +18,31 @@ interface AuthState {
 // 7 Days Session Expiry Helper
 const SESSION_EXPIRY_DAYS = 7;
 
+const safeGetItem = (key: string): string | null => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+
+const safeGetSessionItem = (key: string): string | null => {
+  if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return null;
+  try { return sessionStorage.getItem(key); } catch { return null; }
+};
+
+const safeSetItem = (key: string, val: string) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(key, val); } catch {}
+};
+
+const safeRemoveItem = (key: string) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try { localStorage.removeItem(key); } catch {}
+};
+
 const getStoredUser = (): User | null => {
   try {
-    const raw = localStorage.getItem('salvagereef_user');
+    const raw = safeGetItem('salvagereef_user');
     if (raw) return JSON.parse(raw);
-    if (localStorage.getItem('sr_admin_auth') === 'true' || sessionStorage.getItem('sr_admin_auth') === 'true') {
+    if (safeGetItem('sr_admin_auth') === 'true' || safeGetSessionItem('sr_admin_auth') === 'true') {
       return {
         id: 3,
         name: 'Master Admin',
@@ -39,9 +59,9 @@ const getStoredUser = (): User | null => {
 };
 
 const getStoredToken = (): string | null => {
-  const token = localStorage.getItem('salvagereef_token');
+  const token = safeGetItem('salvagereef_token');
   if (token) return token;
-  if (localStorage.getItem('sr_admin_auth') === 'true' || sessionStorage.getItem('sr_admin_auth') === 'true') {
+  if (safeGetItem('sr_admin_auth') === 'true' || safeGetSessionItem('sr_admin_auth') === 'true') {
     return 'sr_admin_persisted_token';
   }
   return null;
@@ -50,18 +70,20 @@ const getStoredToken = (): string | null => {
 const isSessionValid = (): boolean => {
   const user = getStoredUser();
   const token = getStoredToken();
-  const expStr = localStorage.getItem('salvagereef_token_exp');
+  const expStr = safeGetItem('salvagereef_token_exp');
 
   if (!user && !token) return false;
 
   if (expStr) {
     const expTime = parseInt(expStr, 10);
     if (Date.now() > expTime) {
-      localStorage.removeItem('salvagereef_user');
-      localStorage.removeItem('salvagereef_token');
-      localStorage.removeItem('salvagereef_token_exp');
-      localStorage.removeItem('sr_admin_auth');
-      sessionStorage.removeItem('sr_admin_auth');
+      safeRemoveItem('salvagereef_user');
+      safeRemoveItem('salvagereef_token');
+      safeRemoveItem('salvagereef_token_exp');
+      safeRemoveItem('sr_admin_auth');
+      if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+        try { sessionStorage.removeItem('sr_admin_auth'); } catch {}
+      }
       return false;
     }
   }
@@ -70,9 +92,9 @@ const isSessionValid = (): boolean => {
 
 const setSessionData = (user: User, token: string) => {
   const expiryTime = Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-  localStorage.setItem('salvagereef_user', JSON.stringify(user));
-  localStorage.setItem('salvagereef_token', token);
-  localStorage.setItem('salvagereef_token_exp', expiryTime.toString());
+  safeSetItem('salvagereef_user', JSON.stringify(user));
+  safeSetItem('salvagereef_token', token);
+  safeSetItem('salvagereef_token_exp', expiryTime.toString());
 };
 
 export const useAuthStore = create<AuthState>((set) => ({

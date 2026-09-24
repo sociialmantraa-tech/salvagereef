@@ -95,9 +95,19 @@ interface CategoryLocationStore {
   setLocations: (locations: LocationItem[]) => void;
 }
 
+const safeGetItem = (key: string): string | null => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+
+const safeSetItem = (key: string, val: string) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(key, val); } catch {}
+};
+
 const getStoredCategories = (): Category[] => {
   try {
-    const stored = localStorage.getItem('sr_categories');
+    const stored = safeGetItem('sr_categories');
     return stored ? JSON.parse(stored) : DEFAULT_CATEGORIES;
   } catch {
     return DEFAULT_CATEGORIES;
@@ -106,7 +116,7 @@ const getStoredCategories = (): Category[] => {
 
 const getStoredLocations = (): LocationItem[] => {
   try {
-    const stored = localStorage.getItem('sr_locations');
+    const stored = safeGetItem('sr_locations');
     return stored ? JSON.parse(stored) : DEFAULT_LOCATIONS;
   } catch {
     return DEFAULT_LOCATIONS;
@@ -128,7 +138,7 @@ export const useCategoryLocationStore = create<CategoryLocationStore>((set) => (
         classifieds_count: 0,
       };
       const updated = [...state.categories, newCat];
-      localStorage.setItem('sr_categories', JSON.stringify(updated));
+      safeSetItem('sr_categories', JSON.stringify(updated));
       return { categories: updated };
     }),
 
@@ -138,14 +148,14 @@ export const useCategoryLocationStore = create<CategoryLocationStore>((set) => (
       const updated = state.categories.map((c) =>
         c.id === id ? { ...c, name: name.trim(), slug: formattedSlug } : c
       );
-      localStorage.setItem('sr_categories', JSON.stringify(updated));
+      safeSetItem('sr_categories', JSON.stringify(updated));
       return { categories: updated };
     }),
 
   deleteCategory: (id) =>
     set((state) => {
       const updated = state.categories.filter((c) => c.id !== id);
-      localStorage.setItem('sr_categories', JSON.stringify(updated));
+      safeSetItem('sr_categories', JSON.stringify(updated));
       return { categories: updated };
     }),
 
@@ -158,7 +168,7 @@ export const useCategoryLocationStore = create<CategoryLocationStore>((set) => (
         is_active: true,
       };
       const updated = [...state.locations, newLoc];
-      localStorage.setItem('sr_locations', JSON.stringify(updated));
+      safeSetItem('sr_locations', JSON.stringify(updated));
       return { locations: updated };
     }),
 
@@ -167,24 +177,24 @@ export const useCategoryLocationStore = create<CategoryLocationStore>((set) => (
       const updated = state.locations.map((loc) =>
         loc.id === id ? { ...loc, city: city.trim(), state: stateName.trim() } : loc
       );
-      localStorage.setItem('sr_locations', JSON.stringify(updated));
+      safeSetItem('sr_locations', JSON.stringify(updated));
       return { locations: updated };
     }),
 
   deleteLocation: (id) =>
     set((state) => {
       const updated = state.locations.filter((loc) => loc.id !== id);
-      localStorage.setItem('sr_locations', JSON.stringify(updated));
+      safeSetItem('sr_locations', JSON.stringify(updated));
       return { locations: updated };
     }),
 
   setCategories: (cats) => {
-    localStorage.setItem('sr_categories', JSON.stringify(cats));
+    safeSetItem('sr_categories', JSON.stringify(cats));
     set({ categories: cats });
   },
 
   setLocations: (locs) => {
-    localStorage.setItem('sr_locations', JSON.stringify(locs));
+    safeSetItem('sr_locations', JSON.stringify(locs));
     set({ locations: locs });
   },
 }));

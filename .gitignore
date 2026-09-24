@@ -3,6 +3,8 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+frontend/.next/
+.next/
 
 # PHP / Backend
 backend/vendor/

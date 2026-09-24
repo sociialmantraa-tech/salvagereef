@@ -14,10 +14,13 @@ async function computeRequestSignature(timestamp: number): Promise<string> {
   const keyData = enc.encode(SR_APP_SECRET);
   const msgData = enc.encode(`${timestamp}:${SR_APP_SECRET}`);
 
-  const cryptoKey = await window.crypto.subtle.importKey(
+  const subtle = typeof window !== 'undefined' ? window.crypto?.subtle : (globalThis as any)?.crypto?.subtle;
+  if (!subtle) return '';
+
+  const cryptoKey = await subtle.importKey(
     'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
-  const sigBuffer = await window.crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  const sigBuffer = await subtle.sign('HMAC', cryptoKey, msgData);
   return Array.from(new Uint8Array(sigBuffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
@@ -25,11 +28,16 @@ async function computeRequestSignature(timestamp: number): Promise<string> {
 
 // ─── API Base URL ─────────────────────────────────────────────────────────────
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return `${window.location.origin}/backend/api/v1`;
+  if (typeof window !== 'undefined') {
+    if ((window as any).__VITE_API_BASE_URL) {
+      return (window as any).__VITE_API_BASE_URL;
+    }
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return `${window.location.origin}/backend/api/v1`;
+    }
   }
   return '/api/v1';
 };
@@ -47,9 +55,11 @@ const api = axios.create({
 // Attaches Bearer token + HMAC-SHA256 signature (only on write requests)
 api.interceptors.request.use(async (config) => {
   // 1. Attach auth token
-  const token = localStorage.getItem('salvagereef_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const token = localStorage.getItem('salvagereef_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
 
   // 2. Sign write requests only (POST, PUT, DELETE, PATCH)

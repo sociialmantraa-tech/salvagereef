@@ -45,6 +45,21 @@ if (fs.existsSync(deployDir)) {
   if (fs.existsSync(distHtml)) {
     fs.copyFileSync(distHtml, path.join(deployDir, 'index.html'));
   }
+
+  // Sync latest backend PHP scripts
+  const backendSrc = path.join(rootDir, 'backend');
+  const backendDest = path.join(deployDir, 'backend');
+  const backendFilesToSync = ['server.php', 'security_config.php', 'seed_db.php', 'view_logs.php', 'index.php'];
+  if (fs.existsSync(backendSrc) && fs.existsSync(backendDest)) {
+    for (const bf of backendFilesToSync) {
+      const srcPath = path.join(backendSrc, bf);
+      const destPath = path.join(backendDest, bf);
+      if (fs.existsSync(srcPath)) {
+        fs.copyFileSync(srcPath, destPath);
+        console.log(`✔ Synced ${bf} to deploy_hosting/public_html/backend/${bf}`);
+      }
+    }
+  }
 }
 
 // 3. Pre-create required backend log and upload directories
