@@ -2220,21 +2220,110 @@ if ($method === 'PUT' && preg_match('#^/api/v1/admin/users/(\d+)/toggle-active$#
 }
 
 // 18d. Admin Delete Auction: DELETE /api/v1/admin/auctions/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/admin/auctions/(\d+)$#', $uri, $m)) {
+if ($method === 'DELETE' && preg_match('#^/api/v1/admin/auctions/([^/]+)$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
 
-    $pdo->prepare("DELETE FROM auctions WHERE id = ?")->execute([$m[1]]);
-    jsonResponse(['message' => 'Auction deleted successfully']);
+    $targetIdOrSlug = $m[1];
+    try {
+        // Find target auction ID
+        $findStmt = $pdo->prepare("SELECT id, title FROM auctions WHERE id = ? OR slug = ? LIMIT 1");
+        $findStmt->execute([$targetIdOrSlug, $targetIdOrSlug]);
+        $targetAuction = $findStmt->fetch(PDO::FETCH_ASSOC);
+
+        $auctionId = $targetAuction ? $targetAuction['id'] : (is_numeric($targetIdOrSlug) ? (int)$targetIdOrSlug : 0);
+        $auctionTitle = $targetAuction ? $targetAuction['title'] : "ID #$targetIdOrSlug";
+
+        if ($pdo->inTransaction() === false) {
+            $pdo->beginTransaction();
+        }
+
+        if ($auctionId > 0) {
+            // Delete related child records first to satisfy foreign key constraints
+            try { $pdo->prepare("DELETE FROM bids WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+            try { $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+            try { $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+            try { $pdo->prepare("DELETE FROM auctions WHERE id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+        } else {
+            $pdo->prepare("DELETE FROM auctions WHERE slug = ?")->execute([$targetIdOrSlug]);
+        }
+
+        if ($pdo->inTransaction()) {
+            $pdo->commit();
+        }
+
+        // Log successful deletion to server access & error log
+        $logMsg = "[" . date('Y-m-d H:i:s') . "] [INFO] [ADMIN_ACTION] Admin User #{$user['id']} deleted auction: '{$auctionTitle}' (ID: {$targetIdOrSlug})\n";
+        @file_put_contents(SR_LOG_ACCESS, $logMsg, FILE_APPEND | LOCK_EX);
+        @file_put_contents(SR_LOG_ERROR, $logMsg, FILE_APPEND | LOCK_EX);
+
+        jsonResponse(['message' => 'Auction deleted successfully', 'id' => $targetIdOrSlug]);
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $errMsg = "[" . date('Y-m-d H:i:s') . "] [ERROR] Failed to delete auction {$targetIdOrSlug}: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n";
+        @file_put_contents(SR_LOG_ERROR, $errMsg, FILE_APPEND | LOCK_EX);
+
+        // Record into system error logs table if available
+        try {
+            $pdo->prepare("INSERT INTO error_logs (severity, message, file, line, method, url, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'unresolved', datetime('now'))")
+                ->execute(['error', "Failed to delete auction {$targetIdOrSlug}: " . $e->getMessage(), __FILE__, __LINE__, 'DELETE', $uri]);
+        } catch (\Throwable $logEx) {}
+
+        jsonResponse(['message' => 'Failed to delete auction: ' . $e->getMessage()], 500);
+    }
 }
 
 // 18e. Admin Delete Classified: DELETE /api/v1/admin/classifieds/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/admin/classifieds/(\d+)$#', $uri, $m)) {
+if ($method === 'DELETE' && preg_match('#^/api/v1/admin/classifieds/([^/]+)$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
 
-    $pdo->prepare("DELETE FROM classifieds WHERE id = ?")->execute([$m[1]]);
-    jsonResponse(['message' => 'Classified deleted successfully']);
+    $targetIdOrSlug = $m[1];
+    try {
+        $findStmt = $pdo->prepare("SELECT id, title FROM classifieds WHERE id = ? OR slug = ? LIMIT 1");
+        $findStmt->execute([$targetIdOrSlug, $targetIdOrSlug]);
+        $targetClassified = $findStmt->fetch(PDO::FETCH_ASSOC);
+
+        $clsId = $targetClassified ? $targetClassified['id'] : (is_numeric($targetIdOrSlug) ? (int)$targetIdOrSlug : 0);
+        $clsTitle = $targetClassified ? $targetClassified['title'] : "ID #$targetIdOrSlug";
+
+        if ($pdo->inTransaction() === false) {
+            $pdo->beginTransaction();
+        }
+
+        if ($clsId > 0) {
+            try { $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
+            try { $pdo->prepare("DELETE FROM enquiry_or_interests WHERE classified_id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
+            try { $pdo->prepare("DELETE FROM classifieds WHERE id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
+        } else {
+            $pdo->prepare("DELETE FROM classifieds WHERE slug = ?")->execute([$targetIdOrSlug]);
+        }
+
+        if ($pdo->inTransaction()) {
+            $pdo->commit();
+        }
+
+        $logMsg = "[" . date('Y-m-d H:i:s') . "] [INFO] [ADMIN_ACTION] Admin User #{$user['id']} deleted classified: '{$clsTitle}' (ID: {$targetIdOrSlug})\n";
+        @file_put_contents(SR_LOG_ACCESS, $logMsg, FILE_APPEND | LOCK_EX);
+        @file_put_contents(SR_LOG_ERROR, $logMsg, FILE_APPEND | LOCK_EX);
+
+        jsonResponse(['message' => 'Classified deleted successfully', 'id' => $targetIdOrSlug]);
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $errMsg = "[" . date('Y-m-d H:i:s') . "] [ERROR] Failed to delete classified {$targetIdOrSlug}: " . $e->getMessage() . "\n";
+        @file_put_contents(SR_LOG_ERROR, $errMsg, FILE_APPEND | LOCK_EX);
+
+        try {
+            $pdo->prepare("INSERT INTO error_logs (severity, message, file, line, method, url, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'unresolved', datetime('now'))")
+                ->execute(['error', "Failed to delete classified {$targetIdOrSlug}: " . $e->getMessage(), __FILE__, __LINE__, 'DELETE', $uri]);
+        } catch (\Throwable $logEx) {}
+
+        jsonResponse(['message' => 'Failed to delete classified: ' . $e->getMessage()], 500);
+    }
 }
 
 // 18f. Admin Delete User: DELETE /api/v1/admin/users/{id}

@@ -1716,6 +1716,160 @@ export function handleMockApi(config: any): any {
     };
   }
 
+  // 28. DELETE /admin/auctions/:id or /auctions/:id
+  if ((cleanUrl.includes('/admin/auctions/') || cleanUrl.includes('/auctions/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const idOrSlug = parts[parts.length - 1];
+    let auctions = getMockAuctions();
+    const beforeCount = auctions.length;
+    auctions = auctions.filter((a) => String(a.id) !== String(idOrSlug) && a.slug !== String(idOrSlug));
+    setItem('sr_auctions', auctions);
+    setItem('sr_admin_auctions', auctions);
+
+    // Clean associated bids
+    const adminBids = getItem<any[]>('sr_admin_bids', []);
+    const updatedAdminBids = adminBids.filter((b: any) => String(b.auction_id) !== String(idOrSlug));
+    setItem('sr_admin_bids', updatedAdminBids);
+
+    // Clean associated interests
+    const interests = getMockInterests();
+    const updatedInterests = interests.filter((i: any) => String(i.auction_id) !== String(idOrSlug));
+    setItem('sr_interests', updatedInterests);
+    setItem('sr_admin_interests', updatedInterests);
+
+    return {
+      success: true,
+      message: 'Auction lot deleted permanently from system records.',
+      deleted_id: idOrSlug,
+      removed: beforeCount - auctions.length,
+    };
+  }
+
+  // 29. POST /admin/auctions (Create or update auction)
+  if (cleanUrl.endsWith('/admin/auctions') && (method === 'post' || method === 'put')) {
+    const auctions = getMockAuctions();
+    const categories = getMockCategories();
+    const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null') || INITIAL_USERS[0];
+
+    const targetCat = categories.find((c) => c.id === Number(bodyData.category_id)) || categories[0];
+    const newAuc: Auction = {
+      id: bodyData.id || Date.now(),
+      title: bodyData.title || 'New Scrap Lot',
+      slug: (bodyData.title || 'lot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + `-${Date.now().toString().slice(-4)}`,
+      description: bodyData.description || 'Verified industrial scrap material lot.',
+      category_id: Number(bodyData.category_id || 1),
+      category: targetCat,
+      category_name: targetCat.name,
+      starting_price: Number(bodyData.starting_price || 100000),
+      current_highest_bid: Number(bodyData.current_highest_bid || bodyData.starting_price || 100000),
+      quantity: Number(bodyData.quantity || 10),
+      unit: bodyData.unit || 'MT',
+      location_city: bodyData.location_city || 'Mumbai',
+      location_state: bodyData.location_state || 'Maharashtra',
+      auction_type: bodyData.auction_type || 'public',
+      status: bodyData.status || 'live',
+      start_time: bodyData.start_time || new Date().toISOString(),
+      end_time: bodyData.end_time || new Date(Date.now() + 7 * 86400000).toISOString(),
+      seller_id: currentUser.id,
+      bids: [],
+    };
+
+    const existingIdx = auctions.findIndex((a) => a.id === newAuc.id);
+    if (existingIdx !== -1) {
+      auctions[existingIdx] = { ...auctions[existingIdx], ...newAuc };
+    } else {
+      auctions.unshift(newAuc);
+    }
+
+    setItem('sr_auctions', auctions);
+    setItem('sr_admin_auctions', auctions);
+    return { success: true, message: 'Auction lot published successfully', data: newAuc };
+  }
+
+  // 30. DELETE /admin/classifieds/:id or /classifieds/:id
+  if ((cleanUrl.includes('/admin/classifieds/') || cleanUrl.includes('/classifieds/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const idOrSlug = parts[parts.length - 1];
+    let cls = getMockClassifieds();
+    cls = cls.filter((c) => String(c.id) !== String(idOrSlug) && c.slug !== String(idOrSlug));
+    setItem('sr_classifieds', cls);
+    setItem('sr_admin_classifieds', cls);
+    return {
+      success: true,
+      message: 'Classified listing deleted successfully.',
+      deleted_id: idOrSlug,
+    };
+  }
+
+  // 31. DELETE /admin/users/:id
+  if (cleanUrl.includes('/admin/users/') && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const userId = parts[parts.length - 1];
+    const users = getItem<any[]>('sr_admin_users', INITIAL_USERS);
+    const updatedUsers = users.filter((u: any) => String(u.id) !== String(userId));
+    setItem('sr_admin_users', updatedUsers);
+    return {
+      success: true,
+      message: 'User account removed from database.',
+      deleted_id: userId,
+    };
+  }
+
+  // 32. DELETE /admin/categories/:id
+  if (cleanUrl.includes('/admin/categories/') && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const catId = parts[parts.length - 1];
+    let cats = getMockCategories();
+    cats = cats.filter((c) => String(c.id) !== String(catId));
+    setItem('sr_categories', cats);
+    return { success: true, message: 'Category deleted.', deleted_id: catId };
+  }
+
+  // 33. DELETE /admin/interests/:id
+  if (cleanUrl.includes('/admin/interests/') && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const intId = parts[parts.length - 1];
+    let ints = getMockInterests();
+    ints = ints.filter((i) => String(i.id) !== String(intId));
+    setItem('sr_interests', ints);
+    setItem('sr_admin_interests', ints);
+    return { success: true, message: 'Interest removed.', deleted_id: intId };
+  }
+
+  // 34. POST /errors/report
+  if (cleanUrl.endsWith('/errors/report') && method === 'post') {
+    let logs: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        logs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+      } catch {}
+    }
+    const newLog = {
+      id: bodyData.id || Date.now(),
+      severity: bodyData.severity || 'error',
+      message: bodyData.message || 'Reported Application Error',
+      exception_class: bodyData.exception_class || 'ClientError',
+      file: bodyData.file || 'unknown',
+      line: bodyData.line || 1,
+      url: bodyData.url || '/admin',
+      method: bodyData.method || 'API',
+      status: 'unresolved',
+      created_at: bodyData.created_at || new Date().toISOString(),
+      stack_trace: bodyData.stack_trace || '',
+      source: bodyData.source || 'api',
+    };
+    logs = [newLog, ...logs.filter(l => l.message !== newLog.message)].slice(0, 300);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_system_error_logs', JSON.stringify(logs));
+    }
+    return { success: true, message: 'Error log captured', data: newLog };
+  }
+
   // Default fallback for any unmatched GET endpoint
-  return { data: [] };
+  if (method === 'get') {
+    return { data: [] };
+  }
+
+  // Default fallback for write endpoints
+  return { success: true, message: 'Operation completed successfully' };
 }

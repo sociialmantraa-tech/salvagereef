@@ -142,6 +142,33 @@ api.interceptors.response.use(
         localStorage.removeItem('salvagereef_token');
         localStorage.removeItem('salvagereef_user');
       }
+
+      // Automatically capture API errors into System Error Diagnostics (if not /errors/report)
+      const reqUrl = String(error.config?.url || '');
+      if (!reqUrl.includes('/errors/report') && typeof window !== 'undefined') {
+        try {
+          const rawMsg = error.response?.data?.message || error.message || `API Error HTTP ${error.response.status}`;
+          const currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+          const newErr = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            severity: (error.response.status >= 500 ? 'critical' : 'error') as const,
+            message: `[API ${error.config?.method?.toUpperCase()} ${error.response.status}] ${rawMsg}`,
+            exception_class: `HttpException_${error.response.status}`,
+            file: `frontend/src/services/api.ts -> ${reqUrl}`,
+            line: 1,
+            url: reqUrl,
+            method: (error.config?.method || 'GET').toUpperCase(),
+            status: 'unresolved' as const,
+            created_at: new Date().toISOString(),
+            stack_trace: error.stack || '',
+            source: 'api' as const,
+          };
+          const updated = [newErr, ...currentLogs.filter((l: any) => l.message !== newErr.message)].slice(0, 300);
+          localStorage.setItem('sr_system_error_logs', JSON.stringify(updated));
+          window.dispatchEvent(new CustomEvent('sr_error_logged', { detail: newErr }));
+        } catch {}
+      }
+
       return Promise.reject(error);
     }
 
@@ -160,6 +187,32 @@ api.interceptors.response.use(
     } catch (mockErr) {
       console.error('Mock fallback handler error:', mockErr);
     }
+
+    // Capture offline or unhandled network failure into System Error Diagnostics
+    const reqUrl = String(error.config?.url || '');
+    if (!reqUrl.includes('/errors/report') && typeof window !== 'undefined') {
+      try {
+        const currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+        const newErr = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          severity: 'error' as const,
+          message: `[Network/Offline] ${error.message || 'Server connection failed'} on ${reqUrl}`,
+          exception_class: 'NetworkException',
+          file: `frontend/src/services/api.ts -> ${reqUrl}`,
+          line: 1,
+          url: reqUrl,
+          method: (error.config?.method || 'GET').toUpperCase(),
+          status: 'unresolved' as const,
+          created_at: new Date().toISOString(),
+          stack_trace: error.stack || '',
+          source: 'api' as const,
+        };
+        const updated = [newErr, ...currentLogs.filter((l: any) => l.message !== newErr.message)].slice(0, 300);
+        localStorage.setItem('sr_system_error_logs', JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('sr_error_logged', { detail: newErr }));
+      } catch {}
+    }
+
     return Promise.reject(error);
   }
 );
