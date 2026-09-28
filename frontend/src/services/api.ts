@@ -36,10 +36,10 @@ const getApiBaseUrl = () => {
       return (window as any).__VITE_API_BASE_URL;
     }
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return `${window.location.origin}/backend/api/v1`;
+      return `${window.location.origin}/backend/server.php/api/v1`;
     }
   }
-  return '/api/v1';
+  return '/backend/server.php/api/v1';
 };
 
 const api = axios.create({

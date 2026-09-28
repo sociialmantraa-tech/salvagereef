@@ -49,14 +49,18 @@ export default function Home() {
 
       if (aucRes?.data?.data && Array.isArray(aucRes.data.data)) {
         setLiveAuctions(aucRes.data.data);
+        try { localStorage.setItem('sr_auctions', JSON.stringify(aucRes.data.data)); } catch {}
       } else if (Array.isArray(aucRes?.data)) {
         setLiveAuctions(aucRes.data);
+        try { localStorage.setItem('sr_auctions', JSON.stringify(aucRes.data)); } catch {}
       }
 
       if (classRes?.data?.data && Array.isArray(classRes.data.data)) {
         setClassifieds(classRes.data.data.slice(0, 4));
+        try { localStorage.setItem('sr_classifieds', JSON.stringify(classRes.data.data)); } catch {}
       } else if (Array.isArray(classRes?.data)) {
         setClassifieds(classRes.data.slice(0, 4));
+        try { localStorage.setItem('sr_classifieds', JSON.stringify(classRes.data)); } catch {}
       }
     } catch (err) {
       console.error('Error fetching home data:', err);

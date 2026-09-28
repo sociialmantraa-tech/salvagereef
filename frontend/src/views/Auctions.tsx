@@ -47,8 +47,14 @@ export default function Auctions() {
 
       if (res.data?.data && Array.isArray(res.data.data)) {
         setAuctions(res.data.data);
+        if (!category && !auctionType && !status && !location && !search) {
+          try { localStorage.setItem('sr_auctions', JSON.stringify(res.data.data)); } catch {}
+        }
       } else if (Array.isArray(res.data)) {
         setAuctions(res.data);
+        if (!category && !auctionType && !status && !location && !search) {
+          try { localStorage.setItem('sr_auctions', JSON.stringify(res.data)); } catch {}
+        }
       }
       if (catRes.data && Array.isArray(catRes.data)) {
         setCategories(catRes.data);

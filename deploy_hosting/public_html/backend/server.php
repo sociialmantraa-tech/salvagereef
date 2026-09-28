@@ -253,14 +253,16 @@ if (!$corsAllowed && in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELET
     exit;
 }
 
-$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$rawUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// ─── STRIP /backend PREFIX (shared hosting: site lives in /backend/ subdir) ──
-// On production (salvagereef.com/backend/api/v1/...) the full path is passed.
-// Strip /backend so all route checks can use /api/v1/... uniformly.
-$uri = preg_replace('#^/backend(?=/|$)#', '', $uri);
-if (empty($uri)) $uri = '/';
+// ─── NORMALIZE URI (support direct server.php execution, PATH_INFO, and mod_rewrite) ──
+if (!empty($_SERVER['PATH_INFO'])) {
+    $uri = $_SERVER['PATH_INFO'];
+} else {
+    $uri = preg_replace('#^(/public_html)?(/backend)?(/server\.php)?#', '', $rawUri);
+}
+if (empty($uri) || $uri === '') $uri = '/';
 
 
 // ─── BOT / SCANNER USER-AGENT BLOCKING ───────────────────────────────────────

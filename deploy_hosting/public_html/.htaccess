@@ -4,6 +4,18 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # 1. Direct API routes directly to backend/server.php
+  RewriteRule ^api/v1/(.*)$ backend/server.php [QSA,L]
+  RewriteRule ^backend/api/v1/(.*)$ backend/server.php [QSA,L]
+  RewriteRule ^backend/server\.php - [L]
+
+  # 2. Never rewrite /backend or /uploads to index.html
+  RewriteCond %{REQUEST_URI} ^/backend [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/uploads [NC]
+  RewriteRule ^ - [L]
+
+  # 3. SPA frontend routes
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
