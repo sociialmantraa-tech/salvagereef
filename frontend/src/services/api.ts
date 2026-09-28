@@ -155,9 +155,10 @@ api.interceptors.response.use(
         try {
           const rawMsg = error.response?.data?.message || error.message || `API Error HTTP ${error.response.status}`;
           const currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
+          const severityVal: 'critical' | 'error' = error.response.status >= 500 ? 'critical' : 'error';
           const newErr = {
             id: Date.now() + Math.floor(Math.random() * 1000),
-            severity: (error.response.status >= 500 ? 'critical' : 'error') as const,
+            severity: severityVal,
             message: `[API ${error.config?.method?.toUpperCase()} ${error.response.status}] ${rawMsg}`,
             exception_class: `HttpException_${error.response.status}`,
             file: `frontend/src/services/api.ts -> ${reqUrl}`,

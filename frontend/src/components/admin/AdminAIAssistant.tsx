@@ -628,7 +628,8 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         }
 
         if (matchedAuction) {
-          aiResponseText = `🗑️ **Target Auction Lot Identified for Permanent Deletion**\n\n- **Lot ID:** #${matchedAuction.id}\n- **Title:** "${matchedAuction.title}"\n- **Category:** ${typeof matchedAuction.category === 'object' ? (matchedAuction.category as any)?.name : (matchedAuction.category_name || 'General Scrap')}\n- **Starting Price:** ₹${Number(matchedAuction.starting_price).toLocaleString('en-IN')}\n\nClick below to immediately delete and purge this auction lot from live listings, bids, and server database.`;
+          const catName = typeof matchedAuction.category === 'object' && matchedAuction.category ? (matchedAuction.category as any).name : ((matchedAuction as any).category_name || 'General Scrap');
+          aiResponseText = `🗑️ **Target Auction Lot Identified for Permanent Deletion**\n\n- **Lot ID:** #${matchedAuction.id}\n- **Title:** "${matchedAuction.title}"\n- **Category:** ${catName}\n- **Starting Price:** ₹${Number(matchedAuction.starting_price).toLocaleString('en-IN')}\n\nClick below to immediately delete and purge this auction lot from live listings, bids, and server database.`;
 
           actionCard = {
             type: 'delete_auction',

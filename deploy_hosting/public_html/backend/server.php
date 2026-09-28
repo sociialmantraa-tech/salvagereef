@@ -2364,6 +2364,9 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/users/(\d+)$#', $uri, $m
     $delStmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $delStmt->execute([$targetId]);
 
+    jsonResponse(['success' => true, 'message' => "User account has been permanently removed from database."]);
+}
+
 // 18f-2. Admin Analytics Overview: GET /api/v1/admin/analytics/overview
 if ($method === 'GET' && $uri === '/api/v1/admin/analytics/overview') {
     $user = getAuthUser($pdo);

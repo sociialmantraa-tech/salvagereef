@@ -1797,7 +1797,6 @@ export function handleMockApi(config: any): any {
       description: bodyData.description || 'Verified industrial scrap material lot.',
       category_id: Number(bodyData.category_id || 1),
       category: targetCat,
-      category_name: targetCat.name,
       starting_price: Number(bodyData.starting_price || 100000),
       current_highest_bid: Number(bodyData.current_highest_bid || bodyData.starting_price || 100000),
       quantity: Number(bodyData.quantity || 10),
