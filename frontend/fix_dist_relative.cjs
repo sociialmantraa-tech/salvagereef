@@ -106,11 +106,14 @@ try {
   const scrabZipPath = path.join(rootDir, 'scrab_dist.zip');
   const frontendZipPath = path.join(__dirname, 'scrab_dist.zip');
 
+  const deployZipPath = path.join(rootDir, 'deploy_hosting', 'salvagereef_FULL_UPLOAD.zip');
+
   const tarCmd = `tar -a -c -f "${fullZipPath}" -C "${deployDir}" .`;
   execSync(tarCmd, { stdio: 'inherit' });
 
   fs.copyFileSync(fullZipPath, scrabZipPath);
   fs.copyFileSync(fullZipPath, frontendZipPath);
+  fs.copyFileSync(fullZipPath, deployZipPath);
 
   console.log('🚀 Successfully generated salvagereef_FULL_UPLOAD.zip for cPanel hosting!');
 } catch (e) {
