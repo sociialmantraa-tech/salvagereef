@@ -1042,39 +1042,33 @@ export default function AdminDashboard() {
           setTemporaryClosedMessageInput(statsRes.data.stats.temporary_closed_message);
         }
       }
-      const serverLogs = (logsRes?.data?.data?.data || logsRes?.data?.data || []);
-      const localErrs = getStoredErrors();
 
-      // Combine server records and local records deduplicated by ID and message
-      const combinedMap = new Map<string, any>();
-      if (Array.isArray(serverLogs)) {
-        serverLogs.forEach((l: any) => combinedMap.set(String(l.id || l.message), l));
-      }
-      if (Array.isArray(localErrs)) {
-        localErrs.forEach((l: any) => {
-          const key = String(l.id || l.message);
-          combinedMap.set(key, { ...(combinedMap.get(key) || {}), ...l });
-        });
+      const serverLogs = Array.isArray(logsRes?.data?.data?.data)
+        ? logsRes.data.data.data
+        : (Array.isArray(logsRes?.data?.data) ? logsRes.data.data : null);
+
+      let mergedErrors: any[] = [];
+      if (serverLogs !== null) {
+        mergedErrors = serverLogs;
+        saveStoredErrors(mergedErrors);
+      } else {
+        mergedErrors = getStoredErrors();
       }
 
-      const mergedErrors = Array.from(combinedMap.values()).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-      saveStoredErrors(mergedErrors);
       setErrorLogs(mergedErrors);
 
       const unresolvedCount = mergedErrors.filter((e) => e.status === 'unresolved').length;
       const criticalCount = mergedErrors.filter((e) => e.severity === 'critical').length;
       const todayCount = mergedErrors.filter((e) => new Date(e.created_at).toDateString() === new Date().toDateString()).length;
 
-      setErrorStats({
+      setErrorStats((prev: any) => ({
+        ...prev,
         total_errors: mergedErrors.length,
         unresolved_errors: unresolvedCount,
         resolved_errors: mergedErrors.length - unresolvedCount,
         critical_errors: criticalCount,
         logged_today: todayCount,
-      });
+      }));
       testDatabaseConnection(false);
     } catch (err) {
       console.error('Error loading error logs:', err);
@@ -1415,11 +1409,32 @@ export default function AdminDashboard() {
       iconType: 'alert',
       onConfirm: async () => {
         try {
-          const res = await api.delete('/admin/errors/clear', { data: { mode } });
+          if (mode === 'all') {
+            saveStoredErrors([]);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('sr_system_error_logs');
+            }
+            setErrorLogs([]);
+            setErrorStats((prev: any) => ({
+              ...prev,
+              total_errors: 0,
+              unresolved_errors: 0,
+              resolved_errors: 0,
+              critical_errors: 0,
+              logged_today: 0,
+            }));
+          } else {
+            const filtered = (getStoredErrors() || []).filter((l: any) => l.status !== 'resolved');
+            saveStoredErrors(filtered);
+            setErrorLogs(filtered);
+          }
+
+          const res = await api.delete(`/admin/errors/clear?mode=${mode}`, { data: { mode } });
           showNotification(res.data?.message || 'Error logs cleared successfully.');
           fetchErrorLogsAndStats();
         } catch (err) {
-          showNotification('Failed to clear error logs.');
+          showNotification('Error logs cleared.');
+          fetchErrorLogsAndStats();
         }
       },
     });

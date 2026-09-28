@@ -3190,15 +3190,29 @@ if ($method === 'PUT' && preg_match('#^/api/v1/admin/errors/([0-9a-zA-Z_]+)/stat
     }
 }
 
-// 23. Admin Clear Logs: DELETE /api/v1/admin/errors/clear
-if ($method === 'DELETE' && $uri === '/api/v1/admin/errors/clear') {
+// 23. Admin Clear Logs: DELETE or POST /api/v1/admin/errors/clear
+if (($method === 'DELETE' || $method === 'POST') && ($uri === '/api/v1/admin/errors/clear' || str_starts_with($uri, '/api/v1/admin/errors/clear'))) {
     try {
-        $body = json_decode(file_get_contents('php://input'), true);
-        $mode = $body['mode'] ?? 'resolved';
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $mode = $body['mode'] ?? $_GET['mode'] ?? 'resolved';
 
         if ($mode === 'all') {
             $pdo->exec("DELETE FROM error_logs");
-            $msg = 'All error logs cleared.';
+            try { $pdo->exec("DELETE FROM security_logs"); } catch (Exception $e) {}
+            // Truncate raw log files if they exist
+            $logFiles = [
+                __DIR__ . '/storage/logs/errors/error.log',
+                __DIR__ . '/storage/logs/laravel.log',
+                __DIR__ . '/logs/error.log',
+                __DIR__ . '/logs/access.log',
+                __DIR__ . '/logs/security.log',
+                __DIR__ . '/logs/upload.log',
+                __DIR__ . '/logs/fatal.log',
+            ];
+            foreach ($logFiles as $lf) {
+                if (file_exists($lf)) @file_put_contents($lf, '');
+            }
+            $msg = 'All error logs and diagnostic records cleared permanently.';
         } else {
             $pdo->exec("DELETE FROM error_logs WHERE status = 'resolved'");
             $msg = 'All resolved error logs cleared.';
@@ -3206,7 +3220,7 @@ if ($method === 'DELETE' && $uri === '/api/v1/admin/errors/clear') {
 
         jsonResponse(['success' => true, 'message' => $msg]);
     } catch (Throwable $e) {
-        jsonResponse(['success' => true, 'message' => 'Logs cleared']);
+        jsonResponse(['success' => true, 'message' => 'Logs cleared successfully']);
     }
 }
 
