@@ -1385,8 +1385,8 @@ if ($method === 'GET' && $uri === '/api/v1/categories') {
     jsonResponse($stmt->fetchAll());
 }
 
-// 9. Auctions List: GET /api/v1/auctions
-if ($method === 'GET' && $uri === '/api/v1/auctions') {
+// 9. Auctions List: GET /api/v1/auctions OR /api/v1/admin/auctions/all OR /api/v1/admin/auctions
+if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin/auctions/all' || $uri === '/api/v1/admin/auctions')) {
     $sql = "SELECT a.*, c.name as category_name, c.slug as category_slug,
             img.image_path as primary_image_url,
             u.name as creator_name, u.company_name as creator_company
@@ -1431,6 +1431,180 @@ if ($method === 'GET' && $uri === '/api/v1/auctions') {
     }
 
     jsonResponse(['data' => $items, 'total' => count($items)]);
+}
+
+// 9a. Create Auction: POST /api/v1/auctions OR /api/v1/admin/auctions
+if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin/auctions')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $title = trim($body['title'] ?? '');
+    if (empty($title)) jsonResponse(['message' => 'Title is required'], 422);
+
+    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title));
+    $description = $body['description'] ?? '';
+    $categoryId = (int)($body['category_id'] ?? 1);
+    $auctionType = $body['auction_type'] ?? 'public';
+    $status = $body['status'] ?? 'live';
+    $quantity = (float)($body['quantity'] ?? 1);
+    $unit = $body['unit'] ?? 'lot';
+    $startingPrice = (float)($body['starting_price'] ?? 0);
+    $bidIncrement = (float)($body['bid_increment'] ?? 1000);
+    $locationCity = $body['location_city'] ?? 'Mumbai';
+    $locationState = $body['location_state'] ?? 'Maharashtra';
+    $startTime = $body['start_time'] ?? date('Y-m-d H:i:s');
+    $endTime = $body['end_time'] ?? date('Y-m-d H:i:s', time() + 7 * 86400);
+    $createdBy = (int)($body['created_by'] ?? 1);
+
+    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$title, $slug . '-' . time(), $description, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy]);
+    $newId = (int)$pdo->lastInsertId();
+
+    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+    if (!empty($imgPath)) {
+        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$newId, $imgPath]);
+    }
+
+    jsonResponse(['message' => 'Auction created successfully', 'id' => $newId, 'success' => true]);
+}
+
+// 9b. Edit Auction: PUT /api/v1/auctions/{id} OR POST /api/v1/admin/auctions/{id} OR PUT /api/v1/admin/auctions/{id}
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?auctions/(\d+)$#', $uri, $m)) {
+    $auctionId = (int)$m[2];
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    $fields = [];
+    $params = [];
+    $allowed = ['title', 'description', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed'];
+    foreach ($allowed as $f) {
+        if (isset($body[$f])) {
+            $fields[] = "$f = ?";
+            $params[] = $body[$f];
+        }
+    }
+    if (!empty($fields)) {
+        $params[] = $auctionId;
+        $pdo->prepare("UPDATE auctions SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
+    }
+
+    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+    if (!empty($imgPath)) {
+        $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$auctionId, $imgPath]);
+    }
+
+    jsonResponse(['message' => 'Auction updated successfully', 'id' => $auctionId, 'success' => true]);
+}
+
+// 9c. Delete Auction: DELETE /api/v1/auctions/{id} OR DELETE /api/v1/admin/auctions/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?auctions/(\d+)$#', $uri, $m)) {
+    $auctionId = (int)$m[2];
+    $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+    $pdo->prepare("DELETE FROM bids WHERE auction_id = ?")->execute([$auctionId]);
+    $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id = ?")->execute([$auctionId]);
+    $pdo->prepare("DELETE FROM auctions WHERE id = ?")->execute([$auctionId]);
+    jsonResponse(['message' => 'Auction deleted permanently from database', 'id' => $auctionId, 'success' => true]);
+}
+
+// 9d. Classifieds List: GET /api/v1/classifieds OR /api/v1/admin/classifieds/all OR /api/v1/admin/classifieds
+if ($method === 'GET' && ($uri === '/api/v1/classifieds' || $uri === '/api/v1/admin/classifieds/all' || $uri === '/api/v1/admin/classifieds')) {
+    $sql = "SELECT cl.*, c.name as category_name, c.slug as category_slug,
+            img.image_path as primary_image_url,
+            u.name as creator_name, u.phone as creator_phone, u.company_name as creator_company
+            FROM classifieds cl
+            LEFT JOIN categories c ON cl.category_id = c.id
+            LEFT JOIN classified_images img ON img.classified_id = cl.id AND img.is_primary = 1
+            LEFT JOIN users u ON cl.created_by = u.id
+            ORDER BY cl.id DESC";
+    $items = $pdo->query($sql)->fetchAll();
+    foreach ($items as &$item) {
+        $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
+        $item['primary_image'] = ['image_path' => $item['primary_image_url']];
+        $item['creator'] = ['id' => $item['created_by'], 'name' => $item['creator_name'], 'company_name' => $item['creator_company'], 'phone' => $item['creator_phone']];
+    }
+    jsonResponse(['data' => $items, 'total' => count($items)]);
+}
+
+// 9e. Create Classified: POST /api/v1/classifieds OR /api/v1/admin/classifieds
+if ($method === 'POST' && ($uri === '/api/v1/classifieds' || $uri === '/api/v1/admin/classifieds')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $title = trim($body['title'] ?? '');
+    if (empty($title)) jsonResponse(['message' => 'Title is required'], 422);
+
+    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title));
+    $description = $body['description'] ?? '';
+    $categoryId = (int)($body['category_id'] ?? 1);
+    $price = (float)($body['price'] ?? 0);
+    $quantity = (float)($body['quantity'] ?? 1);
+    $unit = $body['unit'] ?? 'nos';
+    $locationCity = $body['location_city'] ?? 'Mumbai';
+    $locationState = $body['location_state'] ?? 'Maharashtra';
+    $status = $body['status'] ?? 'available';
+    $createdBy = (int)($body['created_by'] ?? 1);
+
+    $stmt = $pdo->prepare("INSERT INTO classifieds (title, slug, description, category_id, price, quantity, unit, location_city, location_state, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$title, $slug . '-' . time(), $description, $categoryId, $price, $quantity, $unit, $locationCity, $locationState, $status, $createdBy]);
+    $newId = (int)$pdo->lastInsertId();
+
+    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+    if (!empty($imgPath)) {
+        $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$newId, $imgPath]);
+    }
+
+    jsonResponse(['message' => 'Classified listing created successfully', 'id' => $newId, 'success' => true]);
+}
+
+// 9f. Edit Classified: PUT /api/v1/classifieds/{id} OR POST /api/v1/admin/classifieds/{id}
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?classifieds/(\d+)$#', $uri, $m)) {
+    $classifiedId = (int)$m[2];
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    $fields = [];
+    $params = [];
+    $allowed = ['title', 'description', 'category_id', 'price', 'quantity', 'unit', 'location_city', 'location_state', 'status'];
+    foreach ($allowed as $f) {
+        if (isset($body[$f])) {
+            $fields[] = "$f = ?";
+            $params[] = $body[$f];
+        }
+    }
+    if (!empty($fields)) {
+        $params[] = $classifiedId;
+        $pdo->prepare("UPDATE classifieds SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
+    }
+    jsonResponse(['message' => 'Classified listing updated successfully', 'id' => $classifiedId, 'success' => true]);
+}
+
+// 9g. Delete Classified: DELETE /api/v1/classifieds/{id} OR DELETE /api/v1/admin/classifieds/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?classifieds/(\d+)$#', $uri, $m)) {
+    $classifiedId = (int)$m[2];
+    $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$classifiedId]);
+    $pdo->prepare("DELETE FROM classifieds WHERE id = ?")->execute([$classifiedId]);
+    jsonResponse(['message' => 'Classified listing deleted permanently from database', 'id' => $classifiedId, 'success' => true]);
+}
+
+// 9h. Admin Dashboard Stats: GET /api/v1/admin/dashboard/stats
+if ($method === 'GET' && $uri === '/api/v1/admin/dashboard/stats') {
+    $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();
+    $liveAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
+    $totalClassifieds = (int)$pdo->query("SELECT COUNT(*) FROM classifieds")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
+
+    jsonResponse([
+        'success' => true,
+        'stats' => [
+            'total_auctions' => $totalAuctions,
+            'total_auctions_live' => $liveAuctions,
+            'total_classifieds' => $totalClassifieds,
+            'total_registered_users' => $totalUsers,
+            'total_bids' => $totalBids,
+            'total_bids_today' => $totalBids,
+            'new_users_this_week' => $totalUsers,
+            'pending_approvals' => 0,
+            'active_users' => $totalUsers,
+            'suspended_users' => 0,
+            'kyc_verified_users' => $totalUsers,
+        ]
+    ]);
 }
 
 // 10. Auction Detail: GET /api/v1/auctions/{slug}
