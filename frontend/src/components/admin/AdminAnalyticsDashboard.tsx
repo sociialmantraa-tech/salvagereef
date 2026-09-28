@@ -270,22 +270,14 @@ export default function AdminAnalyticsDashboard({
     let unsub: any = null;
     importAndSub().then((fn) => { unsub = fn; });
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (
-        e.key === 'sr_admin_auctions' ||
-        e.key === 'sr_auctions' ||
-        e.key === 'sr_admin_bids' ||
-        e.key === 'sr_admin_users'
-      ) {
-        fetchAnalytics(false);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
+    // Periodic polling every 8s to keep all graphs real-time and synchronized across browsers
+    const interval = setInterval(() => {
+      fetchAnalytics(false);
+    }, 8000);
 
     return () => {
       if (unsub) unsub();
-      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
     };
   }, [range, auctionsCount, usersCount, bidsCount]);
 
