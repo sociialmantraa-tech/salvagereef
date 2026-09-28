@@ -29,7 +29,10 @@ import {
   CheckSquare,
   Wrench,
   Flame,
-  Layout
+  Layout,
+  RotateCcw,
+  Undo2,
+  Ban
 } from 'lucide-react';
 import { Auction, Classified, Category, User } from '../../types';
 import { getStoredErrors, saveStoredErrors, SystemErrorItem } from '../../services/errorService';
@@ -113,6 +116,7 @@ interface Message {
     title: string;
     description: string;
     payload: any;
+    previousState?: any;
     status: 'pending' | 'executed' | 'cancelled';
   };
 }
@@ -194,12 +198,111 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
     );
   };
 
+  // Cancel / Reject a pending action card
+  const handleCancelAction = (msgId: string, actionCard: Message['actionCard']) => {
+    if (!actionCard) return;
+
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.actionCard) {
+        return {
+          ...m,
+          actionCard: { ...m.actionCard, status: 'cancelled' }
+        };
+      }
+      return m;
+    }));
+
+    setMessages(prev => [
+      ...prev,
+      {
+        id: `msg-${Date.now()}`,
+        sender: 'ai',
+        text: `❌ **Request Cancelled.** The proposed action *"${actionCard.title}"* was cancelled. No changes were made to the website or database.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+    ]);
+  };
+
+  // Undo a previously executed action card
+  const handleUndoAction = (msgId: string, actionCard: Message['actionCard']) => {
+    if (!actionCard) return;
+
+    try {
+      if (actionCard.type === 'update_site_content' && actionCard.previousState) {
+        if (onUpdateSiteContent) {
+          onUpdateSiteContent(actionCard.previousState);
+        }
+      } else if (actionCard.type === 'toggle_system' && actionCard.previousState) {
+        onToggleMaintenance(actionCard.previousState.systemMode, actionCard.previousState.message);
+      } else if (actionCard.type === 'create_auction' && actionCard.payload?.id) {
+        if (onDeleteAuction) {
+          onDeleteAuction(actionCard.payload.id);
+        }
+      } else if (actionCard.type === 'delete_auction' && actionCard.previousState?.lot) {
+        onAddAuction(actionCard.previousState.lot);
+      } else if (actionCard.type === 'create_classified' && actionCard.payload?.id) {
+        if (onDeleteClassified) {
+          onDeleteClassified(actionCard.payload.id);
+        }
+      } else if (actionCard.type === 'delete_classified' && actionCard.previousState?.item) {
+        onAddClassified(actionCard.previousState.item);
+      } else if (actionCard.type === 'add_category' && actionCard.payload?.id) {
+        if (onDeleteCategory) {
+          onDeleteCategory(actionCard.payload.id);
+        }
+      } else if (actionCard.type === 'fix_error' || actionCard.type === 'fix_all_errors') {
+        if (actionCard.previousState?.errors) {
+          saveStoredErrors(actionCard.previousState.errors);
+          setErrorsList(actionCard.previousState.errors);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sr_error_logged'));
+          }
+        }
+      }
+
+      setMessages(prev => prev.map(m => {
+        if (m.id === msgId && m.actionCard) {
+          return {
+            ...m,
+            actionCard: { ...m.actionCard, status: 'cancelled' }
+          };
+        }
+        return m;
+      }));
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'ai',
+          text: `↩️ **Action Undone & Reverted!** Successfully restored previous state for *"${actionCard.title}"*.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }
+      ]);
+
+      if (onRefreshData) onRefreshData();
+    } catch (err: any) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'ai',
+          text: `⚠️ **Could not undo action:** ${err?.message || 'Revert failed'}.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }
+      ]);
+    }
+  };
+
   // Execute an action card created by AI
   const handleExecuteAction = (msgId: string, actionCard: Message['actionCard']) => {
     if (!actionCard || actionCard.status !== 'pending') return;
 
     try {
+      let previousState: any = null;
+
       if (actionCard.type === 'fix_error') {
+        previousState = { errors: getStoredErrors() };
         const errId = actionCard.payload.errorId;
         const current = getStoredErrors();
         const updated = current.map(e => String(e.id) === String(errId) ? { ...e, status: 'resolved' as const, resolved_at: new Date().toISOString(), fix_notes: 'Auto-resolved by Salvage AI Copilot' } : e);
@@ -213,6 +316,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
           window.dispatchEvent(new CustomEvent('sr_error_logged'));
         }
       } else if (actionCard.type === 'fix_all_errors' || actionCard.type === 'run_diagnostics') {
+        previousState = { errors: getStoredErrors() };
         const current = getStoredErrors();
         const updated = current.map(e => ({ ...e, status: 'resolved' as const, resolved_at: new Date().toISOString(), fix_notes: 'Auto-resolved & self-healed by Salvage AI Copilot' }));
         saveStoredErrors(updated);
@@ -225,6 +329,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
           window.dispatchEvent(new CustomEvent('sr_error_logged'));
         }
       } else if (actionCard.type === 'update_site_content') {
+        previousState = siteContent ? { ...siteContent } : null;
         if (onUpdateSiteContent) {
           onUpdateSiteContent(actionCard.payload);
         }
@@ -233,6 +338,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
           onAddCategory(actionCard.payload.name, actionCard.payload.slug);
         }
       } else if (actionCard.type === 'delete_category') {
+        previousState = { category: categories.find(c => c.id === actionCard.payload.categoryId) };
         if (onDeleteCategory) {
           onDeleteCategory(actionCard.payload.categoryId);
         }
@@ -243,16 +349,19 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
       } else if (actionCard.type === 'create_auction') {
         onAddAuction(actionCard.payload);
       } else if (actionCard.type === 'delete_auction') {
+        previousState = { lot: auctions.find(a => String(a.id) === String(actionCard.payload.auctionId)) };
         if (onDeleteAuction) {
           onDeleteAuction(actionCard.payload.auctionId);
         }
       } else if (actionCard.type === 'create_classified') {
         onAddClassified(actionCard.payload);
       } else if (actionCard.type === 'delete_classified') {
+        previousState = { item: classifieds.find(c => String(c.id) === String(actionCard.payload.classifiedId)) };
         if (onDeleteClassified) {
           onDeleteClassified(actionCard.payload.classifiedId);
         }
       } else if (actionCard.type === 'toggle_system') {
+        previousState = { systemMode };
         onToggleMaintenance(actionCard.payload.mode, actionCard.payload.message);
       } else if (actionCard.type === 'verify_user') {
         if (onVerifyUser) onVerifyUser(actionCard.payload.userId);
@@ -267,6 +376,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
       } else if (actionCard.type === 'award_winner') {
         if (onAwardWinner) onAwardWinner(actionCard.payload.auctionId, actionCard.payload.winnerType || 'H1');
       } else if (actionCard.type === 'clear_error_logs') {
+        previousState = { errors: getStoredErrors() };
         if (onClearErrorLogs) {
           onClearErrorLogs();
         } else {
@@ -280,12 +390,12 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         if (onResetDemoData) onResetDemoData();
       }
 
-      // Mark message action as executed
+      // Mark message action as executed and preserve previousState for undo
       setMessages(prev => prev.map(m => {
         if (m.id === msgId && m.actionCard) {
           return {
             ...m,
-            actionCard: { ...m.actionCard, status: 'executed' }
+            actionCard: { ...m.actionCard, status: 'executed', previousState }
           };
         }
         return m;
@@ -1279,19 +1389,62 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
                     </div>
                   )}
 
-                  {m.actionCard.status === 'pending' ? (
-                    <button
-                      type="button"
-                      onClick={() => handleExecuteAction(m.id, m.actionCard)}
-                      className="w-full py-2.5 px-4 bg-[#D48B1C] hover:bg-[#b87614] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-slate-950" />
-                      <span>Execute & Apply Live Now</span>
-                    </button>
-                  ) : (
-                    <div className="w-full py-2 px-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Action Executed & Verified Live in Database</span>
+                  {m.actionCard.status === 'pending' && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleExecuteAction(m.id, m.actionCard)}
+                        className="flex-1 py-2.5 px-4 bg-[#D48B1C] hover:bg-[#b87614] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                        <span>Execute & Apply Live Now</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelAction(m.id, m.actionCard)}
+                        className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-400 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700 active:scale-98 cursor-pointer shrink-0"
+                        title="Cancel / Dismiss this AI suggestion"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        <span>Cancel Request</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {m.actionCard.status === 'executed' && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-xl">
+                      <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-[11px] px-1">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Action Executed & Verified Live in Database</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUndoAction(m.id, m.actionCard)}
+                        className="py-1.5 px-3 bg-slate-900 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700 cursor-pointer shrink-0 active:scale-95"
+                        title="Revert and rollback this action"
+                      >
+                        <Undo2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Undo Action</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {m.actionCard.status === 'cancelled' && (
+                    <div className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 p-2.5 rounded-xl">
+                      <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                        <X className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        <span>Request Cancelled / Dismissed</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMessages(prev => prev.map(msg => msg.id === m.id && msg.actionCard ? { ...msg, actionCard: { ...msg.actionCard, status: 'pending' } } : msg));
+                        }}
+                        className="text-[11px] text-amber-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reopen Request</span>
+                      </button>
                     </div>
                   )}
                 </div>
