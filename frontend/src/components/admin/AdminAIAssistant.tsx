@@ -439,7 +439,24 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
       }
 
       // ─────────────────────────────────────────────────────────────────────────────
-      // INTENT 4: FIX / RESOLVE SYSTEM ERRORS & DIAGNOSTICS
+      // INTENT 4: CLEAR LOGS / PURGE DIAGNOSTICS
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(clear|clean|purge)\b/i.test(lower) && /\b(log|logs|telemetry|diagnostics|records|database)\b/i.test(lower)
+      ) {
+        aiResponseText = `🧹 **Clear System Diagnostics & Error Logs Request**\n\nThis will purge resolved & captured error entries from database and reset telemetry counters to 0.`;
+
+        actionCard = {
+          type: 'clear_error_logs',
+          title: 'Purge All System Error Logs',
+          description: 'Clear database error logs and reset error counter to zero.',
+          payload: {},
+          status: 'pending',
+        };
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 5: FIX / RESOLVE SYSTEM ERRORS & DIAGNOSTICS
       // ─────────────────────────────────────────────────────────────────────────────
       else if (
         /\b(error|errors|bug|bugs|fix|resolve|heal|repair|diagnostic|diagnostics|exception)\b/i.test(lower)
