@@ -1,3 +1,0 @@
-# SalvageReef Log Security — BLOCK ALL PUBLIC ACCESS
-Order Deny,Allow
-Deny from all
