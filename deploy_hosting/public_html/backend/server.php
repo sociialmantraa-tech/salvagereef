@@ -365,6 +365,122 @@ if (!$pdo) {
         }
     }
 
+    // Auto-create categories table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        parent_id INTEGER DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    $catCount = (int)$pdo->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+    if ($catCount === 0) {
+        $defaultCats = [
+            [1, 'Industrial Scrap', 'industrial-scrap'],
+            [2, 'Ferrous Metals', 'ferrous-metals'],
+            [3, 'Non-Ferrous Metals', 'non-ferrous-metals'],
+            [4, 'Machinery & Equipment', 'machinery-equipment'],
+            [5, 'Automotive & Vehicles', 'automotive-vehicles'],
+            [6, 'Electrical & Electronics', 'electrical-electronics'],
+            [7, 'Plastics & Polymers', 'plastics-polymers']
+        ];
+        $stmtCat = $pdo->prepare("INSERT INTO categories (id, name, slug) VALUES (?, ?, ?)");
+        foreach ($defaultCats as $c) {
+            $stmtCat->execute([$c[0], $c[1], $c[2]]);
+        }
+    }
+
+    // Auto-create auctions table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS auctions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category_id INTEGER NOT NULL DEFAULT 1,
+        auction_type TEXT NOT NULL DEFAULT 'public',
+        status TEXT NOT NULL DEFAULT 'live',
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        unit TEXT NOT NULL DEFAULT 'lot',
+        starting_price NUMERIC NOT NULL DEFAULT 0,
+        current_highest_bid NUMERIC DEFAULT NULL,
+        start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+        end_time DATETIME DEFAULT NULL,
+        location_city TEXT NOT NULL DEFAULT 'Mumbai',
+        location_state TEXT NOT NULL DEFAULT 'Maharashtra',
+        is_group INTEGER NOT NULL DEFAULT 0,
+        group_id INTEGER DEFAULT NULL,
+        created_by INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        winner_confirmed INTEGER DEFAULT 0,
+        winner_user_id INTEGER DEFAULT NULL,
+        bid_increment REAL DEFAULT 1000,
+        winner_h1_user_id INTEGER DEFAULT NULL,
+        winner_h2_user_id INTEGER DEFAULT NULL,
+        winner_h3_user_id INTEGER DEFAULT NULL,
+        awarded_winner_type TEXT DEFAULT NULL,
+        awarded_winner_id INTEGER DEFAULT NULL
+    )");
+
+    // Auto-create bids table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS bids (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auction_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        amount NUMERIC NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'approved'
+    )");
+
+    // Auto-create auction_images table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS auction_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auction_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        is_primary INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // Auto-create classifieds table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS classifieds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category_id INTEGER NOT NULL DEFAULT 1,
+        price NUMERIC NOT NULL DEFAULT 0,
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        unit TEXT NOT NULL DEFAULT 'nos',
+        location_city TEXT NOT NULL DEFAULT 'Mumbai',
+        location_state TEXT NOT NULL DEFAULT 'Maharashtra',
+        status TEXT NOT NULL DEFAULT 'available',
+        created_by INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // Auto-create classified_images table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS classified_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        classified_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        is_primary INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // Auto-create enquiry_or_interests table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS enquiry_or_interests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auction_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        message TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
     // Auto-create users table if missing
     $pdo->exec("CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -524,14 +640,29 @@ if (!$pdo) {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
 
+    // ── Security: Personal Access Tokens Table ──────────────────────────────
+    $pdo->exec("CREATE TABLE IF NOT EXISTS personal_access_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tokenable_type TEXT DEFAULT 'App\\\\Models\\\\User',
+        tokenable_id INTEGER NOT NULL,
+        name TEXT DEFAULT 'auth_token',
+        token TEXT UNIQUE NOT NULL,
+        abilities TEXT DEFAULT '[\"*\"]',
+        last_used_at DATETIME DEFAULT NULL,
+        expires_at DATETIME DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pat_token ON personal_access_tokens (token)");
+
     // ── Add token created_at column for expiry checks ─────────────────────────
     try { $pdo->exec("ALTER TABLE personal_access_tokens ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"); } catch (Exception $e) {}
 
     // ── Purge expired tokens (older than 72 hours) ────────────────────────────
-    $pdo->exec("DELETE FROM personal_access_tokens WHERE created_at < datetime('now', '-" . SR_TOKEN_TTL_HOURS . " hours')");
+    try { $pdo->exec("DELETE FROM personal_access_tokens WHERE created_at < datetime('now', '-" . SR_TOKEN_TTL_HOURS . " hours')"); } catch (Exception $e) {}
 
     // ── Purge old rate limit windows (older than 1 hour) ─────────────────────
-    $pdo->exec("DELETE FROM rate_limits WHERE last_attempt < datetime('now', '-2 hours') AND blocked_until IS NULL");
+    try { $pdo->exec("DELETE FROM rate_limits WHERE last_attempt < datetime('now', '-2 hours') AND blocked_until IS NULL"); } catch (Exception $e) {}
 
 // =============================================================================
 // HELPER FUNCTIONS

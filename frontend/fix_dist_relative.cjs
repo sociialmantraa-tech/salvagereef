@@ -59,6 +59,15 @@ if (fs.existsSync(deployDir)) {
         console.log(`✔ Synced ${bf} to deploy_hosting/public_html/backend/${bf}`);
       }
     }
+    // Sync database file
+    const dbSrc = path.join(backendSrc, 'database', 'database.sqlite');
+    const dbDestDir = path.join(backendDest, 'database');
+    const dbDest = path.join(dbDestDir, 'database.sqlite');
+    if (fs.existsSync(dbSrc)) {
+      if (!fs.existsSync(dbDestDir)) fs.mkdirSync(dbDestDir, { recursive: true });
+      fs.copyFileSync(dbSrc, dbDest);
+      console.log('✔ Synced database.sqlite to deploy_hosting/public_html/backend/database/database.sqlite');
+    }
   }
 }
 
