@@ -2791,8 +2791,8 @@ export default function AdminDashboard() {
                 {[
                   { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
                   { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-                  { label: '🔖 Tender Approvals', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-                  { label: '⚖️ Bid Approvals Desk', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
+                  { label: '🔒 Private Tender Access', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                  { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                   { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
                   { label: '📋 Classifieds Manager', tab: 'classifieds', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
                   { label: '👥 Users & Status', tab: 'users', color: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
@@ -2838,8 +2838,8 @@ export default function AdminDashboard() {
               { id: 'sell-scrap-requests', label: 'Sell Scrap Requests', icon: FileText, badge: scrapRequests.filter(r => r.status === 'pending').length || undefined, highlight: scrapRequests.filter(r => r.status === 'pending').length > 0 },
               { id: 'add-product', label: 'Add New Product / Lot', icon: PackagePlus, highlight: true },
               { id: 'categories-locations', label: 'Categories & Locations', icon: Layers, badge: storeCategories.length },
-              { id: 'approvals', label: 'Tender Approvals', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
-              { id: 'bid-approvals', label: 'Bid Approvals Desk', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined },
+              { id: 'approvals', label: 'Private Tender Permissions', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
+              { id: 'bid-approvals', label: 'Live Bids & Moderation', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined },
               { id: 'auctions', label: 'Auction Lots & Top 3 Winners (H1/H2/H3)', icon: Trophy, badge: auctions.length },
               { id: 'classifieds', label: 'Classifieds', icon: Tag, badge: classifieds.length },
               { id: 'pages-editor', label: 'Pages Content & Colors', icon: Palette },
@@ -2917,8 +2917,8 @@ export default function AdminDashboard() {
                   {[
                     { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
                     { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-                    { label: '🔖 Tender Approvals', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-                    { label: '⚖️ Bid Approvals Desk', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
+                    { label: '🔒 Private Tender Access', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                    { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                     { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
                     { label: '📋 Classifieds Manager', tab: 'classifieds', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
                     { label: '👥 Users & Status', tab: 'users', color: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
@@ -3991,9 +3991,9 @@ export default function AdminDashboard() {
               <div className="border-b border-slate-200 pb-3 flex justify-between items-center gap-3 flex-wrap">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-[#D48B1C]" /> Private Tender Access Approvals Desk
+                    <ShieldAlert className="w-5 h-5 text-[#D48B1C]" /> Private Tender Bidder Permissions Desk
                   </h3>
-                  <p className="text-xs text-slate-500">Review corporate bidder access requests to bid on private tenders & confidential lots.</p>
+                  <p className="text-xs text-slate-500">Review & approve buyer access requests to participate in locked private tenders & confidential lots.</p>
                 </div>
                 {undoStack.length > 0 && (
                   <button
@@ -4177,9 +4177,9 @@ export default function AdminDashboard() {
               <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <Gavel className="w-5 h-5 text-[#D48B1C]" /> Live Bid Approvals Desk
+                    <Gavel className="w-5 h-5 text-[#D48B1C]" /> Live Bids Log & Moderation Desk
                   </h3>
-                  <p className="text-xs text-slate-500">Review, approve, or reject bids submitted by registered bidders across all live auctions.</p>
+                  <p className="text-xs text-slate-500">Real-time log of all auction bids (accepted automatically). Admin can audit, review, or reject/cancel invalid bids.</p>
                 </div>
                 {/* Filter Pills & Undo */}
                 <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
@@ -8194,7 +8194,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <span className="text-slate-500 text-[10px] font-bold block uppercase">Tender Approvals</span>
+                    <span className="text-slate-500 text-[10px] font-bold block uppercase">Private Tender Requests</span>
                     <span className="text-lg font-black text-slate-900">
                       {interests.filter(i => i.user_email === selectedUserDetailModal.email).length}
                     </span>
