@@ -569,6 +569,8 @@ export default function AdminDashboard() {
   >('overview');
   const [mobileShowMenu, setMobileShowMenu] = useState<boolean>(false);
 
+
+
   // Sell Scrap Requests State
   const [scrapRequestsFilter, setScrapRequestsFilter] = useState<string>('all');
   const [scrapRequestsSearch, setScrapRequestsSearch] = useState<string>('');
@@ -753,13 +755,17 @@ export default function AdminDashboard() {
       prev.map((a) => (a.id === editingAuction.id ? { ...editingAuction } : a))
     );
 
+    broadcastRealtimeEvent('auction_updated', editingAuction);
+
     try {
-      await api.post('/admin/auctions', editingAuction);
-      showNotification(`✓ Auction "${editingAuction.title}" updated & synced live across whole website!`);
-    } catch (err) {
-      showNotification(`✓ Auction "${editingAuction.title}" updated live!`);
+      await api.put(`/admin/auctions/${editingAuction.id}`, editingAuction);
+    } catch {
+      try {
+        await api.post('/admin/auctions', editingAuction);
+      } catch {}
     }
 
+    showNotification(`✓ Auction "${editingAuction.title}" updated & synced live across whole website!`);
     setEditingAuction(null);
   };
 
@@ -798,13 +804,19 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingClassified) return;
 
-    setClassifieds((prev) =>
+    setClassifiedsPersisted((prev) =>
       prev.map((c) => (c.id === editingClassified.id ? { ...editingClassified } : c))
     );
 
+    broadcastRealtimeEvent('classified_updated', editingClassified);
+
     try {
-      await api.post(`/admin/classifieds/${editingClassified.id}`, editingClassified).catch(() => {});
-    } catch {}
+      await api.put(`/admin/classifieds/${editingClassified.id}`, editingClassified);
+    } catch {
+      try {
+        await api.post(`/admin/classifieds/${editingClassified.id}`, editingClassified);
+      } catch {}
+    }
 
     showNotification(`✓ Classified listing "${editingClassified.title}" updated live!`);
     setEditingClassified(null);
@@ -1714,6 +1726,28 @@ export default function AdminDashboard() {
       if (!isInitial) setTimeout(() => setIsRefreshing(false), 600);
     }
   };
+
+  useEffect(() => {
+    fetchAdminData(true);
+    const unsub = subscribeRealtimeEvents((event) => {
+      if (
+        event.type === 'auction_created' ||
+        event.type === 'auction_updated' ||
+        event.type === 'auction_deleted' ||
+        event.type === 'classified_created' ||
+        event.type === 'classified_updated' ||
+        event.type === 'classified_deleted' ||
+        event.type === 'bid_submitted' ||
+        event.type === 'user_created' ||
+        event.type === 'user_updated'
+      ) {
+        fetchAdminData(true);
+      }
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   // Scrap Request Management Handlers
   const handleUpdateScrapRequestStatus = async (id: number, status: string) => {

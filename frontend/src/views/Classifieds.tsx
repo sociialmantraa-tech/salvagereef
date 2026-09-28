@@ -33,10 +33,18 @@ export default function Classifieds() {
         api.get('/categories'),
       ]);
 
-      if (res.data?.data && res.data.data.length > 0) {
+      if (res.data?.data && Array.isArray(res.data.data)) {
         setClassifieds(res.data.data);
+        if (!category && !location && !search) {
+          try { localStorage.setItem('sr_classifieds', JSON.stringify(res.data.data)); } catch {}
+        }
+      } else if (Array.isArray(res.data)) {
+        setClassifieds(res.data);
+        if (!category && !location && !search) {
+          try { localStorage.setItem('sr_classifieds', JSON.stringify(res.data)); } catch {}
+        }
       }
-      if (catRes.data && catRes.data.length > 0) {
+      if (catRes.data && Array.isArray(catRes.data)) {
         setCategories(catRes.data);
       }
     } catch (err) {
@@ -49,6 +57,25 @@ export default function Classifieds() {
   useEffect(() => {
     fetchClassifieds();
   }, [category, location]);
+
+  // Real-time synchronization for classifieds
+  useEffect(() => {
+    let unsub: any = null;
+    import('../services/realtimeSync').then(({ subscribeRealtimeEvents }) => {
+      unsub = subscribeRealtimeEvents((event) => {
+        if (
+          event.type === 'classified_created' ||
+          event.type === 'classified_updated' ||
+          event.type === 'classified_deleted'
+        ) {
+          fetchClassifieds();
+        }
+      });
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
