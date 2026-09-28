@@ -213,16 +213,26 @@ if (!file_exists($_SR_LOG_HTACCESS)) {
 }
 
 
-// ─── CORS ALLOWLIST (replaces wildcard *) ────────────────────────────────────
+// ─── CORS ALLOWLIST & SAME-HOST PERMISSION ──────────────────────────────────
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $corsAllowed   = false;
 
-if (in_array($requestOrigin, SR_ALLOWED_ORIGINS, true)) {
-    header("Access-Control-Allow-Origin: {$requestOrigin}");
-    $corsAllowed = true;
-} elseif (empty($requestOrigin)) {
+if (empty($requestOrigin)) {
     // Allow requests with no Origin header (server-to-server, curl with auth)
     $corsAllowed = true;
+} else {
+    $originHost = strtolower(parse_url($requestOrigin, PHP_URL_HOST) ?? '');
+    $serverHost = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+    if (
+        in_array($requestOrigin, SR_ALLOWED_ORIGINS, true) ||
+        $originHost === $serverHost ||
+        str_contains($originHost, 'salvagereef') ||
+        str_contains($originHost, 'localhost') ||
+        str_contains($originHost, '127.0.0.1')
+    ) {
+        header("Access-Control-Allow-Origin: {$requestOrigin}");
+        $corsAllowed = true;
+    }
 }
 
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");

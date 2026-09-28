@@ -11,7 +11,14 @@ import SEOHead from '../components/SEOHead';
 
 export default function Classifieds() {
   const { categories, locations, setCategories } = useCategoryLocationStore();
-  const [classifieds, setClassifieds] = useState<Classified[]>(INITIAL_CLASSIFIEDS);
+  const [classifieds, setClassifieds] = useState<Classified[]>(() => {
+    try {
+      const stored = localStorage.getItem('sr_classifieds');
+      return stored ? JSON.parse(stored) : INITIAL_CLASSIFIEDS;
+    } catch {
+      return INITIAL_CLASSIFIEDS;
+    }
+  });
   const [loading, setLoading] = useState<boolean>(false);
 
   const [category, setCategory] = useState<string>('');
@@ -19,9 +26,6 @@ export default function Classifieds() {
   const [search, setSearch] = useState<string>('');
 
   const fetchClassifieds = async () => {
-    if (classifieds.length === 0) {
-      setLoading(true);
-    }
     try {
       const params = new URLSearchParams();
       if (category) params.append('category_id', category);
@@ -72,8 +76,19 @@ export default function Classifieds() {
         }
       });
     });
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'sr_classifieds' && e.newValue) {
+        try {
+          setClassifieds(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       if (unsub) unsub();
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 

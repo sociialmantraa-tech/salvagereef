@@ -9,7 +9,7 @@ import { initGlobalErrorLogging } from './services/errorService';
 initGlobalErrorLogging();
 
 // Auto-invalidate stale browser caches and synchronize with live server database
-const SR_CACHE_VERSION = '2026.09.28.v7';
+const SR_CACHE_VERSION = '2026.09.28.v8';
 try {
   const currentVersion = localStorage.getItem('sr_cache_version');
   if (currentVersion !== SR_CACHE_VERSION) {

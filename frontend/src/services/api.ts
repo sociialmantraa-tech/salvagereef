@@ -52,7 +52,7 @@ const api = axios.create({
 });
 
 // ─── Request Interceptor ─────────────────────────────────────────────────────
-// Attaches Bearer token + HMAC-SHA256 signature (only on write requests)
+// Attaches Bearer token + HMAC-SHA256 signature (only on write requests) + cache-buster
 api.interceptors.request.use(async (config) => {
   // 1. Attach auth token
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -62,7 +62,17 @@ api.interceptors.request.use(async (config) => {
     }
   }
 
-  // 2. Sign write requests only (POST, PUT, DELETE, PATCH)
+  // 2. Add cache-buster to GET requests to guarantee real-time fresh data across all browsers
+  if (config.method?.toLowerCase() === 'get') {
+    config.params = {
+      ...(config.params || {}),
+      _cb: Date.now(),
+    };
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    config.headers['Pragma'] = 'no-cache';
+  }
+
+  // 3. Sign write requests only (POST, PUT, DELETE, PATCH)
   const method = config.method?.toLowerCase() ?? '';
   if (method === 'post' || method === 'put' || method === 'delete' || method === 'patch') {
     try {

@@ -16,12 +16,19 @@ define('SR_APP_SECRET', 'SR2026#SalvageReef!SecretKey@India$Backend%Secure^73044
 define('SR_ALLOWED_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://localhost:8088',
     'http://127.0.0.1:5173',
+    'http://127.0.0.1:8088',
     'https://salvagereef.com',
+    'http://salvagereef.com',
     'https://www.salvagereef.com',
+    'http://www.salvagereef.com',
     'https://salvagereef.in',
+    'http://salvagereef.in',
     'https://www.salvagereef.in',
+    'http://www.salvagereef.in',
     'https://sociialmantraa.com',
+    'http://sociialmantraa.com',
 ]);
 
 // ─── Rate Limit Thresholds ───────────────────────────────────────────────────
