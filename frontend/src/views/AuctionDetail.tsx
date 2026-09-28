@@ -8,15 +8,24 @@ import { Auction } from '../types';
 import { INITIAL_AUCTIONS } from '../services/mockService';
 
 import SEOHead from '../components/SEOHead';
+import { subscribeRealtimeEvents } from '../services/realtimeSync';
 
 export default function AuctionDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuthStore();
 
-  const initialMatch = INITIAL_AUCTIONS.find((a) => a.slug === slug || a.id.toString() === slug) || INITIAL_AUCTIONS[0];
-  const [auction, setAuction] = useState<Auction | null>(initialMatch);
+  const [auction, setAuction] = useState<Auction | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored: Auction[] = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+        const found = stored.find((a) => a.slug === slug || String(a.id) === String(slug));
+        if (found) return found;
+      } catch {}
+    }
+    return INITIAL_AUCTIONS.find((a) => a.slug === slug || String(a.id) === String(slug)) || null;
+  });
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(!auction);
   const [activeImage, setActiveImage] = useState<number>(0);
 
   const [interestMsg, setInterestMsg] = useState<string>('');
@@ -24,9 +33,6 @@ export default function AuctionDetail() {
   const [interestSubmitted, setInterestSubmitted] = useState<boolean>(false);
 
   const fetchAuctionDetail = async () => {
-    if (!auction) {
-      setLoading(true);
-    }
     try {
       const res = await api.get(`/auctions/${slug}`);
       if (res.data?.auction) {
@@ -42,7 +48,19 @@ export default function AuctionDetail() {
 
   useEffect(() => {
     fetchAuctionDetail();
-  }, [slug]);
+
+    const unsubscribe = subscribeRealtimeEvents((event) => {
+      if (event.type === 'auction_deleted' && (String(event.payload?.id) === String(slug) || (auction && String(event.payload?.id) === String(auction.id)))) {
+        setAuction(null);
+      } else if (event.type === 'auction_updated' && auction && String(event.payload?.id) === String(auction.id)) {
+        setAuction((prev) => prev ? { ...prev, ...event.payload } : prev);
+      } else if (event.type === 'auction_winner_awarded' && auction && String(event.payload?.auctionId) === String(auction.id)) {
+        setAuction((prev) => prev ? { ...prev, winner_confirmed: true, awarded_winner_type: event.payload.winnerType } : prev);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [slug, auction?.id]);
 
   const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

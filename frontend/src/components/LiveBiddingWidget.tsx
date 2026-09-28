@@ -83,7 +83,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     if (!auction?.id) return;
 
     const unsubscribeRealtime = subscribeRealtimeEvents((event) => {
-      if (event.type === 'bid_status_updated' && (event.payload?.auctionId === auction.id || event.payload?.auction_id === auction.id)) {
+      if (event.type === 'bid_status_updated' && (String(event.payload?.auctionId) === String(auction.id) || String(event.payload?.auction_id) === String(auction.id))) {
         if (event.payload.status === 'approved' && Number(event.payload.amount) > 0) {
           const approvedAmount = Number(event.payload.amount);
           setCurrentHighest(approvedAmount);
@@ -101,8 +101,28 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           ]);
           setTimeout(() => setHighlightPulse(false), 2000);
         }
-      } else if (event.type === 'auction_updated' && event.payload?.id === auction.id) {
+      } else if (event.type === 'bid_submitted' && (String(event.payload?.auction_id) === String(auction.id) || String(event.payload?.auctionId) === String(auction.id))) {
+        const submittedAmount = Number(event.payload.amount);
+        if (submittedAmount > currentHighest) {
+          setCurrentHighest(submittedAmount);
+          setBidAmount(submittedAmount + incrementStep);
+          setHighlightPulse(true);
+          setTimeout(() => setHighlightPulse(false), 2000);
+        }
+        setBids((prev) => [
+          {
+            id: event.payload.id || Date.now(),
+            amount: submittedAmount,
+            status: event.payload.status || 'pending',
+            user: { name: event.payload.bidder_name || event.payload.bidder_company || 'Active Bidder' },
+            created_at: event.payload.created_at || new Date().toISOString(),
+          },
+          ...prev.filter((b) => b.id !== event.payload.id),
+        ]);
+      } else if (event.type === 'auction_updated' && String(event.payload?.id) === String(auction.id)) {
         setAuction((prev) => ({ ...prev, ...event.payload }));
+      } else if (event.type === 'auction_winner_awarded' && String(event.payload?.auctionId) === String(auction.id)) {
+        setAuction((prev) => ({ ...prev, winner_confirmed: true, awarded_winner_type: event.payload.winnerType }));
       }
     });
 
