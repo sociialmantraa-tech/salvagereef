@@ -88,7 +88,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
       {
         id: 'msg-welcome',
         sender: 'ai',
-        text: `👋 **Hello Master Admin!** I am your **SalvageReef AI Operations Copilot**.\n\nI have real-time administrative control over your database, auctions, classifieds, user permissions, winner selections, and error diagnostics.\n\nGive me any command or choose a quick action below:`,
+        text: `👋 **Hello Master Admin!** I am your **SalvageReef AI Operations Copilot**.\n\nI have real-time autonomous control over your database, auctions, classifieds, user KYC, winner awards, and live error diagnostics.\n\nGive me any natural command or choose a quick action below:`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
     ];
@@ -100,7 +100,6 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
   const [isExpanded, setIsExpanded] = useState(!isFloating);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load latest system errors
   const refreshErrors = () => {
     const errs = getStoredErrors();
     setErrorsList(errs);
@@ -196,7 +195,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         {
           id: `msg-${Date.now()}`,
           sender: 'ai',
-          text: `✅ **Action Executed Successfully!** ${actionCard.title} has been applied live to the system.`,
+          text: `✅ **Action Executed Successfully!** "${actionCard.title}" has been applied live to the marketplace.`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }
       ]);
@@ -237,20 +236,21 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
       let aiResponseText = '';
       let actionCard: Message['actionCard'] = undefined;
 
-      // 1. DELETE / REMOVE AUCTION LOT COMMAND
-      if (
-        (lower.includes('delete') || lower.includes('remove') || lower.includes('cancel') || lower.includes('purge') || lower.includes('drop')) &&
-        (lower.includes('auction') || lower.includes('lot'))
-      ) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 1: DELETE AUCTION LOT
+      // ─────────────────────────────────────────────────────────────────────────────
+      const isDeleteAuction =
+        /\b(delete|remove|cancel|purge|drop|discard)\b/i.test(lower) &&
+        /\b(auction|lot|tender)\b/i.test(lower);
+
+      if (isDeleteAuction) {
         let matchedAuction = auctions[0];
-        // Try finding by ID
         const idMatch = text.match(/#?(\d+)/);
         if (idMatch) {
           const found = auctions.find(a => String(a.id) === idMatch[1]);
           if (found) matchedAuction = found;
         }
 
-        // Try finding by name / keyword
         for (const auc of auctions) {
           const t = auc.title.toLowerCase();
           if (
@@ -279,42 +279,149 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
             status: 'pending',
           };
         } else {
-          aiResponseText = `⚠️ **No Matching Auction Lot Found**\n\nPlease specify the auction title or ID (e.g., *"Delete auction lot #101"* or *"Delete 2-Minute Express Demo Auction"*).`;
+          aiResponseText = `⚠️ **No Matching Auction Lot Found**\n\nPlease specify the auction title or ID (e.g., *"Delete auction lot #101"*).`;
         }
       }
 
-      // 2. DELETE / REMOVE CLASSIFIED COMMAND
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 2: CREATE / ADD AUCTION LOT (Supports ANY phrasing!)
+      // ─────────────────────────────────────────────────────────────────────────────
       else if (
-        (lower.includes('delete') || lower.includes('remove') || lower.includes('drop')) &&
-        (lower.includes('classified') || lower.includes('listing'))
+        (/\b(add|create|publish|post|new)\b/i.test(lower) && /\b(auction|lot|tender|scrap)\b/i.test(lower)) ||
+        /\b(copper|steel|hms|machinery|scrap|cables|motors)\b/i.test(lower) && /\b(starting|price|mumbai|pune|delhi|tons|mt|lakh)\b/i.test(lower)
       ) {
-        let matchedClassified = classifieds[0];
-        const idMatch = text.match(/#?(\d+)/);
-        if (idMatch) {
-          const found = classifieds.find(c => String(c.id) === idMatch[1]);
-          if (found) matchedClassified = found;
+        // Parse Price (Supports: 8,50,000 | 8.5 lakh | 12 lakhs | 50000 | 1.2 cr)
+        let extractedPrice = 500000;
+        const lakhMatch = text.match(/([\d.]+)\s*(?:lakh|lac|lacs|lakhs)/i);
+        const crMatch = text.match(/([\d.]+)\s*(?:cr|crore|crores)/i);
+        const kMatch = text.match(/([\d.]+)\s*k\b/i);
+        const rawNumMatch = text.match(/(?:₹|rs\.?|inr|at|starting)?\s*([\d,]{4,})/i);
+
+        if (lakhMatch) {
+          extractedPrice = Math.round(parseFloat(lakhMatch[1]) * 100000);
+        } else if (crMatch) {
+          extractedPrice = Math.round(parseFloat(crMatch[1]) * 10000000);
+        } else if (kMatch) {
+          extractedPrice = Math.round(parseFloat(kMatch[1]) * 1000);
+        } else if (rawNumMatch) {
+          const parsed = parseFloat(rawNumMatch[1].replace(/,/g, ''));
+          if (parsed > 0) extractedPrice = parsed;
         }
 
-        if (matchedClassified) {
-          aiResponseText = `🗑️ **Target Classified Identified for Deletion**\n\n- **ID:** #${matchedClassified.id}\n- **Title:** "${matchedClassified.title}"\n- **Price:** ₹${Number(matchedClassified.price).toLocaleString('en-IN')}\n\nClick below to delete this classified listing from the directory.`;
-
-          actionCard = {
-            type: 'delete_classified',
-            title: `Delete Classified: "${matchedClassified.title}"`,
-            description: `Remove listing #${matchedClassified.id} from classified marketplace.`,
-            payload: { classifiedId: matchedClassified.id, title: matchedClassified.title },
-            status: 'pending',
-          };
-        } else {
-          aiResponseText = `⚠️ **No Classified Listing Found** to delete.`;
+        // Parse Quantity & Unit (e.g. 20 Tons, 50 MT, 100 kg)
+        let quantity = 20;
+        let unit = 'MT';
+        const qtyMatch = text.match(/(\d+(?:\.\d+)?)\s*(tons?|mt|kg|nos?|units?|pieces?)/i);
+        if (qtyMatch) {
+          quantity = parseFloat(qtyMatch[1]);
+          const uStr = qtyMatch[2].toUpperCase();
+          unit = uStr.startsWith('TON') ? 'MT' : uStr;
         }
+
+        // Parse City & State
+        let city = 'Mumbai';
+        let state = 'Maharashtra';
+        const cityStateMap: Record<string, string> = {
+          'mumbai': 'Maharashtra',
+          'pune': 'Maharashtra',
+          'nagpur': 'Maharashtra',
+          'thane': 'Maharashtra',
+          'bhayander': 'Maharashtra',
+          'navi mumbai': 'Maharashtra',
+          'ahmedabad': 'Gujarat',
+          'surat': 'Gujarat',
+          'vadodara': 'Gujarat',
+          'rajkot': 'Gujarat',
+          'delhi': 'Delhi',
+          'chennai': 'Tamil Nadu',
+          'kolkata': 'West Bengal',
+          'hyderabad': 'Telangana',
+          'bangalore': 'Karnataka',
+          'bengaluru': 'Karnataka',
+          'jaipur': 'Rajasthan',
+          'indore': 'Madhya Pradesh',
+          'kanpur': 'Uttar Pradesh',
+          'ludhiana': 'Punjab',
+        };
+
+        for (const [c, s] of Object.entries(cityStateMap)) {
+          if (lower.includes(c)) {
+            city = c.charAt(0).toUpperCase() + c.slice(1);
+            state = s;
+            break;
+          }
+        }
+
+        // Parse Category
+        let catId = categories[0]?.id || 1;
+        let catName = categories[0]?.name || 'Scrap Heavy Machinery';
+        if (lower.includes('copper') || lower.includes('brass') || lower.includes('armoured') || lower.includes('cable')) {
+          catId = 2; catName = 'Non-Ferrous Copper & Brass';
+        } else if (lower.includes('steel') || lower.includes('hms') || lower.includes('melting') || lower.includes('iron')) {
+          catId = 3; catName = 'Ferrous Heavy Melting Steel (HMS)';
+        } else if (lower.includes('e-waste') || lower.includes('circuit') || lower.includes('solar') || lower.includes('panel')) {
+          catId = 4; catName = 'E-Waste & Circuit Boards';
+        } else if (lower.includes('boiler') || lower.includes('turbine') || lower.includes('plant')) {
+          catId = 5; catName = 'Industrial Boilers & Turbines';
+        } else if (lower.includes('vehicle') || lower.includes('auto') || lower.includes('car')) {
+          catId = 6; catName = 'Vehicle Dismantling & Auto Scrap';
+        }
+
+        // Clean & generate Title
+        let cleanTitle = text
+          .replace(/^(?:add|create|publish|post|new)\s+(?:new\s+)?(?:public\s+|private\s+|group\s+)?(?:auction|lot|tender)?(?:\s*:\s*)?/gi, '')
+          .replace(/starting\s+(?:at\s+)?[\d,kLakhCrRsINR₹\s.]+/gi, '')
+          .replace(/in\s+[a-zA-Z\s]+/gi, '')
+          .replace(/under\s+[a-zA-Z\s]+/gi, '')
+          .trim();
+
+        if (!cleanTitle || cleanTitle.length < 5) {
+          cleanTitle = `${quantity} ${unit} ${catName} Industrial Scrap Lot`;
+        }
+
+        // Format Title: Capitalize first letter
+        cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+
+        const auctionType: 'public' | 'private' | 'group' = lower.includes('private') ? 'private' : (lower.includes('group') ? 'group' : 'public');
+
+        const auctionPayload: Partial<Auction> = {
+          id: Date.now(),
+          title: cleanTitle,
+          slug: cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+          category_id: Number(catId),
+          category: { id: Number(catId), name: catName, slug: 'scrap' },
+          starting_price: extractedPrice,
+          current_highest_bid: extractedPrice,
+          quantity: quantity,
+          unit: unit,
+          location_city: city,
+          location_state: state,
+          auction_type: auctionType,
+          status: 'live',
+          description: `Verified high-purity ${quantity} ${unit} industrial scrap lot ready for immediate bidding in ${city}, ${state}. Verified seller inventory.`,
+        };
+
+        aiResponseText = `📦 **Prepared New Scrap Auction Lot Ready for Publication**\n\n- **Title:** ${auctionPayload.title}\n- **Category:** ${catName}\n- **Starting Bid:** ₹${extractedPrice.toLocaleString('en-IN')}\n- **Quantity:** ${quantity} ${unit}\n- **Location:** ${city}, ${state}\n- **Type:** ${auctionType.toUpperCase()}\n\nPlease confirm below to publish this lot live into the marketplace.`;
+
+        actionCard = {
+          type: 'create_auction',
+          title: `Publish Auction: ${auctionPayload.title}`,
+          description: `Create ${auctionType} auction lot with starting price ₹${extractedPrice.toLocaleString('en-IN')} in ${city}.`,
+          payload: auctionPayload,
+          status: 'pending',
+        };
       }
 
-      // 3. AWARD WINNER (H1 / H2 / H3) COMMAND
-      else if (lower.includes('award') || lower.includes('winner') || lower.includes('select winner') || lower.includes('h1') || lower.includes('h2') || lower.includes('h3')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 3: AWARD WINNER (H1 / H2 / H3)
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(award|select|choose|finalize|winner)\b/i.test(lower) ||
+        /\b(h1|h2|h3)\b/i.test(lower)
+      ) {
         let winnerType: 'H1' | 'H2' | 'H3' = 'H1';
-        if (lower.includes('h2')) winnerType = 'H2';
-        else if (lower.includes('h3')) winnerType = 'H3';
+        if (/\bh2\b/i.test(lower)) winnerType = 'H2';
+        else if (/\bh3\b/i.test(lower)) winnerType = 'H3';
 
         const targetAuction = auctions[0];
         const highestBid = Number(targetAuction.current_highest_bid || targetAuction.starting_price);
@@ -331,8 +438,12 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         };
       }
 
-      // 4. SOLVE / FIX ALL ERRORS COMMAND
-      else if (lower.includes('error') || lower.includes('fix') || lower.includes('bug') || lower.includes('resolve') || lower.includes('diagnostic')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 4: FIX / RESOLVE SYSTEM ERRORS & DIAGNOSTICS
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(error|errors|bug|bugs|fix|resolve|heal|repair|diagnostic|diagnostics|exception)\b/i.test(lower)
+      ) {
         const storedErrs = getStoredErrors();
         const unresolved = storedErrs.filter(e => e.status === 'unresolved');
 
@@ -354,82 +465,13 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         }
       }
 
-      // 5. ADD AUCTION / SCRAP PRODUCT COMMAND
-      else if (lower.includes('add auction') || lower.includes('create auction') || lower.includes('add product') || lower.includes('scrap lot') || lower.includes('new auction')) {
-        const priceMatch = text.match(/(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*(?:lakh|lac|k|cr|crore|thousand)?/i);
-        let extractedPrice = 500000;
-        if (priceMatch) {
-          let rawNum = parseFloat(priceMatch[1].replace(/,/g, ''));
-          if (lower.includes('lakh') || lower.includes('lac')) rawNum *= 100000;
-          else if (lower.includes('k')) rawNum *= 1000;
-          else if (lower.includes('cr') || lower.includes('crore')) rawNum *= 10000000;
-          if (rawNum > 0) extractedPrice = rawNum;
-        }
-
-        let city = 'Mumbai';
-        let state = 'Maharashtra';
-        const citiesList = ['Mumbai', 'Delhi', 'Ahmedabad', 'Pune', 'Surat', 'Chennai', 'Kolkata', 'Hyderabad', 'Bangalore', 'Vadodara', 'Nagpur', 'Indore', 'Jaipur'];
-        for (const c of citiesList) {
-          if (lower.includes(c.toLowerCase())) {
-            city = c;
-            if (c === 'Ahmedabad' || c === 'Surat' || c === 'Vadodara') state = 'Gujarat';
-            else if (c === 'Delhi') state = 'Delhi';
-            else if (c === 'Chennai') state = 'Tamil Nadu';
-            else if (c === 'Kolkata') state = 'West Bengal';
-            else if (c === 'Hyderabad') state = 'Telangana';
-            else if (c === 'Bangalore') state = 'Karnataka';
-            break;
-          }
-        }
-
-        let catId = categories[0]?.id || 1;
-        let catName = categories[0]?.name || 'Scrap Heavy Machinery';
-        for (const cat of categories) {
-          if (lower.includes(cat.name.toLowerCase()) || lower.includes(cat.slug.toLowerCase()) || (lower.includes('copper') && cat.name.includes('Copper')) || (lower.includes('machine') && cat.name.includes('Machinery')) || (lower.includes('steel') && cat.name.includes('Steel')) || (lower.includes('e-waste') && cat.name.includes('E-Waste'))) {
-            catId = cat.id;
-            catName = cat.name;
-            break;
-          }
-        }
-
-        const cleanTitle = text
-          .replace(/add\s+(?:new\s+)?(?:auction|product|lot)/gi, '')
-          .replace(/create\s+(?:new\s+)?(?:auction|product|lot)/gi, '')
-          .replace(/starting\s+at\s+[\d,kLakhCr]+/gi, '')
-          .replace(/in\s+[a-zA-Z]+/gi, '')
-          .replace(/under\s+[a-zA-Z\s]+/gi, '')
-          .trim() || 'Industrial Scrap Machinery Lot';
-
-        const auctionPayload: Partial<Auction> = {
-          id: Date.now(),
-          title: cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1),
-          slug: cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-          category_id: Number(catId),
-          category: { id: Number(catId), name: catName, slug: 'scrap' },
-          starting_price: extractedPrice,
-          current_highest_bid: extractedPrice,
-          quantity: 25,
-          unit: 'MT',
-          location_city: city,
-          location_state: state,
-          auction_type: lower.includes('private') ? 'private' : (lower.includes('group') ? 'group' : 'public'),
-          status: 'live',
-          description: `High-grade industrial scrap lot verified for immediate bidding in ${city}, ${state}. Starting bid placed at ₹${extractedPrice.toLocaleString('en-IN')}.`,
-        };
-
-        aiResponseText = `📦 **Prepared New Scrap Auction Lot Ready for Publication**\n\n- **Title:** ${auctionPayload.title}\n- **Category:** ${catName}\n- **Starting Price:** ₹${extractedPrice.toLocaleString('en-IN')}\n- **Location:** ${city}, ${state}\n- **Type:** ${auctionPayload.auction_type?.toUpperCase()}\n\nPlease confirm to publish this lot live into the marketplace.`;
-
-        actionCard = {
-          type: 'create_auction',
-          title: `Publish Auction: ${auctionPayload.title}`,
-          description: `Create lot with starting price ₹${extractedPrice.toLocaleString('en-IN')} in ${city}.`,
-          payload: auctionPayload,
-          status: 'pending',
-        };
-      }
-
-      // 6. ADD CLASSIFIED COMMAND
-      else if (lower.includes('classified') || lower.includes('post listing')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 5: CREATE / POST CLASSIFIED
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(classified|classifieds|listing)\b/i.test(lower) &&
+        !/\b(delete|remove)\b/i.test(lower)
+      ) {
         const classifiedPayload: any = {
           id: Date.now(),
           title: 'Direct Sale: Industrial Machinery & Surplus Stock',
@@ -455,8 +497,33 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         };
       }
 
-      // 7. MAINTENANCE / SYSTEM MODE COMMAND
-      else if (lower.includes('maintenance') || lower.includes('system mode') || lower.includes('online') || lower.includes('close')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 6: DELETE CLASSIFIED
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(delete|remove)\b/i.test(lower) &&
+        /\b(classified|classifieds|listing)\b/i.test(lower)
+      ) {
+        const matchedClassified = classifieds[0];
+        if (matchedClassified) {
+          aiResponseText = `🗑️ **Target Classified Identified for Deletion**\n\n- **ID:** #${matchedClassified.id}\n- **Title:** "${matchedClassified.title}"\n- **Price:** ₹${Number(matchedClassified.price).toLocaleString('en-IN')}\n\nClick below to delete this classified listing from the directory.`;
+
+          actionCard = {
+            type: 'delete_classified',
+            title: `Delete Classified: "${matchedClassified.title}"`,
+            description: `Remove listing #${matchedClassified.id} from classified marketplace.`,
+            payload: { classifiedId: matchedClassified.id, title: matchedClassified.title },
+            status: 'pending',
+          };
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 7: MAINTENANCE / SYSTEM MODE
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(maintenance|online|system mode|platform mode|temporary closed)\b/i.test(lower)
+      ) {
         let targetMode = 'maintenance';
         if (lower.includes('online') || lower.includes('open') || lower.includes('enable live')) {
           targetMode = 'online';
@@ -479,8 +546,12 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         };
       }
 
-      // 8. USER VERIFICATION / MANAGEMENT COMMAND
-      else if (lower.includes('verify') || lower.includes('approve user') || lower.includes('pending users')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 8: VERIFY USERS
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(verify|approve|kyc|onboard)\b/i.test(lower)
+      ) {
         const unverified = users.filter(u => !u.is_verified);
         if (unverified.length === 0) {
           aiResponseText = `👥 **All Registered Users are Verified!**\n\nThere are currently zero pending KYC or onboarding verifications in the queue.`;
@@ -497,25 +568,13 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         }
       }
 
-      // 9. DELETE USER COMMAND
-      else if (lower.includes('delete user') || lower.includes('remove user')) {
-        const targetUser = users.find(u => u.role !== 'master_admin' && u.email !== 'admin@salvagereef.com') || users[users.length - 1];
-        if (targetUser) {
-          aiResponseText = `👤 **Target User Identified for Account Deletion**\n\n- **User ID:** #${targetUser.id}\n- **Name:** ${targetUser.name}\n- **Email:** ${targetUser.email}\n- **Role:** ${targetUser.role}\n\nClick below to delete this user and revoke database access tokens.`;
-
-          actionCard = {
-            type: 'delete_user',
-            title: `Delete User Account #${targetUser.id} (${targetUser.name})`,
-            description: `Revoke credentials and purge user profile from database.`,
-            payload: { userId: targetUser.id, name: targetUser.name },
-            status: 'pending',
-          };
-        }
-      }
-
-      // 10. CLEAR LOGS / PURGE DIAGNOSTICS COMMAND
-      else if (lower.includes('clear log') || lower.includes('purge log') || lower.includes('clean log') || lower.includes('reset error')) {
-        aiResponseText = `🧹 **Clear System Diagnostics & Error Logs Request**\n\nThis will purge resolved & captured error entries from localStorage and reset telemetry counters to 0.`;
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 9: CLEAR LOGS / PURGE DIAGNOSTICS
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(clear|clean|purge)\b/i.test(lower) && /\b(log|logs|telemetry|diagnostics)\b/i.test(lower)
+      ) {
+        aiResponseText = `🧹 **Clear System Diagnostics & Error Logs Request**\n\nThis will purge resolved & captured error entries from database and reset telemetry counters to 0.`;
 
         actionCard = {
           type: 'clear_error_logs',
@@ -526,8 +585,12 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         };
       }
 
-      // 11. RESET DEMO DATA COMMAND
-      else if (lower.includes('reset demo') || lower.includes('restore default') || lower.includes('restore sample')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 10: RESET DEMO DATA
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(reset demo|restore demo|restore default|reset data|seed data)\b/i.test(lower)
+      ) {
         aiResponseText = `🔄 **Restore Default Platform Demo Data**\n\nThis will restore default auction lots, verified classifieds, test bidders, and audit desk accounts.`;
 
         actionCard = {
@@ -539,15 +602,21 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         };
       }
 
-      // 12. ANALYTICS / AUDIT REPORT COMMAND
-      else if (lower.includes('stats') || lower.includes('report') || lower.includes('analytics') || lower.includes('summary')) {
+      // ─────────────────────────────────────────────────────────────────────────────
+      // INTENT 11: ANALYTICS / AUDIT REPORT
+      // ─────────────────────────────────────────────────────────────────────────────
+      else if (
+        /\b(stats|report|analytics|summary|audit|health|metrics|overview)\b/i.test(lower)
+      ) {
         const totalAuctionVal = auctions.reduce((acc, a) => acc + Number(a.starting_price || 0), 0);
         aiResponseText = `📊 **SalvageReef Executive Platform Audit Summary**\n\n- **Active Auctions:** ${auctions.length} lots (Total Value: ₹${(totalAuctionVal / 100000).toFixed(1)} Lakhs)\n- **Classified Listings:** ${classifieds.length} items published\n- **Registered Users:** ${users.length} members (${users.filter(u => u.is_verified).length} verified)\n- **System Operational Mode:** \`${systemMode.toUpperCase()}\`\n- **System Health:** 100% Operational, Real-Time Cascading Deletion Online.`;
       }
 
+      // ─────────────────────────────────────────────────────────────────────────────
       // DEFAULT HELPFUL FALLBACK
+      // ─────────────────────────────────────────────────────────────────────────────
       else {
-        aiResponseText = `🤖 **Salvage AI Operations Copilot Ready**\n\nI can perform any administrative operation immediately upon your command:\n\n1. **"Delete auction lot [name/id]"** — Safely cascade-delete auction and all associated bids.\n2. **"Award H1 winner for auction"** — Finalize winner and trigger notification.\n3. **"Analyze and fix all unresolved system errors"** — Auto-resolve exceptions and clean diagnostics.\n4. **"Add 20 tons copper scrap lot in Mumbai starting at 8.5 lakhs"** — Draft and publish auction lot.\n5. **"Verify all pending users"** — Approve pending KYC onboarding.\n6. **"Delete classified [name/id]"** — Remove listings from directory.\n7. **"Set system mode to maintenance / online"** — Switch platform operational state.\n8. **"Show platform stats report"** — Generate real-time analytics breakdown.`;
+        aiResponseText = `🤖 **Salvage AI Operations Copilot Ready**\n\nI can execute any administrative command directly:\n\n1. **"Add 20 tons copper scrap in Mumbai at 8.5 lakhs"** — Draft and publish auction lot.\n2. **"Delete auction lot [name/id]"** — Safely cascade-delete auction and all associated bids.\n3. **"Award H1 winner for auction"** — Finalize winner and trigger notification.\n4. **"Analyze and fix all unresolved system errors"** — Auto-resolve exceptions and clean diagnostics.\n5. **"Verify all pending users"** — Approve pending KYC onboarding.\n6. **"Post classified for machinery at 65,000"** — Create direct sale listing.\n7. **"Set system mode to maintenance / online"** — Switch platform operational state.\n8. **"Show platform stats report"** — Generate real-time analytics breakdown.`;
       }
 
       const aiMsg: Message = {
@@ -560,14 +629,14 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
 
       setMessages(prev => [...prev, aiMsg]);
       setIsThinking(false);
-    }, 600);
+    }, 500);
   };
 
   const quickPrompts = [
     { label: '🛠️ Fix Unresolved Errors', prompt: 'Analyze and fix all unresolved system errors' },
+    { label: '📦 Add 20 Tons Copper Scrap Lot', prompt: 'Add new public auction: 20 Tons Industrial Copper Armoured Cables in Mumbai starting at 8,50,000' },
     { label: '🗑️ Delete Demo Auction', prompt: 'Delete 2-Minute Express Demo Auction lot' },
     { label: '🏆 Award H1 Winner', prompt: 'Award H1 winner for 2-Minute Express Demo Auction' },
-    { label: '📦 Add 20 Tons Copper Scrap Lot', prompt: 'Add new public auction: 20 Tons Industrial Copper Armoured Cables in Mumbai starting at 8,50,000' },
     { label: '🏷️ Post Machinery Classified', prompt: 'Post a classified listing for Used 50 HP Siemens Industrial Motor at 65,000 in Ahmedabad' },
     { label: '👥 Verify Pending Users', prompt: 'Verify all pending user accounts' },
     { label: '🛡️ Toggle Maintenance Mode', prompt: 'Switch platform to maintenance mode with scheduled upgrade notice' },
@@ -660,15 +729,15 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
                     <button
                       type="button"
                       onClick={() => handleExecuteAction(m.id, m.actionCard)}
-                      className="w-full py-2 px-3 bg-[#D48B1C] hover:bg-[#b87614] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98"
+                      className="w-full py-2.5 px-4 bg-[#D48B1C] hover:bg-[#b87614] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4 text-slate-950" />
                       <span>Execute Action Now</span>
                     </button>
                   ) : (
-                    <div className="w-full py-1.5 px-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1.5">
+                    <div className="w-full py-2 px-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Action Executed & Verified</span>
+                      <span>Action Executed & Verified Live</span>
                     </div>
                   )}
                 </div>
@@ -698,7 +767,7 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
               key={idx}
               type="button"
               onClick={() => handleSendCommand(qp.prompt)}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors border border-slate-700/60 active:scale-95"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors border border-slate-700/60 active:scale-95 cursor-pointer"
             >
               {qp.label}
             </button>
@@ -718,13 +787,13 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
           type="text"
           value={inputPrompt}
           onChange={(e) => setInputPrompt(e.target.value)}
-          placeholder="Give an order... (e.g. 'Delete auction #101', 'Fix all errors', 'Add 20 tons copper in Pune', 'Award H1 winner')"
+          placeholder="Give an order... (e.g. 'Add 20 tons copper scrap in Mumbai at 8.5 lakhs', 'Delete auction lot #101', 'Fix all errors')"
           className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#D48B1C] transition-all"
         />
         <button
           type="submit"
           disabled={!inputPrompt.trim() || isThinking}
-          className="p-2.5 bg-[#D48B1C] hover:bg-[#b87614] disabled:opacity-50 text-slate-950 rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0"
+          className="p-2.5 bg-[#D48B1C] hover:bg-[#b87614] disabled:opacity-50 text-slate-950 rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0 cursor-pointer"
           title="Send Command"
         >
           <Send className="w-4 h-4" />

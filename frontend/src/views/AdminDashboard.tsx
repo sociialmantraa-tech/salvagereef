@@ -1055,22 +1055,39 @@ export default function AdminDashboard() {
           setTemporaryClosedMessageInput(statsRes.data.stats.temporary_closed_message);
         }
       }
-      if (logsRes?.data?.data?.data && Array.isArray(logsRes.data.data.data) && logsRes.data.data.data.length > 0) {
-        setErrorLogs(logsRes.data.data.data);
-      } else if (logsRes?.data?.data && Array.isArray(logsRes.data.data) && logsRes.data.data.length > 0) {
-        setErrorLogs(logsRes.data.data);
-      } else {
-        const localErrs = getStoredErrors();
-        setErrorLogs(localErrs);
-        if (!statsRes?.data?.success) {
-          setErrorStats(prev => ({
-            ...prev,
-            total_errors: localErrs.length,
-            unresolved_errors: localErrs.filter(e => e.status === 'unresolved').length,
-            resolved_errors: localErrs.filter(e => e.status === 'resolved').length,
-          }));
-        }
+      const serverLogs = (logsRes?.data?.data?.data || logsRes?.data?.data || []);
+      const localErrs = getStoredErrors();
+
+      // Combine server records and local records deduplicated by ID and message
+      const combinedMap = new Map<string, any>();
+      if (Array.isArray(serverLogs)) {
+        serverLogs.forEach((l: any) => combinedMap.set(String(l.id || l.message), l));
       }
+      if (Array.isArray(localErrs)) {
+        localErrs.forEach((l: any) => {
+          const key = String(l.id || l.message);
+          combinedMap.set(key, { ...(combinedMap.get(key) || {}), ...l });
+        });
+      }
+
+      const mergedErrors = Array.from(combinedMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      saveStoredErrors(mergedErrors);
+      setErrorLogs(mergedErrors);
+
+      const unresolvedCount = mergedErrors.filter((e) => e.status === 'unresolved').length;
+      const criticalCount = mergedErrors.filter((e) => e.severity === 'critical').length;
+      const todayCount = mergedErrors.filter((e) => new Date(e.created_at).toDateString() === new Date().toDateString()).length;
+
+      setErrorStats({
+        total_errors: mergedErrors.length,
+        unresolved_errors: unresolvedCount,
+        resolved_errors: mergedErrors.length - unresolvedCount,
+        critical_errors: criticalCount,
+        logged_today: todayCount,
+      });
       testDatabaseConnection(false);
     } catch (err) {
       console.error('Error loading error logs:', err);
@@ -1329,6 +1346,15 @@ export default function AdminDashboard() {
       fetchErrorLogsAndStats();
     }
   }, [activeTab, errorSearch, errorSeverityFilter, errorStatusFilter]);
+
+  // Real-time error log refresh listener
+  useEffect(() => {
+    const handleLiveError = () => {
+      fetchErrorLogsAndStats();
+    };
+    window.addEventListener('sr_error_logged', handleLiveError);
+    return () => window.removeEventListener('sr_error_logged', handleLiveError);
+  }, []);
 
   const handleToggleMaintenance = async (e: React.FormEvent) => {
     e.preventDefault();
