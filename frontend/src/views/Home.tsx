@@ -16,8 +16,22 @@ export default function Home() {
   const navigate = useNavigate();
   const { categories, locations } = useCategoryLocationStore();
   const { content } = useContentStore();
-  const [liveAuctions, setLiveAuctions] = useState<Auction[]>(INITIAL_AUCTIONS);
-  const [classifieds, setClassifieds] = useState<Classified[]>(INITIAL_CLASSIFIEDS.slice(0, 4));
+  const [liveAuctions, setLiveAuctions] = useState<Auction[]>(() => {
+    try {
+      const stored = localStorage.getItem('sr_auctions');
+      return stored ? JSON.parse(stored) : INITIAL_AUCTIONS;
+    } catch {
+      return INITIAL_AUCTIONS;
+    }
+  });
+  const [classifieds, setClassifieds] = useState<Classified[]>(() => {
+    try {
+      const stored = localStorage.getItem('sr_classifieds');
+      return stored ? JSON.parse(stored).slice(0, 4) : INITIAL_CLASSIFIEDS.slice(0, 4);
+    } catch {
+      return INITIAL_CLASSIFIEDS.slice(0, 4);
+    }
+  });
   const [loading, setLoading] = useState<boolean>(false);
 
   // Search Form Filters matching Seal The Deal banner
@@ -26,28 +40,51 @@ export default function Home() {
   const [location, setLocation] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [aucRes, classRes] = await Promise.all([
-          api.get('/auctions').catch(() => null),
-          api.get('/classifieds').catch(() => null),
-        ]);
+  const fetchData = async () => {
+    try {
+      const [aucRes, classRes] = await Promise.all([
+        api.get('/auctions').catch(() => null),
+        api.get('/classifieds').catch(() => null),
+      ]);
 
-        if (aucRes?.data?.data && aucRes.data.data.length > 0) {
-          setLiveAuctions(aucRes.data.data);
-        }
-        if (classRes?.data?.data && classRes.data.data.length > 0) {
-          setClassifieds(classRes.data.data.slice(0, 4));
-        }
-      } catch (err) {
-        console.error('Error fetching home data:', err);
-      } finally {
-        setLoading(false);
+      if (aucRes?.data?.data && Array.isArray(aucRes.data.data)) {
+        setLiveAuctions(aucRes.data.data);
+      } else if (Array.isArray(aucRes?.data)) {
+        setLiveAuctions(aucRes.data);
       }
-    };
 
+      if (classRes?.data?.data && Array.isArray(classRes.data.data)) {
+        setClassifieds(classRes.data.data.slice(0, 4));
+      } else if (Array.isArray(classRes?.data)) {
+        setClassifieds(classRes.data.slice(0, 4));
+      }
+    } catch (err) {
+      console.error('Error fetching home data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
+
+    let unsub: any = null;
+    import('../services/realtimeSync').then(({ subscribeRealtimeEvents }) => {
+      unsub = subscribeRealtimeEvents((event) => {
+        if (
+          event.type === 'auction_created' ||
+          event.type === 'auction_deleted' ||
+          event.type === 'classified_created' ||
+          event.type === 'classified_deleted'
+        ) {
+          fetchData();
+        }
+      });
+    });
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {

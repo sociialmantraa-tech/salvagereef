@@ -205,6 +205,10 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         const updated = current.map(e => String(e.id) === String(errId) ? { ...e, status: 'resolved' as const, resolved_at: new Date().toISOString(), fix_notes: 'Auto-resolved by Salvage AI Copilot' } : e);
         saveStoredErrors(updated);
         setErrorsList(updated);
+        // Sync with backend API
+        import('../../services/api').then(({ default: api }) => {
+          api.put(`/admin/errors/${errId}/status`, { status: 'resolved' }).catch(() => {});
+        });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('sr_error_logged'));
         }
@@ -213,6 +217,10 @@ export const AdminAIAssistant: React.FC<AdminAIAssistantProps> = ({
         const updated = current.map(e => ({ ...e, status: 'resolved' as const, resolved_at: new Date().toISOString(), fix_notes: 'Auto-resolved & self-healed by Salvage AI Copilot' }));
         saveStoredErrors(updated);
         setErrorsList(updated);
+        // Sync with backend API
+        import('../../services/api').then(({ default: api }) => {
+          api.put('/admin/errors/all/status', { status: 'resolved' }).catch(() => {});
+        });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('sr_error_logged'));
         }

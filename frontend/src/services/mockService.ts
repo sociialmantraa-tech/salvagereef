@@ -534,12 +534,19 @@ const getStoredUser = (defaultVal: any = null): any => {
 
 export const getMockCategories = (): Category[] => getItem('sr_categories', INITIAL_CATEGORIES);
 export const getMockAuctions = (): Auction[] => {
-  let stored = getItem<Auction[]>('sr_auctions', INITIAL_AUCTIONS);
-  const storedIds = new Set(stored.map((a) => a.id));
-  const missing = INITIAL_AUCTIONS.filter((a) => !storedIds.has(a.id));
-  if (missing.length > 0) {
-    stored = [...missing, ...stored];
+  let stored: Auction[];
+  const raw = typeof window !== 'undefined' ? localStorage.getItem('sr_auctions') : null;
+  if (raw === null) {
+    stored = INITIAL_AUCTIONS;
     setItem('sr_auctions', stored);
+    setItem('sr_admin_auctions', stored);
+  } else {
+    try {
+      stored = JSON.parse(raw);
+      if (!Array.isArray(stored)) stored = INITIAL_AUCTIONS;
+    } catch {
+      stored = INITIAL_AUCTIONS;
+    }
   }
   // Ensure 5-minute flash auction (ID 107) has a active 5-minute timer
   const flashIdx = stored.findIndex((a) => a.id === 107);
@@ -551,20 +558,24 @@ export const getMockAuctions = (): Auction[] => {
       stored[flashIdx].end_time = new Date(Date.now() + 5 * 60 * 1000).toISOString();
       stored[flashIdx].status = 'live';
       setItem('sr_auctions', stored);
+      setItem('sr_admin_auctions', stored);
     }
   }
   return stored;
 };
 export const getMockClassifieds = (): Classified[] => {
-  const stored = getItem<Classified[]>('sr_classifieds', INITIAL_CLASSIFIEDS);
-  const storedIds = new Set(stored.map((c) => c.id));
-  const missing = INITIAL_CLASSIFIEDS.filter((c) => !storedIds.has(c.id));
-  if (missing.length > 0) {
-    const merged = [...missing, ...stored];
-    setItem('sr_classifieds', merged);
-    return merged;
+  const raw = typeof window !== 'undefined' ? localStorage.getItem('sr_classifieds') : null;
+  if (raw === null) {
+    setItem('sr_classifieds', INITIAL_CLASSIFIEDS);
+    setItem('sr_admin_classifieds', INITIAL_CLASSIFIEDS);
+    return INITIAL_CLASSIFIEDS;
   }
-  return stored;
+  try {
+    const stored = JSON.parse(raw);
+    return Array.isArray(stored) ? stored : INITIAL_CLASSIFIEDS;
+  } catch {
+    return INITIAL_CLASSIFIEDS;
+  }
 };
 export const getMockInterests = (): any[] => getItem('sr_interests', INITIAL_INTERESTS);
 export const getMockSellScrapRequests = (): any[] => getItem('sr_sell_scrap_requests', INITIAL_SELL_SCRAP_REQUESTS);
@@ -1365,23 +1376,50 @@ export function handleMockApi(config: any): any {
   }
 
   // 10j. DELETE /admin/auctions/:id
-  if (url.includes('/admin/auctions/') && method === 'delete') {
-    const parts = url.split('/');
-    const auctionId = Number(parts[parts.length - 1]);
-    const auctions = getMockAuctions();
-    const updated = auctions.filter((a) => a.id !== auctionId);
-    setItem('sr_auctions', updated);
-    return { message: 'Auction deleted' };
+  if ((url.includes('/admin/auctions/') || cleanUrl.includes('/auctions/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const idOrSlug = parts[parts.length - 1];
+    let auctions = getMockAuctions();
+    const beforeCount = auctions.length;
+    auctions = auctions.filter((a) => String(a.id) !== String(idOrSlug) && a.slug !== String(idOrSlug));
+    setItem('sr_auctions', auctions);
+    setItem('sr_admin_auctions', auctions);
+
+    // Clean associated bids
+    const adminBids = getItem<any[]>('sr_admin_bids', []);
+    const updatedAdminBids = adminBids.filter((b: any) => String(b.auction_id) !== String(idOrSlug));
+    setItem('sr_admin_bids', updatedAdminBids);
+
+    // Clean associated interests
+    const interests = getMockInterests();
+    const updatedInterests = interests.filter((i: any) => String(i.auction_id) !== String(idOrSlug));
+    setItem('sr_interests', updatedInterests);
+    setItem('sr_admin_interests', updatedInterests);
+
+    return {
+      success: true,
+      message: 'Auction lot deleted permanently from system records.',
+      deleted_id: idOrSlug,
+      removed: beforeCount - auctions.length,
+    };
   }
 
   // 10k. DELETE /admin/classifieds/:id
-  if (url.includes('/admin/classifieds/') && method === 'delete') {
-    const parts = url.split('/');
-    const classifiedId = Number(parts[parts.length - 1]);
-    const classifieds = getMockClassifieds();
-    const updated = classifieds.filter((c) => c.id !== classifiedId);
-    setItem('sr_classifieds', updated);
-    return { message: 'Classified deleted' };
+  if ((url.includes('/admin/classifieds/') || cleanUrl.includes('/classifieds/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const idOrSlug = parts[parts.length - 1];
+    let classifieds = getMockClassifieds();
+    const beforeCount = classifieds.length;
+    classifieds = classifieds.filter((c) => String(c.id) !== String(idOrSlug) && c.slug !== String(idOrSlug));
+    setItem('sr_classifieds', classifieds);
+    setItem('sr_admin_classifieds', classifieds);
+
+    return {
+      success: true,
+      message: 'Classified listing deleted permanently.',
+      deleted_id: idOrSlug,
+      removed: beforeCount - classifieds.length,
+    };
   }
 
   // 12. POST /auth/login
@@ -1665,7 +1703,7 @@ export function handleMockApi(config: any): any {
     const id = parts[statusIdx - 1];
     const newStatus = bodyData.status || 'resolved';
 
-    logs = logs.map(l => String(l.id) === String(id) ? { ...l, status: newStatus, resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null } : l);
+    logs = logs.map(l => (id === 'all' || String(l.id) === String(id)) ? { ...l, status: newStatus, resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null } : l);
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('sr_system_error_logs', JSON.stringify(logs));
     }

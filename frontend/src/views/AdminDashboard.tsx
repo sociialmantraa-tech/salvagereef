@@ -1676,24 +1676,16 @@ export default function AdminDashboard() {
       }
       if (auctionsRes?.data) {
         const fetchedAuctions = Array.isArray(auctionsRes.data) ? auctionsRes.data : (auctionsRes.data?.data || []);
-        if (Array.isArray(fetchedAuctions) && fetchedAuctions.length > 0) {
+        if (Array.isArray(fetchedAuctions)) {
           setAuctionsPersisted(fetchedAuctions);
-        } else {
-          setAuctionsPersisted(INITIAL_AUCTIONS);
         }
-      } else {
-        setAuctionsPersisted(INITIAL_AUCTIONS);
       }
 
       if (classifiedsRes?.data) {
         const fetchedClassifieds = Array.isArray(classifiedsRes.data) ? classifiedsRes.data : (classifiedsRes.data?.data || []);
-        if (Array.isArray(fetchedClassifieds) && fetchedClassifieds.length > 0) {
+        if (Array.isArray(fetchedClassifieds)) {
           setClassifiedsPersisted(fetchedClassifieds);
-        } else {
-          setClassifiedsPersisted(INITIAL_CLASSIFIEDS);
         }
-      } else {
-        setClassifiedsPersisted(INITIAL_CLASSIFIEDS);
       }
 
       if (sysStatusRes?.data?.system_mode) {
@@ -2087,17 +2079,31 @@ export default function AdminDashboard() {
       broadcastRealtimeEvent('location_deleted', { id, name });
       showNotification(`✓ Location "${name}" deleted permanently.`);
     } else if (type === 'auction') {
-      const aucToDelete = auctions.find((a) => a.id === id);
+      const aucToDelete = auctions.find((a) => String(a.id) === String(id));
       // Optimistically update local state & persistence immediately
       setAuctionsPersisted((prev) => {
-        const updated = prev.filter((a) => a.id !== id);
+        const updated = prev.filter((a) => String(a.id) !== String(id));
         return updated;
       });
+
+      // Synchronize both localStorage keys immediately
+      try {
+        const stored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+        if (Array.isArray(stored)) {
+          const updated = stored.filter((a: any) => String(a.id) !== String(id));
+          localStorage.setItem('sr_auctions', JSON.stringify(updated));
+          localStorage.setItem('sr_admin_auctions', JSON.stringify(updated));
+        }
+      } catch {}
 
       if (aucToDelete) {
         pushUndoAction(`Delete Auction "${aucToDelete.title}"`, () => {
           setAuctionsPersisted((prev) => {
-            const restored = [aucToDelete, ...prev.filter((a) => a.id !== id)];
+            const restored = [aucToDelete, ...prev.filter((a) => String(a.id) !== String(id))];
+            try {
+              localStorage.setItem('sr_auctions', JSON.stringify(restored));
+              localStorage.setItem('sr_admin_auctions', JSON.stringify(restored));
+            } catch {}
             return restored;
           });
         });
@@ -2124,16 +2130,29 @@ export default function AdminDashboard() {
           showNotification(`✓ Auction lot "${name}" removed from platform.`);
         });
     } else if (type === 'classified') {
-      const classToDelete = classifieds.find((c) => c.id === id);
+      const classToDelete = classifieds.find((c) => String(c.id) === String(id));
       setClassifiedsPersisted((prev) => {
-        const updated = prev.filter((c) => c.id !== id);
+        const updated = prev.filter((c) => String(c.id) !== String(id));
         return updated;
       });
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('sr_classifieds') || '[]');
+        if (Array.isArray(stored)) {
+          const updated = stored.filter((c: any) => String(c.id) !== String(id));
+          localStorage.setItem('sr_classifieds', JSON.stringify(updated));
+          localStorage.setItem('sr_admin_classifieds', JSON.stringify(updated));
+        }
+      } catch {}
 
       if (classToDelete) {
         pushUndoAction(`Delete Classified "${classToDelete.title}"`, () => {
           setClassifiedsPersisted((prev) => {
-            const restored = [classToDelete, ...prev.filter((c) => c.id !== id)];
+            const restored = [classToDelete, ...prev.filter((c) => String(c.id) !== String(id))];
+            try {
+              localStorage.setItem('sr_classifieds', JSON.stringify(restored));
+              localStorage.setItem('sr_admin_classifieds', JSON.stringify(restored));
+            } catch {}
             return restored;
           });
         });

@@ -12,7 +12,14 @@ import SEOHead from '../components/SEOHead';
 export default function Auctions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories, locations, setCategories } = useCategoryLocationStore();
-  const [auctions, setAuctions] = useState<Auction[]>(INITIAL_AUCTIONS);
+  const [auctions, setAuctions] = useState<Auction[]>(() => {
+    try {
+      const stored = localStorage.getItem('sr_auctions');
+      return stored ? JSON.parse(stored) : INITIAL_AUCTIONS;
+    } catch {
+      return INITIAL_AUCTIONS;
+    }
+  });
   const [loading, setLoading] = useState<boolean>(false);
 
   const [category, setCategory] = useState<string>(searchParams.get('category_id') || '');
@@ -38,10 +45,12 @@ export default function Auctions() {
         api.get('/categories'),
       ]);
 
-      if (res.data?.data && res.data.data.length > 0) {
+      if (res.data?.data && Array.isArray(res.data.data)) {
         setAuctions(res.data.data);
+      } else if (Array.isArray(res.data)) {
+        setAuctions(res.data);
       }
-      if (catRes.data && catRes.data.length > 0) {
+      if (catRes.data && Array.isArray(catRes.data)) {
         setCategories(catRes.data);
       }
     } catch (err) {

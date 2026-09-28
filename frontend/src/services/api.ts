@@ -143,9 +143,15 @@ api.interceptors.response.use(
         localStorage.removeItem('salvagereef_user');
       }
 
-      // Automatically capture API errors into System Error Diagnostics (if not /errors/report)
+      // Automatically capture API errors into System Error Diagnostics (ignore error logging / telemetry endpoints to prevent recursive loop)
       const reqUrl = String(error.config?.url || '');
-      if (!reqUrl.includes('/errors/report') && typeof window !== 'undefined') {
+      const isTelemetryRoute = 
+        reqUrl.includes('/errors') || 
+        reqUrl.includes('/logs') || 
+        reqUrl.includes('/system_mode') || 
+        reqUrl.includes('/maintenance');
+
+      if (!isTelemetryRoute && typeof window !== 'undefined') {
         try {
           const rawMsg = error.response?.data?.message || error.message || `API Error HTTP ${error.response.status}`;
           const currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
@@ -188,9 +194,15 @@ api.interceptors.response.use(
       console.error('Mock fallback handler error:', mockErr);
     }
 
-    // Capture offline or unhandled network failure into System Error Diagnostics
+    // Capture offline or unhandled network failure into System Error Diagnostics (ignore telemetry routes)
     const reqUrl = String(error.config?.url || '');
-    if (!reqUrl.includes('/errors/report') && typeof window !== 'undefined') {
+    const isTelemetryRoute = 
+      reqUrl.includes('/errors') || 
+      reqUrl.includes('/logs') || 
+      reqUrl.includes('/system_mode') || 
+      reqUrl.includes('/maintenance');
+
+    if (!isTelemetryRoute && typeof window !== 'undefined') {
       try {
         const currentLogs = JSON.parse(localStorage.getItem('sr_system_error_logs') || '[]');
         const newErr = {
