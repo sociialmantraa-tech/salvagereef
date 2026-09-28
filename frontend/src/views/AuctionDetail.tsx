@@ -14,18 +14,9 @@ export default function AuctionDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuthStore();
 
-  const [auction, setAuction] = useState<Auction | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored: Auction[] = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
-        const found = stored.find((a) => a.slug === slug || String(a.id) === String(slug));
-        if (found) return found;
-      } catch {}
-    }
-    return INITIAL_AUCTIONS.find((a) => a.slug === slug || String(a.id) === String(slug)) || null;
-  });
+  const [auction, setAuction] = useState<Auction | null>(null);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(!auction);
+  const [loading, setLoading] = useState<boolean>(true);
   const [activeImage, setActiveImage] = useState<number>(0);
 
   const [interestMsg, setInterestMsg] = useState<string>('');

@@ -11,21 +11,17 @@ import SEOHead from '../components/SEOHead';
 
 export default function Classifieds() {
   const { categories, locations, setCategories } = useCategoryLocationStore();
-  const [classifieds, setClassifieds] = useState<Classified[]>(() => {
-    try {
-      const stored = localStorage.getItem('sr_classifieds');
-      return stored ? JSON.parse(stored) : INITIAL_CLASSIFIEDS;
-    } catch {
-      return INITIAL_CLASSIFIEDS;
-    }
-  });
-  const [loading, setLoading] = useState<boolean>(false);
+  const [classifieds, setClassifieds] = useState<Classified[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [search, setSearch] = useState<string>('');
 
-  const fetchClassifieds = async () => {
+  const fetchClassifieds = async (isBackground = false) => {
+    if (!isBackground && classifieds.length === 0) {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       if (category) params.append('category_id', category);
@@ -39,14 +35,8 @@ export default function Classifieds() {
 
       if (res.data?.data && Array.isArray(res.data.data)) {
         setClassifieds(res.data.data);
-        if (!category && !location && !search) {
-          try { localStorage.setItem('sr_classifieds', JSON.stringify(res.data.data)); } catch {}
-        }
       } else if (Array.isArray(res.data)) {
         setClassifieds(res.data);
-        if (!category && !location && !search) {
-          try { localStorage.setItem('sr_classifieds', JSON.stringify(res.data)); } catch {}
-        }
       }
       if (catRes.data && Array.isArray(catRes.data)) {
         setCategories(catRes.data);
@@ -59,11 +49,15 @@ export default function Classifieds() {
   };
 
   useEffect(() => {
-    fetchClassifieds();
+    fetchClassifieds(false);
   }, [category, location]);
 
-  // Real-time synchronization for classifieds
+  // Real-time synchronization and polling for classifieds across browsers
   useEffect(() => {
+    const pollInterval = setInterval(() => {
+      fetchClassifieds(true);
+    }, 6000);
+
     let unsub: any = null;
     import('../services/realtimeSync').then(({ subscribeRealtimeEvents }) => {
       unsub = subscribeRealtimeEvents((event) => {
@@ -72,25 +66,16 @@ export default function Classifieds() {
           event.type === 'classified_updated' ||
           event.type === 'classified_deleted'
         ) {
-          fetchClassifieds();
+          fetchClassifieds(true);
         }
       });
     });
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'sr_classifieds' && e.newValue) {
-        try {
-          setClassifieds(JSON.parse(e.newValue));
-        } catch {}
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
     return () => {
+      clearInterval(pollInterval);
       if (unsub) unsub();
-      window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [category, location, search]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

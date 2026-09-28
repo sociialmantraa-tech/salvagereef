@@ -16,23 +16,9 @@ export default function Home() {
   const navigate = useNavigate();
   const { categories, locations } = useCategoryLocationStore();
   const { content } = useContentStore();
-  const [liveAuctions, setLiveAuctions] = useState<Auction[]>(() => {
-    try {
-      const stored = localStorage.getItem('sr_auctions');
-      return stored ? JSON.parse(stored) : INITIAL_AUCTIONS;
-    } catch {
-      return INITIAL_AUCTIONS;
-    }
-  });
-  const [classifieds, setClassifieds] = useState<Classified[]>(() => {
-    try {
-      const stored = localStorage.getItem('sr_classifieds');
-      return stored ? JSON.parse(stored).slice(0, 4) : INITIAL_CLASSIFIEDS.slice(0, 4);
-    } catch {
-      return INITIAL_CLASSIFIEDS.slice(0, 4);
-    }
-  });
-  const [loading, setLoading] = useState<boolean>(false);
+  const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
+  const [classifieds, setClassifieds] = useState<Classified[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Search Form Filters matching Seal The Deal banner
   const [searchCategory, setSearchCategory] = useState<string>('');
@@ -40,7 +26,10 @@ export default function Home() {
   const [location, setLocation] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground && liveAuctions.length === 0) {
+      setLoading(true);
+    }
     try {
       const [aucRes, classRes] = await Promise.all([
         api.get('/auctions').catch(() => null),
@@ -49,18 +38,14 @@ export default function Home() {
 
       if (aucRes?.data?.data && Array.isArray(aucRes.data.data)) {
         setLiveAuctions(aucRes.data.data);
-        try { localStorage.setItem('sr_auctions', JSON.stringify(aucRes.data.data)); } catch {}
       } else if (Array.isArray(aucRes?.data)) {
         setLiveAuctions(aucRes.data);
-        try { localStorage.setItem('sr_auctions', JSON.stringify(aucRes.data)); } catch {}
       }
 
       if (classRes?.data?.data && Array.isArray(classRes.data.data)) {
         setClassifieds(classRes.data.data.slice(0, 4));
-        try { localStorage.setItem('sr_classifieds', JSON.stringify(classRes.data.data)); } catch {}
       } else if (Array.isArray(classRes?.data)) {
         setClassifieds(classRes.data.slice(0, 4));
-        try { localStorage.setItem('sr_classifieds', JSON.stringify(classRes.data)); } catch {}
       }
     } catch (err) {
       console.error('Error fetching home data:', err);
@@ -70,23 +55,31 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+
+    // Live polling every 6 seconds to sync across different browsers and devices
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 6000);
 
     let unsub: any = null;
     import('../services/realtimeSync').then(({ subscribeRealtimeEvents }) => {
       unsub = subscribeRealtimeEvents((event) => {
         if (
           event.type === 'auction_created' ||
+          event.type === 'auction_updated' ||
           event.type === 'auction_deleted' ||
           event.type === 'classified_created' ||
+          event.type === 'classified_updated' ||
           event.type === 'classified_deleted'
         ) {
-          fetchData();
+          fetchData(true);
         }
       });
     });
 
     return () => {
+      clearInterval(interval);
       if (unsub) unsub();
     };
   }, []);

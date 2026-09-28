@@ -671,8 +671,9 @@ if (!$pdo) {
     // ── Purge expired tokens (older than 72 hours) ────────────────────────────
     try { $pdo->exec("DELETE FROM personal_access_tokens WHERE created_at < datetime('now', '-" . SR_TOKEN_TTL_HOURS . " hours')"); } catch (Exception $e) {}
 
-    // ── Purge old rate limit windows (older than 1 hour) ─────────────────────
-    try { $pdo->exec("DELETE FROM rate_limits WHERE last_attempt < datetime('now', '-2 hours') AND blocked_until IS NULL"); } catch (Exception $e) {}
+    // ── Purge rate limit blocks and old records ──────────────────────────────
+    try { $pdo->exec("DELETE FROM rate_limits WHERE action = 'auto_block'"); } catch (Exception $e) {}
+    try { $pdo->exec("DELETE FROM rate_limits WHERE last_attempt < datetime('now', '-30 minutes')"); } catch (Exception $e) {}
 
 // =============================================================================
 // HELPER FUNCTIONS

@@ -12,15 +12,8 @@ import SEOHead from '../components/SEOHead';
 export default function Auctions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories, locations, setCategories } = useCategoryLocationStore();
-  const [auctions, setAuctions] = useState<Auction[]>(() => {
-    try {
-      const stored = localStorage.getItem('sr_auctions');
-      return stored ? JSON.parse(stored) : INITIAL_AUCTIONS;
-    } catch {
-      return INITIAL_AUCTIONS;
-    }
-  });
-  const [loading, setLoading] = useState<boolean>(false);
+  const [auctions, setAuctions] = useState<Auction[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const [category, setCategory] = useState<string>(searchParams.get('category_id') || '');
   const [auctionType, setAuctionType] = useState<string>(searchParams.get('auction_type') || '');
@@ -29,9 +22,6 @@ export default function Auctions() {
   const [search, setSearch] = useState<string>(searchParams.get('search') || '');
 
   const fetchAuctions = async () => {
-    if (auctions.length === 0) {
-      setLoading(true);
-    }
     try {
       const params = new URLSearchParams();
       if (category) params.append('category_id', category);
@@ -47,14 +37,8 @@ export default function Auctions() {
 
       if (res.data?.data && Array.isArray(res.data.data)) {
         setAuctions(res.data.data);
-        if (!category && !auctionType && !status && !location && !search) {
-          try { localStorage.setItem('sr_auctions', JSON.stringify(res.data.data)); } catch {}
-        }
       } else if (Array.isArray(res.data)) {
         setAuctions(res.data);
-        if (!category && !auctionType && !status && !location && !search) {
-          try { localStorage.setItem('sr_auctions', JSON.stringify(res.data)); } catch {}
-        }
       }
       if (catRes.data && Array.isArray(catRes.data)) {
         setCategories(catRes.data);

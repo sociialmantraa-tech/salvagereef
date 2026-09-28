@@ -32,14 +32,14 @@ define('SR_ALLOWED_ORIGINS', [
 ]);
 
 // ─── Rate Limit Thresholds ───────────────────────────────────────────────────
-define('SR_GLOBAL_RATE_LIMIT',      120); // Max requests per IP per minute
-define('SR_LOGIN_MAX_ATTEMPTS',       5); // Failed logins before IP ban
-define('SR_LOGIN_BAN_SECONDS',      900); // Ban duration (15 minutes)
-define('SR_REGISTER_MAX_PER_HOUR',    3); // Max registrations per IP per hour
-define('SR_BID_MAX_PER_MINUTE',      30); // Max bids per user per minute
-define('SR_ADMIN_RATE_LIMIT',        60); // Max admin requests per IP per minute
-define('SR_AUTO_BLOCK_THRESHOLD',    20); // Security violations before 24h block
-define('SR_AUTO_BLOCK_DURATION',  86400); // Auto-block duration (24 hours)
+define('SR_GLOBAL_RATE_LIMIT',      1200); // Max requests per IP per minute (generous for real-time polling)
+define('SR_LOGIN_MAX_ATTEMPTS',       15); // Failed logins before IP ban
+define('SR_LOGIN_BAN_SECONDS',       300); // Ban duration (5 minutes)
+define('SR_REGISTER_MAX_PER_HOUR',    20); // Max registrations per IP per hour
+define('SR_BID_MAX_PER_MINUTE',      120); // Max bids per user per minute
+define('SR_ADMIN_RATE_LIMIT',        600); // Max admin requests per IP per minute
+define('SR_AUTO_BLOCK_THRESHOLD',    999); // Disable auto-blocking during normal operations
+define('SR_AUTO_BLOCK_DURATION',      60); // Minimal duration if ever triggered
 
 // ─── Token Expiry ────────────────────────────────────────────────────────────
 define('SR_TOKEN_TTL_HOURS', 72);   // Auth tokens expire after 72 hours

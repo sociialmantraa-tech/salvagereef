@@ -1615,7 +1615,7 @@ export function handleMockApi(config: any): any {
       status: bodyData.status || 'live',
       start_time: bodyData.start_time || new Date().toISOString(),
       end_time: bodyData.end_time || new Date(Date.now() + 7 * 86400000).toISOString(),
-      seller_id: currentUser.id,
+      created_by: currentUser.id,
       bids: [],
     };
 

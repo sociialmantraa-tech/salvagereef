@@ -490,46 +490,21 @@ export default function AdminDashboard() {
     ]);
   });
 
-  const [auctions, setAuctions] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('sr_admin_auctions') || localStorage.getItem('sr_auctions');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return INITIAL_AUCTIONS;
-  });
+  const [auctions, setAuctions] = useState<any[]>([]);
 
-  // Persist auctions to localStorage whenever they change
   const setAuctionsPersisted = (updater: any) => {
     setAuctions((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      const toSave = Array.isArray(next) ? next : INITIAL_AUCTIONS;
-      localStorage.setItem('sr_admin_auctions', JSON.stringify(toSave));
-      localStorage.setItem('sr_auctions', JSON.stringify(toSave));
-      return toSave;
+      return Array.isArray(next) ? next : [];
     });
   };
 
-  const [classifieds, setClassifieds] = useState<any[]>(() => {
-    try {
-      const s = localStorage.getItem('sr_admin_classifieds') || localStorage.getItem('sr_classifieds');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return INITIAL_CLASSIFIEDS;
-  });
+  const [classifieds, setClassifieds] = useState<any[]>([]);
 
   const setClassifiedsPersisted = (updater: any) => {
     setClassifieds((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      const toSave = Array.isArray(next) ? next : INITIAL_CLASSIFIEDS;
-      localStorage.setItem('sr_admin_classifieds', JSON.stringify(toSave));
-      localStorage.setItem('sr_classifieds', JSON.stringify(toSave));
-      return toSave;
+      return Array.isArray(next) ? next : [];
     });
   };
 
@@ -2114,102 +2089,54 @@ export default function AdminDashboard() {
       showNotification(`✓ Location "${name}" deleted permanently.`);
     } else if (type === 'auction') {
       const aucToDelete = auctions.find((a) => String(a.id) === String(id));
-      // Optimistically update local state & persistence immediately
-      setAuctionsPersisted((prev) => {
-        const updated = prev.filter((a) => String(a.id) !== String(id));
-        return updated;
-      });
-
-      // Synchronize both localStorage keys immediately
-      try {
-        const stored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
-        if (Array.isArray(stored)) {
-          const updated = stored.filter((a: any) => String(a.id) !== String(id));
-          localStorage.setItem('sr_auctions', JSON.stringify(updated));
-          localStorage.setItem('sr_admin_auctions', JSON.stringify(updated));
-        }
-      } catch {}
+      setAuctionsPersisted((prev) => prev.filter((a) => String(a.id) !== String(id)));
 
       if (aucToDelete) {
-        pushUndoAction(`Delete Auction "${aucToDelete.title}"`, () => {
-          setAuctionsPersisted((prev) => {
-            const restored = [aucToDelete, ...prev.filter((a) => String(a.id) !== String(id))];
-            try {
-              localStorage.setItem('sr_auctions', JSON.stringify(restored));
-              localStorage.setItem('sr_admin_auctions', JSON.stringify(restored));
-            } catch {}
-            return restored;
-          });
+        pushUndoAction(`Delete Auction "${aucToDelete.title}"`, async () => {
+          try {
+            await api.post('/admin/auctions', aucToDelete);
+            fetchAdminData(true);
+            broadcastRealtimeEvent('auction_created', { id });
+          } catch {}
         });
       }
 
-      // Perform backend deletion asynchronously
+      // Perform backend deletion
       api.delete(`/admin/auctions/${id}`)
         .then(() => {
           broadcastRealtimeEvent('auction_deleted', { id });
-          showNotification(`✓ Auction lot "${name}" removed & deleted permanently!`);
+          showNotification(`✓ Auction lot "${name}" removed & deleted permanently from database!`);
         })
         .catch((err: any) => {
           const errMsg = err.response?.data?.message || err.message || 'Failed to delete auction on server.';
-          console.warn('Backend delete error (purged locally):', errMsg);
-          logSystemError(err, {
-            file: 'frontend/src/views/AdminDashboard.tsx',
-            line: 2075,
-            method: 'DELETE',
-            url: `/admin/auctions/${id}`,
-            severity: 'warning',
-            exception_class: 'AuctionDeleteSyncNotice',
-          });
-          broadcastRealtimeEvent('auction_deleted', { id });
-          showNotification(`✓ Auction lot "${name}" removed from platform.`);
+          showNotification(`❌ Error: ${errMsg}`);
+          // Revert optimistic delete on error
+          fetchAdminData(true);
         });
     } else if (type === 'classified') {
       const classToDelete = classifieds.find((c) => String(c.id) === String(id));
-      setClassifiedsPersisted((prev) => {
-        const updated = prev.filter((c) => String(c.id) !== String(id));
-        return updated;
-      });
-
-      try {
-        const stored = JSON.parse(localStorage.getItem('sr_classifieds') || '[]');
-        if (Array.isArray(stored)) {
-          const updated = stored.filter((c: any) => String(c.id) !== String(id));
-          localStorage.setItem('sr_classifieds', JSON.stringify(updated));
-          localStorage.setItem('sr_admin_classifieds', JSON.stringify(updated));
-        }
-      } catch {}
+      setClassifiedsPersisted((prev) => prev.filter((c) => String(c.id) !== String(id)));
 
       if (classToDelete) {
-        pushUndoAction(`Delete Classified "${classToDelete.title}"`, () => {
-          setClassifiedsPersisted((prev) => {
-            const restored = [classToDelete, ...prev.filter((c) => String(c.id) !== String(id))];
-            try {
-              localStorage.setItem('sr_classifieds', JSON.stringify(restored));
-              localStorage.setItem('sr_admin_classifieds', JSON.stringify(restored));
-            } catch {}
-            return restored;
-          });
+        pushUndoAction(`Delete Classified "${classToDelete.title}"`, async () => {
+          try {
+            await api.post('/admin/classifieds', classToDelete);
+            fetchAdminData(true);
+            broadcastRealtimeEvent('classified_created', { id });
+          } catch {}
         });
       }
 
       api.delete(`/admin/classifieds/${id}`)
         .then(() => {
           broadcastRealtimeEvent('classified_deleted', { id });
-          showNotification(`✓ Classified listing "${name}" removed & deleted permanently!`);
+          showNotification(`✓ Classified listing "${name}" removed & deleted permanently from database!`);
         })
         .catch((err: any) => {
           const errMsg = err.response?.data?.message || err.message || 'Failed to delete classified on server.';
-          console.warn('Backend classified delete error (purged locally):', errMsg);
-          logSystemError(err, {
-            file: 'frontend/src/views/AdminDashboard.tsx',
-            line: 2100,
-            method: 'DELETE',
-            url: `/admin/classifieds/${id}`,
-            severity: 'warning',
-            exception_class: 'ClassifiedDeleteSyncNotice',
-          });
-          broadcastRealtimeEvent('classified_deleted', { id });
-          showNotification(`✓ Classified listing "${name}" removed from platform.`);
+          showNotification(`❌ Error: ${errMsg}`);
+          // Revert optimistic delete on error
+          fetchAdminData(true);
         });
     } else if (type === 'tender') {
       const tenderToDelete = interests.find((i) => i.id === id);
