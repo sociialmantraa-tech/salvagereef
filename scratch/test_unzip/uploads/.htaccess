@@ -1,0 +1,41 @@
+# ============================================================
+# SalvageReef — Uploads Folder Security .htaccess
+# Place at: public_html/uploads/.htaccess
+# Prevents directory listing, PHP execution, script injection
+# ============================================================
+
+# Disable directory browsing
+Options -Indexes -ExecCGI
+ServerSignature Off
+
+# ── STRIP ALL SCRIPT HANDLERS ─────────────────────────────────────────────────
+RemoveHandler .php .php3 .php4 .php5 .php7 .phtml .pl .py .cgi .sh .asp .aspx .rb .phar
+RemoveType   .php .php3 .php4 .php5 .php7 .phtml .pl .py .cgi .sh .asp .aspx .rb .phar
+
+# ── BLOCK SCRIPT FILES ABSOLUTELY ─────────────────────────────────────────────
+<FilesMatch "\.(php|php3|php4|php5|php7|phtml|phar|pl|py|rb|cgi|sh|asp|aspx|htaccess|htpasswd|xml|json|env|sql|bak|log)$">
+  Order Deny,Allow
+  Deny from all
+</FilesMatch>
+
+# ── ALLOW ONLY SAFE FILE TYPES ────────────────────────────────────────────────
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|ico|pdf)$">
+  Order Allow,Deny
+  Allow from all
+</FilesMatch>
+
+# ── SVG: Set correct MIME and nosniff to prevent XSS ─────────────────────────
+<FilesMatch "\.svg$">
+  Order Allow,Deny
+  Allow from all
+  <IfModule mod_headers.c>
+    Header set Content-Type "image/svg+xml"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'"
+  </IfModule>
+</FilesMatch>
+
+# ── SECURITY HEADERS ON ALL UPLOADS ───────────────────────────────────────────
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>
