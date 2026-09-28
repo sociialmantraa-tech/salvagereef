@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SalvageReef - Admin Console Complete Manual & Pointer Guide</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.5;
+      font-size: 11pt;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #0B192C 0%, #1E3E62 100%);
+      color: #ffffff;
+      padding: 24px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 4px solid #D48B1C;
+    }
+    
+    .header h1 {
+      font-size: 20pt;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+    
+    .header h1 span {
+      color: #F8B133;
+    }
+    
+    .header p {
+      color: #94a3b8;
+      font-size: 9.5pt;
+      margin-top: 4px;
+    }
+    
+    .doc-badge {
+      background: #D48B1C;
+      color: #ffffff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 9pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .intro-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #D48B1C;
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 9.5pt;
+    }
+    
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1.5px solid #f1f5f9;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5pt;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    
+    .num-badge {
+      background: #0B192C;
+      color: #F8B133;
+      font-size: 9pt;
+      font-weight: 800;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+    
+    .tab-tag {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 8pt;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #bae6fd;
+      text-transform: uppercase;
+    }
+    
+    .lang-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .lang-col {
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #edf2f7;
+    }
+    
+    .lang-col.en {
+      border-left: 3px solid #0284c7;
+    }
+    
+    .lang-col.hi {
+      border-left: 3px solid #16a34a;
+      background: #f0fdf4;
+    }
+    
+    .lang-header {
+      font-size: 8pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .lang-header.en { color: #0369a1; }
+    .lang-header.hi { color: #15803d; }
+    
+    .explanation {
+      font-size: 9.5pt;
+      color: #334155;
+      line-height: 1.45;
+    }
+    
+    .points {
+      margin-top: 8px;
+      padding-left: 18px;
+      font-size: 8.8pt;
+      color: #475569;
+    }
+    
+    .points li {
+      margin-bottom: 3px;
+    }
+    
+    .footer {
+      margin-top: 25px;
+      text-align: center;
+      font-size: 8.5pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 15px;
+      page-break-inside: avoid;
+    }
+    
+    .page-break {
+      page-break-after: always;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <h1>Salvage<span>Reef</span> Admin Manual</h1>
+      <p>Master Admin Console — Complete Options & Pointers Guide (English & Hinglish)</p>
+    </div>
+    <div class="doc-badge">Official Guide</div>
+  </div>
+
+  <div class="intro-box">
+    <strong>📌 Overview:</strong> This quick reference handbook explains each section of the <strong>SalvageReef Master Admin Console</strong> in concise, easy-to-understand terms. Use this to quickly train your team, understand workflows, and manage daily scrap operations seamlessly.
+  </div>
+
+  <!-- 1. EXECUTIVE OVERVIEW -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">1</span>
+        <span>Executive Overview</span>
+      </div>
+      <span class="tab-tag">Tab: Overview</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          The main real-time analytics command center displaying key performance indicators (KPIs) computed directly from the live database.
+        </div>
+        <ul class="points">
+          <li><strong>Live Charts:</strong> Bidding activity timeline & monthly lot performance.</li>
+          <li><strong>Status Breakdown:</strong> Active, completed, and upcoming lots.</li>
+          <li><strong>Leaderboard:</strong> Top bidders ranked by bid volume and wins.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Yeh admin ka main dashboard hai jahan real-time database ka live data aur graphs automatically update hote hain.
+        </div>
+        <ul class="points">
+          <li><strong>Live Graphs:</strong> Date-wise total bids aur auction performance.</li>
+          <li><strong>Status Donut:</strong> Kitne lots active hain aur kitne complete hue.</li>
+          <li><strong>Top Bidders:</strong> Sabse zyada bidding karne wale buyers ki list.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. SELL SCRAP REQUESTS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">2</span>
+        <span>Sell Scrap Requests</span>
+      </div>
+      <span class="tab-tag">Tab: sell-scrap-requests</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Inquiries submitted by external <strong>sellers</strong> via the <em>"Sell Your Scrap"</em> form (`/sell-scrap`) wanting to list their materials.
+        </div>
+        <ul class="points">
+          <li><strong>Seller Profile:</strong> Contact name, phone, email, and GST number.</li>
+          <li><strong>Lot Details:</strong> Scrap type, weight/quantity, asking price, yard location & photos.</li>
+          <li><strong>1-Click Conversion:</strong> Instantly convert into a Live Auction or Classified listing.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Jo factory owners ya scrap <strong>sellers</strong> apna maal bechna chahte hain (`/sell-scrap` se), unki sari requests yahan aati hain.
+        </div>
+        <ul class="points">
+          <li><strong>Seller Details:</strong> Naam, mobile number, GST aur factory location.</li>
+          <li><strong>Maal ki Details:</strong> Scrap photo, quantity (MT), aur seller ka price.</li>
+          <li><strong>1-Click Publish:</strong> Ek click me is request ko Live Auction bana sakte hain.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. ADD NEW PRODUCT / LOT -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">3</span>
+        <span>Add New Product / Lot</span>
+      </div>
+      <span class="tab-tag">Tab: add-product</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Direct creation portal for admins to list new public auctions, confidential private tenders, or classified items.
+        </div>
+        <ul class="points">
+          <li><strong>Pricing & EMD:</strong> Set starting price, reserve price, bid step, and EMD amount.</li>
+          <li><strong>Schedule:</strong> Precise start date/time and ending countdown timer.</li>
+          <li><strong>Media Upload:</strong> Multiple high-res photos with auto-WebP compression.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Admin yahan se direct naya Auction Lot ya Private Tender create karke website par live karta hai.
+        </div>
+        <ul class="points">
+          <li><strong>Price & EMD:</strong> Starting price, minimum bid increase step aur EMD set karein.</li>
+          <li><strong>Timing:</strong> Auction kab shuru hoga aur kab countdown khatam hoga.</li>
+          <li><strong>Photos:</strong> Multiple scrap photos upload karne ki suvidha.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. CATEGORIES & LOCATIONS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">4</span>
+        <span>Categories & Locations</span>
+      </div>
+      <span class="tab-tag">Tab: categories-locations</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Master registry of scrap industry categories and supported states/cities across India.
+        </div>
+        <ul class="points">
+          <li><strong>Categories:</strong> Add or modify categories (e.g. Copper, Heavy Steel, Machinery, Batteries).</li>
+          <li><strong>Locations:</strong> Configure target industrial hubs (Mumbai, Pune, Ahmedabad, Delhi, etc.).</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Scrap categories aur business locations (States & Cities) manage karne ki master table.
+        </div>
+        <ul class="points">
+          <li><strong>Categories:</strong> Nayi scrap category (Copper, Steel, Machinery) add ya delete karein.</li>
+          <li><strong>Locations:</strong> Naye cities aur states add karein jahan auction available hai.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 5. BUYER TENDER REQUESTS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">5</span>
+        <span>Buyer Tender Requests</span>
+      </div>
+      <span class="tab-tag">Tab: approvals</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Gatekeeper approvals desk for locked <strong>Private Tenders</strong> and confidential corporate lots.
+        </div>
+        <ul class="points">
+          <li><strong>Buyer Access:</strong> Review corporate buyers requesting permission to view & bid.</li>
+          <li><strong>Approve Access:</strong> Grants instant permission to unlock the live bidding room.</li>
+          <li><strong>Reject / Revoke:</strong> Prevents unverified bidders from accessing confidential lots.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Private Tender ya confidential auctions me bid karne ke liye buyers jo entry permission mangte hain, unko yahan se control karte hain.
+        </div>
+        <ul class="points">
+          <li><strong>Buyer Approval:</strong> Buyer ki company verify karke use bidding room ka access dein.</li>
+          <li><strong>Approve Button:</strong> Click karte hi buyer ke liye bidding screen unlock ho jayegi.</li>
+          <li><strong>Reject Button:</strong> Anjaan ya fake buyers ko private tender se bahar rakhein.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. LIVE BIDS & MODERATION -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">6</span>
+        <span>Live Bids & Moderation</span>
+      </div>
+      <span class="tab-tag">Tab: bid-approvals</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Real-time log of every monetary bid placed in live auctions. Bids are <strong>accepted automatically</strong> for speed, with admin safety moderation.
+        </div>
+        <ul class="points">
+          <li><strong>Audit Trail:</strong> See exact amount, bidder name, company, and timestamp.</li>
+          <li><strong>Fraud/Typo Prevention:</strong> Reject/cancel accidental or rogue bids instantly.</li>
+          <li><strong>Undo Support:</strong> 1-click restore if a bid was mistakenly rejected.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Live auction me aane wali har ek bid ka live log. Bids <strong>automatically accept</strong> ho jati hain taaki timer smooth chale, par admin ke paas cancel karne ka control rehta hai.
+        </div>
+        <ul class="points">
+          <li><strong>Live Monitoring:</strong> Kaunsa buyer kitne rupaye ki bid kis second par laga raha hai.</li>
+          <li><strong>Reject Option:</strong> Agar kisi ne galti se extra zero laga diya ya fake bid mari, toh use cancel karein.</li>
+          <li><strong>Undo Button:</strong> Galti se reject ho gayi bid ko wapas approve karne ki suvidha.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. AUCTION LOTS & TOP 3 WINNERS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">7</span>
+        <span>Auction Lots & Top 3 Winners (H1/H2/H3)</span>
+      </div>
+      <span class="tab-tag">Tab: auctions</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Complete inventory of all auctions with automated winner determination (Highest Bidder 1, 2, and 3).
+        </div>
+        <ul class="points">
+          <li><strong>Winner Ranking:</strong> Automatically identifies H1 (Highest), H2 (Runner-up), and H3.</li>
+          <li><strong>Award Contract:</strong> Officially award the lot to H1 or fallback to H2 if H1 defaults.</li>
+          <li><strong>Lifecycle Controls:</strong> Pause, end immediately, or extend countdown time.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Sabhi auctions ki main list jahan auction khatam hone par top 3 highest bidders (H1, H2, H3) automatically calculate hote hain.
+        </div>
+        <ul class="points">
+          <li><strong>H1 / H2 / H3:</strong> Sabse unchi bid (H1) aur doosri unchi bid (H2) automatically dikhti hai.</li>
+          <li><strong>Award Winner:</strong> Auction jeetne wale (H1) ko deal confirm karke award karein.</li>
+          <li><strong>Timer Control:</strong> Auction ka time badhana ya turant close karna.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. CLASSIFIEDS MANAGER -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">8</span>
+        <span>Classifieds Manager</span>
+      </div>
+      <span class="tab-tag">Tab: classifieds</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Moderation console for fixed-price B2B scrap and surplus machinery listings posted on the classifieds board.
+        </div>
+        <ul class="points">
+          <li><strong>Listing Review:</strong> Verify price, contact, material specifications, and images.</li>
+          <li><strong>Status Toggle:</strong> Approve, reject, delete, or mark as Sold.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Fixed-price scrap aur purani machinery ke Classified ads ko approve, edit ya delete karne ka section.
+        </div>
+        <ul class="points">
+          <li><strong>Listing Review:</strong> Seller ka price, description aur photo check karein.</li>
+          <li><strong>Status:</strong> Approved, Pending ya Sold mark karein.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 9. PAGES CONTENT & COLORS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">9</span>
+        <span>Pages Content & Colors (CMS)</span>
+      </div>
+      <span class="tab-tag">Tab: pages-editor</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Built-in visual Content Management System (CMS) to edit website text, trust badges, and brand theme colors.
+        </div>
+        <ul class="points">
+          <li><strong>Homepage Content:</strong> Change hero headlines, subheadings, and announcement bars.</li>
+          <li><strong>Branding:</strong> Update primary accent colors, logos, and trust counter numbers.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Website ka text content, hero banners, theme color aur announcements bina coding ke live change karne ka CMS panel.
+        </div>
+        <ul class="points">
+          <li><strong>Text & Banners:</strong> Homepage ki heading, about us text aur notices badlein.</li>
+          <li><strong>Color Theme:</strong> Button colors aur website branding ko customize karein.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. SEO & META KEYWORDS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">10</span>
+        <span>SEO & Meta Keywords</span>
+      </div>
+      <span class="tab-tag">Tab: seo</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Search engine optimization settings to control how SalvageReef ranks on Google and appears when shared on social media.
+        </div>
+        <ul class="points">
+          <li><strong>Meta Tags:</strong> Edit Page Title, Meta Description, and Targeted Scrap Keywords.</li>
+          <li><strong>Indexing:</strong> Enable/disable Google web crawlers (Index/No-Index).</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Google search ranking aur social media sharing ke meta tags ko set karne ka panel.
+        </div>
+        <ul class="points">
+          <li><strong>Keywords:</strong> Google par top rank pane ke liye scrap keywords aur titles set karein.</li>
+          <li><strong>Google Index:</strong> Pages ko Google me indexed ya private rakhne ka toggle.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. USERS & STATUS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">11</span>
+        <span>Users & Status</span>
+      </div>
+      <span class="tab-tag">Tab: users</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Central user account directory for all registered bidders, industrial sellers, and corporate buyers.
+        </div>
+        <ul class="points">
+          <li><strong>KYC & Profile:</strong> Verify business name, GSTIN, phone, and bidding history.</li>
+          <li><strong>User Controls:</strong> Suspend fraudulent users or grant Admin / Moderator privileges.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Sabhi registered buyers aur sellers ka master user database.
+        </div>
+        <ul class="points">
+          <li><strong>KYC Verification:</strong> User ka GST, phone number, aur bidding record check karein.</li>
+          <li><strong>Block / Activate:</strong> Kisi fraudulent user ko block ya suspend karein.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12. WEBSITE DETAILS & SETTINGS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">12</span>
+        <span>Website Details & Settings</span>
+      </div>
+      <span class="tab-tag">Tab: settings</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Global company contact information, bank account details for EMD deposits, and platform-wide emergency controls.
+        </div>
+        <ul class="points">
+          <li><strong>Company Info:</strong> Official support phone, WhatsApp number, email, and office address.</li>
+          <li><strong>Bank & EMD:</strong> Corporate bank details displayed to buyers for EMD transfers.</li>
+          <li><strong>Maintenance Mode:</strong> 1-click toggle to show maintenance screen during major updates.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Company ka contact number, EMD ke liye bank details aur emergency maintenance mode ki settings.
+        </div>
+        <ul class="points">
+          <li><strong>Contact Info:</strong> Support WhatsApp, official phone, aur office address.</li>
+          <li><strong>Bank Details:</strong> Buyers ko EMD jama karne ke liye bank account details dikhana.</li>
+          <li><strong>Maintenance Mode:</strong> Website par temporary maintenance screen lagana ya hatana.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13. SYSTEM ERRORS & MAINTENANCE -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">13</span>
+        <span>System Errors & Maintenance</span>
+      </div>
+      <span class="tab-tag">Tab: errors-maintenance</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Real-time server telemetry, PHP error log viewer, and one-click maintenance tools.
+        </div>
+        <ul class="points">
+          <li><strong>Error Telemetry:</strong> Live count of HTTP 4xx/5xx backend exceptions.</li>
+          <li><strong>Log Clearing:</strong> 1-click button to purge resolved error logs and reset telemetry.</li>
+          <li><strong>Database Integrity:</strong> SQLite/MySQL connection status and diagnostics.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Website aur server ki technical health, error logs dekhne aur clean karne ka panel.
+        </div>
+        <ul class="points">
+          <li><strong>Error Logs:</strong> Agar koi API ya server issue aaye toh yahan error detail dikhti hai.</li>
+          <li><strong>Clear Logs:</strong> 1-click me error logs clear aur reset karne ka button.</li>
+          <li><strong>Database Status:</strong> Database connect hai ya nahi, uski live report.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 14. SALVAGE AI COPILOT -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="num-badge">14</span>
+        <span>🤖 Salvage AI Copilot</span>
+      </div>
+      <span class="tab-tag">Tab: ai-copilot</span>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-col en">
+        <div class="lang-header en">🇬🇧 English Explanation</div>
+        <div class="explanation">
+          Intelligent AI assistant trained on scrap industry benchmarks to assist administrators with routine tasks.
+        </div>
+        <ul class="points">
+          <li><strong>Natural Language Queries:</strong> Ask for quick insights, summaries, and inventory counts.</li>
+          <li><strong>Smart Lot Creation:</strong> Draft auction titles and market reserve pricing suggestions.</li>
+        </ul>
+      </div>
+      <div class="lang-col hi">
+        <div class="lang-header hi">🇮🇳 Hinglish Explanation</div>
+        <div class="explanation">
+          Admin ka smart AI Assistant jo scrap rates, auto lot generation aur admin sawalon ke turant jawab deta hai.
+        </div>
+        <ul class="points">
+          <li><strong>AI Help:</strong> Chat me type karke kisi bhi auction ya user ki details jan sakte hain.</li>
+          <li><strong>Auto Lot Draft:</strong> Scrap ka market price estimate aur auction description likhwane me madad.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>SalvageReef</strong> — Industrial Scrap Auctions & B2B Classifieds Platform | Master Admin Manual
+  </div>
+
+</body>
+</html>
