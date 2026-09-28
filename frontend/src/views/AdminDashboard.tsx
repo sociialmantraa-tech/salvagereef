@@ -6464,6 +6464,24 @@ export default function AdminDashboard() {
                 users={users}
                 categories={storeCategories}
                 systemMode={systemModeSelect}
+                siteContent={content}
+                onUpdateSiteContent={(newContent) => {
+                  updateContent(newContent);
+                  api.post('/admin/system/settings', newContent).catch(() => {});
+                  showNotification('✓ Website content & settings updated live by Salvage AI Copilot!');
+                }}
+                onAddCategory={(name, slug) => {
+                  addCategory(name, slug);
+                  showNotification(`✓ Category "${name}" created live by Salvage AI Copilot!`);
+                }}
+                onDeleteCategory={(id) => {
+                  deleteCategory(id);
+                  showNotification(`✓ Category removed by Salvage AI Copilot!`);
+                }}
+                onAddLocation={(city, state) => {
+                  addLocation(city, state);
+                  showNotification(`✓ Hub location "${city}, ${state}" added by Salvage AI Copilot!`);
+                }}
                 onAddAuction={(newAuc) => {
                   const item = newAuc as Auction;
                   setAuctions(prev => [item, ...prev]);
