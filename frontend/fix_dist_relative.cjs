@@ -74,7 +74,6 @@ if (fs.existsSync(deployDir)) {
 // 3. Pre-create required backend log and upload directories
 const requiredDirs = [
   path.join(deployDir, 'backend', 'logs'),
-  path.join(deployDir, 'backend', 'storage', 'logs', 'errors'),
   path.join(deployDir, 'uploads', 'auction'),
   path.join(deployDir, 'uploads', 'classified'),
   path.join(deployDir, 'uploads', 'logo'),
@@ -99,7 +98,6 @@ const errorLogFiles = [
   path.join(deployDir, 'backend', 'logs', 'security.log'),
   path.join(deployDir, 'backend', 'logs', 'upload.log'),
   path.join(deployDir, 'backend', 'logs', 'fatal.log'),
-  path.join(deployDir, 'backend', 'storage', 'logs', 'errors', 'error_log.txt'),
 ];
 
 for (const f of errorLogFiles) {
