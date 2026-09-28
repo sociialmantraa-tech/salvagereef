@@ -2791,7 +2791,7 @@ export default function AdminDashboard() {
                 {[
                   { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
                   { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-                  { label: '🔒 Private Tender Access', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                  { label: '📩 Buyer Tender Requests', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
                   { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                   { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
                   { label: '📋 Classifieds Manager', tab: 'classifieds', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
@@ -2838,7 +2838,7 @@ export default function AdminDashboard() {
               { id: 'sell-scrap-requests', label: 'Sell Scrap Requests', icon: FileText, badge: scrapRequests.filter(r => r.status === 'pending').length || undefined, highlight: scrapRequests.filter(r => r.status === 'pending').length > 0 },
               { id: 'add-product', label: 'Add New Product / Lot', icon: PackagePlus, highlight: true },
               { id: 'categories-locations', label: 'Categories & Locations', icon: Layers, badge: storeCategories.length },
-              { id: 'approvals', label: 'Private Tender Permissions', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
+              { id: 'approvals', label: 'Buyer Tender Requests', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
               { id: 'bid-approvals', label: 'Live Bids & Moderation', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined },
               { id: 'auctions', label: 'Auction Lots & Top 3 Winners (H1/H2/H3)', icon: Trophy, badge: auctions.length },
               { id: 'classifieds', label: 'Classifieds', icon: Tag, badge: classifieds.length },
@@ -2917,7 +2917,7 @@ export default function AdminDashboard() {
                   {[
                     { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
                     { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-                    { label: '🔒 Private Tender Access', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
+                    { label: '📩 Buyer Tender Requests', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
                     { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                     { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
                     { label: '📋 Classifieds Manager', tab: 'classifieds', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
@@ -3991,9 +3991,9 @@ export default function AdminDashboard() {
               <div className="border-b border-slate-200 pb-3 flex justify-between items-center gap-3 flex-wrap">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-[#D48B1C]" /> Private Tender Bidder Permissions Desk
+                    <ShieldAlert className="w-5 h-5 text-[#D48B1C]" /> Buyer Tender Access Requests Desk
                   </h3>
-                  <p className="text-xs text-slate-500">Review & approve buyer access requests to participate in locked private tenders & confidential lots.</p>
+                  <p className="text-xs text-slate-500">Review & approve buyer requests to participate and bid on private tender lots & confidential auctions.</p>
                 </div>
                 {undoStack.length > 0 && (
                   <button
