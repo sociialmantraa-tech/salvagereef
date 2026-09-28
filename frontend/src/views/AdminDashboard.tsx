@@ -490,21 +490,21 @@ export default function AdminDashboard() {
     ]);
   });
 
-  const [auctions, setAuctions] = useState<any[]>([]);
+  const [auctions, setAuctions] = useState<any[]>(() => INITIAL_AUCTIONS);
 
   const setAuctionsPersisted = (updater: any) => {
     setAuctions((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      return Array.isArray(next) ? next : [];
+      return Array.isArray(next) && next.length > 0 ? next : (prev.length > 0 ? prev : INITIAL_AUCTIONS);
     });
   };
 
-  const [classifieds, setClassifieds] = useState<any[]>([]);
+  const [classifieds, setClassifieds] = useState<any[]>(() => INITIAL_CLASSIFIEDS);
 
   const setClassifiedsPersisted = (updater: any) => {
     setClassifieds((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      return Array.isArray(next) ? next : [];
+      return Array.isArray(next) && next.length > 0 ? next : (prev.length > 0 ? prev : INITIAL_CLASSIFIEDS);
     });
   };
 
@@ -1679,16 +1679,28 @@ export default function AdminDashboard() {
       }
       if (auctionsRes?.data) {
         const fetchedAuctions = Array.isArray(auctionsRes.data) ? auctionsRes.data : (auctionsRes.data?.data || []);
-        if (Array.isArray(fetchedAuctions)) {
+        if (Array.isArray(fetchedAuctions) && fetchedAuctions.length > 0) {
           setAuctionsPersisted(fetchedAuctions);
         }
+      } else {
+        // Fallback to public auctions endpoint
+        api.get('/auctions').then((res) => {
+          const list = res.data?.data || res.data;
+          if (Array.isArray(list) && list.length > 0) setAuctionsPersisted(list);
+        }).catch(() => {});
       }
 
       if (classifiedsRes?.data) {
         const fetchedClassifieds = Array.isArray(classifiedsRes.data) ? classifiedsRes.data : (classifiedsRes.data?.data || []);
-        if (Array.isArray(fetchedClassifieds)) {
+        if (Array.isArray(fetchedClassifieds) && fetchedClassifieds.length > 0) {
           setClassifiedsPersisted(fetchedClassifieds);
         }
+      } else {
+        // Fallback to public classifieds endpoint
+        api.get('/classifieds').then((res) => {
+          const list = res.data?.data || res.data;
+          if (Array.isArray(list) && list.length > 0) setClassifiedsPersisted(list);
+        }).catch(() => {});
       }
 
       if (scrapRes?.data) {
