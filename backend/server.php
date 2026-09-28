@@ -491,6 +491,30 @@ if (!$pdo) {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
 
+    // Auto-create sell_scrap_requests table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS sell_scrap_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        category_id INTEGER DEFAULT 1,
+        category_name TEXT DEFAULT 'General Scrap',
+        price NUMERIC DEFAULT 0,
+        quantity NUMERIC DEFAULT 1,
+        unit TEXT DEFAULT 'MT',
+        location_state TEXT DEFAULT 'Maharashtra',
+        location_city TEXT DEFAULT 'Mumbai',
+        site_address TEXT,
+        gst_number TEXT,
+        seller_name TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_email TEXT,
+        description TEXT,
+        image_url TEXT,
+        status TEXT DEFAULT 'pending',
+        user_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
     // Auto-create users table if missing
     $pdo->exec("CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1590,6 +1614,58 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?classifieds/(\d+)$#',
     $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$classifiedId]);
     $pdo->prepare("DELETE FROM classifieds WHERE id = ?")->execute([$classifiedId]);
     jsonResponse(['message' => 'Classified listing deleted permanently from database', 'id' => $classifiedId, 'success' => true]);
+}
+
+// 9g-1. List Sell Scrap Requests: GET /api/v1/sell-scrap-requests OR /api/v1/admin/sell-scrap-requests
+if ($method === 'GET' && ($uri === '/api/v1/sell-scrap-requests' || $uri === '/api/v1/admin/sell-scrap-requests')) {
+    $stmt = $pdo->query("SELECT * FROM sell_scrap_requests ORDER BY id DESC");
+    $items = $stmt->fetchAll();
+    jsonResponse(['data' => $items, 'total' => count($items)]);
+}
+
+// 9g-2. Create Sell Scrap Request: POST /api/v1/sell-scrap-requests OR /api/v1/admin/sell-scrap-requests
+if ($method === 'POST' && ($uri === '/api/v1/sell-scrap-requests' || $uri === '/api/v1/admin/sell-scrap-requests')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $title = trim($body['title'] ?? '');
+    if (empty($title)) jsonResponse(['message' => 'Scrap title is required'], 422);
+
+    $catId = (int)($body['category_id'] ?? 1);
+    $catName = trim($body['category_name'] ?? 'General Scrap');
+    $price = (float)($body['price'] ?? 0);
+    $quantity = (float)($body['quantity'] ?? 1);
+    $unit = trim($body['unit'] ?? 'MT');
+    $state = trim($body['location_state'] ?? 'Maharashtra');
+    $city = trim($body['location_city'] ?? 'Mumbai');
+    $siteAddr = trim($body['site_address'] ?? '');
+    $gst = trim($body['gst_number'] ?? '');
+    $sellerName = trim($body['seller_name'] ?? 'Guest Seller');
+    $sellerPhone = trim($body['seller_phone'] ?? '');
+    $sellerEmail = trim($body['seller_email'] ?? '');
+    $desc = trim($body['description'] ?? '');
+    $imgUrl = trim($body['image_url'] ?? '');
+    $userId = !empty($body['user_id']) ? (int)$body['user_id'] : null;
+
+    $stmt = $pdo->prepare("INSERT INTO sell_scrap_requests (title, category_id, category_name, price, quantity, unit, location_state, location_city, site_address, gst_number, seller_name, seller_phone, seller_email, description, image_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
+    $stmt->execute([$title, $catId, $catName, $price, $quantity, $unit, $state, $city, $siteAddr, $gst, $sellerName, $sellerPhone, $sellerEmail, $desc, $imgUrl, $userId]);
+    $newId = (int)$pdo->lastInsertId();
+
+    jsonResponse(['success' => true, 'id' => $newId, 'message' => 'Scrap request submitted successfully to Admin Desk']);
+}
+
+// 9g-3. Update Scrap Request Status: PUT /api/v1/admin/sell-scrap-requests/{id}/status
+if ($method === 'PUT' && preg_match('#^/api/v1/admin/sell-scrap-requests/(\d+)/status$#', $uri, $m)) {
+    $reqId = (int)$m[1];
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $status = trim($body['status'] ?? 'pending');
+    $pdo->prepare("UPDATE sell_scrap_requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$status, $reqId]);
+    jsonResponse(['success' => true, 'message' => "Scrap request status updated to {$status}"]);
+}
+
+// 9g-4. Delete Scrap Request: DELETE /api/v1/admin/sell-scrap-requests/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/admin/sell-scrap-requests/(\d+)$#', $uri, $m)) {
+    $reqId = (int)$m[1];
+    $pdo->prepare("DELETE FROM sell_scrap_requests WHERE id = ?")->execute([$reqId]);
+    jsonResponse(['success' => true, 'message' => 'Scrap request deleted permanently']);
 }
 
 // 9h. Admin Dashboard Stats: GET /api/v1/admin/dashboard/stats

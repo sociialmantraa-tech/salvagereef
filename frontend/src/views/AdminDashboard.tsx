@@ -1658,12 +1658,13 @@ export default function AdminDashboard() {
     if (!isInitial) setIsRefreshing(true);
     setLoading(true);
     try {
-      const [statsRes, usersRes, auctionsRes, classifiedsRes, sysStatusRes] = await Promise.all([
+      const [statsRes, usersRes, auctionsRes, classifiedsRes, sysStatusRes, scrapRes] = await Promise.all([
         api.get('/admin/dashboard/stats', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/users', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/auctions/all', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/classifieds/all', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/system/status', { params: { _t: Date.now() } }).catch(() => null),
+        api.get('/admin/sell-scrap-requests', { params: { _t: Date.now() } }).catch(() => null),
       ]);
 
       if (statsRes?.data?.stats) setStats(statsRes.data.stats);
@@ -1687,6 +1688,13 @@ export default function AdminDashboard() {
         const fetchedClassifieds = Array.isArray(classifiedsRes.data) ? classifiedsRes.data : (classifiedsRes.data?.data || []);
         if (Array.isArray(fetchedClassifieds)) {
           setClassifiedsPersisted(fetchedClassifieds);
+        }
+      }
+
+      if (scrapRes?.data) {
+        const fetchedScrap = Array.isArray(scrapRes.data) ? scrapRes.data : (scrapRes.data?.data || []);
+        if (Array.isArray(fetchedScrap)) {
+          setScrapRequests(fetchedScrap);
         }
       }
 
@@ -1766,9 +1774,8 @@ export default function AdminDashboard() {
     } catch (e) {}
   };
 
-  const handleConvertScrapToPublicListing = (item: any) => {
-    const newClassified = {
-      id: Date.now(),
+  const handleConvertScrapToPublicListing = async (item: any) => {
+    const payload = {
       title: item.title,
       slug: item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       category_id: Number(item.category_id || 1),
@@ -1779,15 +1786,18 @@ export default function AdminDashboard() {
       location_state: item.location_state || 'Maharashtra',
       status: 'available',
       description: item.description || '',
-      category: { id: Number(item.category_id || 1), name: item.category_name || 'General Scrap', slug: 'scrap' },
-      creator: { name: item.seller_name, email: item.seller_email, phone: item.seller_phone, company_name: item.seller_name },
-      primary_image: { id: Date.now(), image_path: item.image_url, is_primary: true },
-      images: [{ id: Date.now(), image_path: item.image_url, is_primary: true }],
+      image_url: item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
     };
 
-    setClassifiedsPersisted((prev: any[]) => [newClassified, ...prev]);
-    handleUpdateScrapRequestStatus(item.id, 'converted');
-    showNotification(`🚀 1-Click Published! "${item.title}" is now LIVE on public Classifieds page!`);
+    try {
+      await api.post('/admin/classifieds', payload);
+      await api.put(`/admin/sell-scrap-requests/${item.id}/status`, { status: 'converted' });
+      broadcastRealtimeEvent('classified_created');
+      fetchAdminData(true);
+      showNotification(`🚀 1-Click Published! "${item.title}" is now LIVE on public Classifieds page!`);
+    } catch (err: any) {
+      showNotification(err.response?.data?.message || 'Failed to publish classified listing to server database.');
+    }
   };
 
   // Real-time synchronization bus listener + active polling across all browsers and devices

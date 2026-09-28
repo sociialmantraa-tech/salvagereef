@@ -126,11 +126,9 @@ export default function PostListing() {
       // Submit directly to admin sell-scrap-requests endpoint
       await api.post('/sell-scrap-requests', payload);
 
-      // Save locally to localStorage fallback database if mock mode
       try {
-        const stored = JSON.parse(localStorage.getItem('sr_sell_scrap_requests') || '[]');
-        const updated = [{ id: Date.now(), ...payload }, ...stored];
-        localStorage.setItem('sr_sell_scrap_requests', JSON.stringify(updated));
+        const { broadcastRealtimeEvent } = await import('../services/realtimeSync');
+        broadcastRealtimeEvent('scrap_request_created', payload);
       } catch (e) {}
 
       setSubmittedData(payload);
