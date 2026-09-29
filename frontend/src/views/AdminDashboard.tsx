@@ -74,7 +74,8 @@ import {
   CreditCard,
   Download,
   X,
-  Bot
+  Bot,
+  AlertCircle
 } from 'lucide-react';
 
 import SEOHead from '../components/SEOHead';
@@ -611,50 +612,14 @@ export default function AdminDashboard() {
     });
   };
 
-  // Bid Approvals State — load from localStorage first, fall back to seeded mock data
+  // Bid Approvals State — loaded live from backend database
   const [bidStatusFilter, setBidStatusFilter] = useState<string>('all');
   const [bidsList, setBidsList] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('sr_admin_bids');
-      if (stored) return JSON.parse(stored);
+      if (stored !== null) return JSON.parse(stored);
     } catch {}
-    return [
-    {
-      id: 901, auction_id: 999, auction_title: '⚡ 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
-      bidder_name: 'Neelkanth Sharma', bidder_email: 'neelkanth@metals.com', bidder_company: 'Metals & Alloys Co',
-      amount: 750000, status: 'pending', created_at: new Date(Date.now() - 60000).toISOString(),
-    },
-    {
-      id: 902, auction_id: 999, auction_title: '⚡ 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
-      bidder_name: 'Bharat Scrap Traders', bidder_email: 'procurement@bharatscrap.com', bidder_company: 'Bharat Scrap Traders',
-      amount: 720000, status: 'pending', created_at: new Date(Date.now() - 120000).toISOString(),
-    },
-    {
-      id: 903, auction_id: 999, auction_title: '⚡ 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
-      bidder_name: 'Western Heavy Recyclers', bidder_email: 'bids@westernheavy.com', bidder_company: 'Western Heavy Recyclers Ltd',
-      amount: 690000, status: 'pending', created_at: new Date(Date.now() - 180000).toISOString(),
-    },
-    {
-      id: 501, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
-      bidder_name: 'Rajesh Kumar', bidder_email: 'rajesh@metalsalloys.com', bidder_company: 'Metals & Alloys Co',
-      amount: 4150000, status: 'approved', created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      id: 502, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
-      bidder_name: 'Bharat Traders', bidder_email: 'bharat@bharatscrap.com', bidder_company: 'Bharat Scrap Traders',
-      amount: 3900000, status: 'pending', created_at: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      id: 504, auction_id: 102, auction_title: 'CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)',
-      bidder_name: 'Precision Engineering Ltd', bidder_email: 'procurement@precisioneng.com', bidder_company: 'Precision Eng Ltd',
-      amount: 9200000, status: 'pending', created_at: new Date(Date.now() - 5000000).toISOString(),
-    },
-    {
-      id: 505, auction_id: 102, auction_title: 'CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)',
-      bidder_name: 'Global Heavy Infra', bidder_email: 'bids@globalheavy.com', bidder_company: 'Global Heavy Infra Pvt Ltd',
-      amount: 8500000, status: 'rejected', created_at: new Date(Date.now() - 10000000).toISOString(),
-    },
-  ];
+    return [];
   });
   
   const [activePageEditorTab, setActivePageEditorTab] = useState<
@@ -916,6 +881,7 @@ export default function AdminDashboard() {
   const [productUnit, setProductUnit] = useState('MT');
   const [productStartingPrice, setProductStartingPrice] = useState('100000');
   const [productBidIncrement, setProductBidIncrement] = useState('1000');
+  const [productEmdAmount, setProductEmdAmount] = useState('50000');
   const [productState, setProductState] = useState('Maharashtra');
   const [customProductState, setCustomProductState] = useState('');
   const [productCity, setProductCity] = useState('Mumbai');
@@ -923,6 +889,7 @@ export default function AdminDashboard() {
   const [productStartTime, setProductStartTime] = useState('2026-08-07T12:00');
   const [productEndTime, setProductEndTime] = useState('2026-08-15T18:00');
   const [productDescription, setProductDescription] = useState('');
+  const [productCondition, setProductCondition] = useState('As is where is basis - Grade A commercial condition');
 
   // (bidsList, bidStatusFilter already declared above)
   const [bidsLoading, setBidsLoading] = useState<boolean>(false);
@@ -943,6 +910,28 @@ export default function AdminDashboard() {
   const [compressedImage, setCompressedImage] = useState<CompressionResult | null>(null);
   const [compressedImageFile, setCompressedImageFile] = useState<File | null>(null);
   const [submittingProduct, setSubmittingProduct] = useState(false);
+
+  // Add Classified / Publish Type Form State
+  const [publishType, setPublishType] = useState<'auction' | 'classified'>('auction');
+  const [showAddClassifiedModal, setShowAddClassifiedModal] = useState<boolean>(false);
+  const [classifiedTitle, setClassifiedTitle] = useState('');
+  const [classifiedCategory, setClassifiedCategory] = useState('1');
+  const [customClassifiedCategory, setCustomClassifiedCategory] = useState('');
+  const [classifiedPrice, setClassifiedPrice] = useState('50000');
+  const [classifiedQuantity, setClassifiedQuantity] = useState('1');
+  const [classifiedUnit, setClassifiedUnit] = useState('nos');
+  const [classifiedState, setClassifiedState] = useState('Maharashtra');
+  const [customClassifiedState, setCustomClassifiedState] = useState('');
+  const [classifiedCity, setClassifiedCity] = useState('Mumbai');
+  const [customClassifiedCity, setCustomClassifiedCity] = useState('');
+  const [classifiedDescription, setClassifiedDescription] = useState('');
+  const [classifiedSellerName, setClassifiedSellerName] = useState('Executive Admin Desk');
+  const [classifiedSellerPhone, setClassifiedSellerPhone] = useState('7304481166');
+  const [classifiedSellerEmail, setClassifiedSellerEmail] = useState('admin@salvagereef.com');
+  const [submittingClassified, setSubmittingClassified] = useState<boolean>(false);
+  const [classifiedCompressedImage, setClassifiedCompressedImage] = useState<CompressionResult | null>(null);
+  const [classifiedCompressedImageFile, setClassifiedCompressedImageFile] = useState<File | null>(null);
+  const [compressingClassified, setCompressingClassified] = useState<boolean>(false);
 
   // Page Content & Colors Form State
   const [pageContentForm, setPageContentForm] = useState(content);
@@ -1138,19 +1127,28 @@ export default function AdminDashboard() {
   const fetchBidsList = async () => {
     setBidsLoading(true);
     try {
-      const res = await api.get('/admin/bids', { params: { status: bidStatusFilter } });
-      // Only overwrite with API data if the API actually returned records
-      if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-        const merged = res.data.data;
-        setBidsList(merged);
-        localStorage.setItem('sr_admin_bids', JSON.stringify(merged));
+      const res = await api.get('/admin/bids', { params: { status: bidStatusFilter, _t: Date.now() } });
+      const data = res.data?.data || res.data?.bids || res.data;
+      if (Array.isArray(data)) {
+        setBidsList(data);
+        localStorage.setItem('sr_admin_bids', JSON.stringify(data));
       }
-      // Otherwise keep the existing state (seeded mock or localStorage data)
     } catch (err) {
-      // Silently keep existing state — don't reset mock data on network error
+      console.error('Error loading live bids:', err);
     } finally {
       setBidsLoading(false);
     }
+  };
+
+  const fetchInterests = async () => {
+    try {
+      const res = await api.get('/admin/interests', { params: { _t: Date.now() } });
+      const data = res.data?.data || res.data?.interests || res.data;
+      if (Array.isArray(data)) {
+        setInterests(data);
+        localStorage.setItem('sr_admin_interests', JSON.stringify(data));
+      }
+    } catch (err) {}
   };
 
   // Persist bid status change to localStorage so it survives refresh
@@ -1158,13 +1156,13 @@ export default function AdminDashboard() {
     localStorage.setItem('sr_admin_bids', JSON.stringify(updatedList));
   };
 
-  const handleUpdateBidStatus = async (bidId: number, newStatus: 'approved' | 'rejected') => {
-    const targetBid = bidsList.find((b) => b.id === bidId);
+  const handleUpdateBidStatus = async (bidId: number | string, newStatus: 'approved' | 'rejected') => {
+    const targetBid = bidsList.find((b) => String(b.id) === String(bidId));
     const previousStatus = targetBid?.status || 'pending';
 
     pushUndoAction(`Set Bid #${bidId} to ${newStatus.toUpperCase()}`, () => {
       setBidsList((prev) => {
-        const reverted = prev.map((b) => (b.id === bidId ? { ...b, status: previousStatus } : b));
+        const reverted = prev.map((b) => (String(b.id) === String(bidId) ? { ...b, status: previousStatus } : b));
         persistBidUpdate(reverted);
         return reverted;
       });
@@ -1179,7 +1177,7 @@ export default function AdminDashboard() {
     });
 
     setBidsList((prev) => {
-      const updated = prev.map((b) => (b.id === bidId ? { ...b, status: newStatus } : b));
+      const updated = prev.map((b) => (String(b.id) === String(bidId) ? { ...b, status: newStatus } : b));
       persistBidUpdate(updated);
       return updated;
     });
@@ -1729,13 +1727,15 @@ export default function AdminDashboard() {
     if (!isInitial) setIsRefreshing(true);
     setLoading(true);
     try {
-      const [statsRes, usersRes, auctionsRes, classifiedsRes, sysStatusRes, scrapRes] = await Promise.all([
+      const [statsRes, usersRes, auctionsRes, classifiedsRes, sysStatusRes, scrapRes, bidsRes, interestsRes] = await Promise.all([
         api.get('/admin/dashboard/stats', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/users', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/auctions/all', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/classifieds/all', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/system/status', { params: { _t: Date.now() } }).catch(() => null),
         api.get('/admin/sell-scrap-requests', { params: { _t: Date.now() } }).catch(() => null),
+        api.get('/admin/bids', { params: { status: bidStatusFilter, _t: Date.now() } }).catch(() => null),
+        api.get('/admin/interests', { params: { _t: Date.now() } }).catch(() => null),
       ]);
 
       if (statsRes?.data?.stats) setStats(statsRes.data.stats);
@@ -1781,6 +1781,22 @@ export default function AdminDashboard() {
         }
       }
 
+      if (bidsRes?.data) {
+        const fetchedBids = Array.isArray(bidsRes.data) ? bidsRes.data : (bidsRes.data?.data || bidsRes.data?.bids || []);
+        if (Array.isArray(fetchedBids)) {
+          setBidsList(fetchedBids);
+          localStorage.setItem('sr_admin_bids', JSON.stringify(fetchedBids));
+        }
+      }
+
+      if (interestsRes?.data) {
+        const fetchedInterests = Array.isArray(interestsRes.data) ? interestsRes.data : (interestsRes.data?.data || interestsRes.data?.interests || []);
+        if (Array.isArray(fetchedInterests)) {
+          setInterests(fetchedInterests);
+          localStorage.setItem('sr_admin_interests', JSON.stringify(fetchedInterests));
+        }
+      }
+
       if (sysStatusRes?.data?.system_mode) {
         const liveMode = sysStatusRes.data.system_mode as 'online' | 'maintenance' | 'temporary_closed';
         setSystemModeSelect(liveMode);
@@ -1808,6 +1824,13 @@ export default function AdminDashboard() {
     }
   };
 
+  // Keep live bids updated when switching to bid-approvals or overview tabs
+  useEffect(() => {
+    if (activeTab === 'bid-approvals' || activeTab === 'overview' || activeTab === 'auctions') {
+      fetchBidsList();
+    }
+  }, [activeTab, bidStatusFilter]);
+
   useEffect(() => {
     fetchAdminData(true);
     const unsub = subscribeRealtimeEvents((event) => {
@@ -1819,9 +1842,16 @@ export default function AdminDashboard() {
         event.type === 'classified_updated' ||
         event.type === 'classified_deleted' ||
         event.type === 'bid_submitted' ||
+        event.type === 'bid_deleted' ||
+        event.type === 'bid_status_updated' ||
+        event.type === 'tender_deleted' ||
         event.type === 'user_created' ||
-        event.type === 'user_updated'
+        event.type === 'user_updated' ||
+        event.type === 'user_deleted'
       ) {
+        if (event.type === 'bid_deleted' && event.payload?.bidId) {
+          setBidsList((prev) => prev.filter((b) => String(b.id) !== String(event.payload.bidId)));
+        }
         fetchAdminData(true);
       }
     });
@@ -1887,11 +1917,29 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAdminData(true);
     fetchBidsList();
+    fetchInterests();
 
     const unsubscribeRealtime = subscribeRealtimeEvents((event) => {
       if (event.type === 'bid_submitted' || event.type === 'new_bid') {
         fetchBidsList();
         fetchAdminData(true);
+      } else if (event.type === 'bid_deleted') {
+        fetchBidsList();
+      } else if (event.type === 'tender_request_submitted') {
+        const newReq = event.payload;
+        if (newReq) {
+          setInterests((prev) => {
+            const exists = prev.some((i) => String(i.id) === String(newReq.id));
+            if (exists) return prev;
+            const updated = [newReq, ...prev];
+            localStorage.setItem('sr_admin_interests', JSON.stringify(updated));
+            return updated;
+          });
+          showNotification(`🔔 New Tender Access Request from ${newReq.user_name || 'Buyer'} for "${newReq.auction_title || 'Private Lot'}"!`);
+        }
+        fetchInterests();
+      } else if (event.type === 'tender_deleted') {
+        fetchInterests();
       } else if (event.type === 'user_created' || event.type === 'user_updated' || event.type === 'user_registered') {
         fetchAdminData(true);
       } else if (event.type === 'auction_created' || event.type === 'auction_updated' || event.type === 'classified_created') {
@@ -1902,8 +1950,8 @@ export default function AdminDashboard() {
     const interval = setInterval(() => {
       fetchAdminData(true);
       fetchBidsList();
+      fetchInterests();
     }, 15000);
-
 
     return () => {
       unsubscribeRealtime();
@@ -1993,12 +2041,14 @@ export default function AdminDashboard() {
         title: combinedTitle,
         lot_code: finalLotCode,
         description: productDescription || 'High quality salvage lot published by admin desk.',
+        condition: productCondition.trim() || 'As is where is basis - Grade A commercial condition',
         category_id: productCategory === 'custom' ? Date.now() : productCategory,
         category_name: resolvedCategoryName,
         auction_type: productType,
         quantity: parseFloat(productQuantity),
         unit: productUnit,
         starting_price: parseFloat(productStartingPrice),
+        emd_amount: parseFloat(productEmdAmount) || 0,
         bid_increment: parseFloat(productBidIncrement) || 1000,
         start_time: productStartTime,
         end_time: productEndTime,
@@ -2012,10 +2062,13 @@ export default function AdminDashboard() {
         title: combinedTitle,
         lot_code: finalLotCode,
         slug: productTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        description: productDescription || 'High quality salvage lot published by admin desk.',
+        condition: productCondition.trim() || 'As is where is basis - Grade A commercial condition',
         category: resolvedCategoryName,
         auction_type: productType,
         status: 'live',
         starting_price: parseFloat(productStartingPrice),
+        emd_amount: parseFloat(productEmdAmount) || 0,
         bid_increment: parseFloat(productBidIncrement) || 1000,
         current_highest_bid: parseFloat(productStartingPrice),
         location_city: resolvedCity,
@@ -2037,6 +2090,8 @@ export default function AdminDashboard() {
       setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`);
       setProductTitle('');
       setProductDescription('');
+      setProductCondition('As is where is basis - Grade A commercial condition');
+      setProductEmdAmount('50000');
       setCustomCategoryName('');
       setCustomProductState('');
       setCustomProductCity('');
@@ -2047,15 +2102,124 @@ export default function AdminDashboard() {
     }
   };
 
+  // Add Classified Handler
+  const handleAddClassifiedSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingClassified(true);
+
+    const resolvedCategoryName = classifiedCategory === 'custom'
+      ? (customClassifiedCategory.trim() || 'General Scrap Machinery')
+      : (storeCategories.find(c => c.id.toString() === classifiedCategory)?.name || 'Scrap Heavy Machinery');
+
+    if (classifiedCategory === 'custom' && customClassifiedCategory.trim()) {
+      addCategory(customClassifiedCategory.trim());
+    }
+
+    const resolvedState = classifiedState === 'custom'
+      ? (customClassifiedState.trim() || 'Maharashtra')
+      : classifiedState;
+
+    const resolvedCity = (classifiedState === 'custom' || classifiedCity === 'custom')
+      ? (customClassifiedCity.trim() || 'Mumbai')
+      : classifiedCity;
+
+    try {
+      let finalImageUrl = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
+
+      if (classifiedCompressedImageFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', classifiedCompressedImageFile);
+          formData.append('type', 'classified');
+          const uploadRes = await uploadFile('/admin/upload', formData);
+          if (uploadRes?.url) {
+            finalImageUrl = uploadRes.url;
+          } else if (classifiedCompressedImage?.dataUrl) {
+            finalImageUrl = classifiedCompressedImage.dataUrl;
+          }
+        } catch {
+          finalImageUrl = classifiedCompressedImage?.dataUrl || finalImageUrl;
+        }
+      } else if (classifiedCompressedImage?.dataUrl) {
+        finalImageUrl = classifiedCompressedImage.dataUrl;
+      }
+
+      const slugBase = classifiedTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const uniqueSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+      const newId = Date.now();
+
+      const newClassifiedItem: any = {
+        id: newId,
+        title: classifiedTitle.trim(),
+        slug: uniqueSlug,
+        description: classifiedDescription.trim() || 'Verified machinery classified item published by admin desk.',
+        category_id: classifiedCategory === 'custom' ? newId : Number(classifiedCategory),
+        category_name: resolvedCategoryName,
+        category: { id: classifiedCategory === 'custom' ? newId : Number(classifiedCategory), name: resolvedCategoryName, slug: slugBase },
+        price: parseFloat(classifiedPrice) || 50000,
+        quantity: parseFloat(classifiedQuantity) || 1,
+        unit: classifiedUnit || 'nos',
+        location_city: resolvedCity,
+        location_state: resolvedState,
+        status: 'available',
+        created_by: authUser?.id || 1,
+        creator: {
+          id: authUser?.id || 1,
+          name: classifiedSellerName || authUser?.name || 'Executive Admin Desk',
+          email: classifiedSellerEmail || authUser?.email || 'admin@salvagereef.com',
+          phone: classifiedSellerPhone || authUser?.phone || '7304481166',
+          company_name: 'SalvageReef Direct Desk',
+        },
+        images: [
+          { id: newId, image_path: finalImageUrl, is_primary: true }
+        ],
+        primary_image: { id: newId, image_path: finalImageUrl, is_primary: true },
+        created_at: new Date().toISOString(),
+      };
+
+      setClassifiedsPersisted((prev: any[]) => [newClassifiedItem, ...prev]);
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('sr_classifieds') || '[]');
+        localStorage.setItem('sr_classifieds', JSON.stringify([newClassifiedItem, ...stored]));
+        localStorage.setItem('sr_admin_classifieds', JSON.stringify([newClassifiedItem, ...stored]));
+      } catch {}
+
+      broadcastRealtimeEvent('classified_created', newClassifiedItem);
+
+      try {
+        await api.post('/admin/classifieds', newClassifiedItem);
+      } catch {
+        try {
+          await api.post('/classifieds/post-listing', newClassifiedItem);
+        } catch {}
+      }
+
+      showNotification(`✓ Classified listing "${classifiedTitle}" published live!`);
+      setClassifiedTitle('');
+      setClassifiedDescription('');
+      setClassifiedPrice('50000');
+      setClassifiedQuantity('1');
+      setCustomClassifiedCategory('');
+      setCustomClassifiedState('');
+      setCustomClassifiedCity('');
+      setClassifiedCompressedImage(null);
+      setClassifiedCompressedImageFile(null);
+      setShowAddClassifiedModal(false);
+      setActiveTab('classifieds');
+    } finally {
+      setSubmittingClassified(false);
+    }
+  };
 
   // Approve Interest Request
-  const handleApproveInterest = (id: number) => {
-    const prevInterest = interests.find((i) => i.id === id);
+  const handleApproveInterest = (id: number | string) => {
+    const prevInterest = interests.find((i) => String(i.id) === String(id));
     const prevStatus = prevInterest?.status || 'pending';
 
     pushUndoAction(`Approve Tender Access for ${prevInterest?.user_name || 'Bidder'}`, () => {
       setInterests((prev) => {
-        const reverted = prev.map((i) => (i.id === id ? { ...i, status: prevStatus } : i));
+        const reverted = prev.map((i) => (String(i.id) === String(id) ? { ...i, status: prevStatus } : i));
         localStorage.setItem('sr_admin_interests', JSON.stringify(reverted));
         return reverted;
       });
@@ -2063,7 +2227,7 @@ export default function AdminDashboard() {
     });
 
     setInterests((prev) => {
-      const updated = prev.map((i) => (i.id === id ? { ...i, status: 'approved' } : i));
+      const updated = prev.map((i) => (String(i.id) === String(id) ? { ...i, status: 'approved' } : i));
       localStorage.setItem('sr_admin_interests', JSON.stringify(updated));
       return updated;
     });
@@ -2072,13 +2236,13 @@ export default function AdminDashboard() {
   };
 
   // Reject Interest Request
-  const handleRejectInterest = (id: number) => {
-    const prevInterest = interests.find((i) => i.id === id);
+  const handleRejectInterest = (id: number | string) => {
+    const prevInterest = interests.find((i) => String(i.id) === String(id));
     const prevStatus = prevInterest?.status || 'pending';
 
     pushUndoAction(`Reject Tender Access for ${prevInterest?.user_name || 'Bidder'}`, () => {
       setInterests((prev) => {
-        const reverted = prev.map((i) => (i.id === id ? { ...i, status: prevStatus } : i));
+        const reverted = prev.map((i) => (String(i.id) === String(id) ? { ...i, status: prevStatus } : i));
         localStorage.setItem('sr_admin_interests', JSON.stringify(reverted));
         return reverted;
       });
@@ -2086,7 +2250,7 @@ export default function AdminDashboard() {
     });
 
     setInterests((prev) => {
-      const updated = prev.map((i) => (i.id === id ? { ...i, status: 'rejected' } : i));
+      const updated = prev.map((i) => (String(i.id) === String(id) ? { ...i, status: 'rejected' } : i));
       localStorage.setItem('sr_admin_interests', JSON.stringify(updated));
       return updated;
     });
@@ -2266,16 +2430,16 @@ export default function AdminDashboard() {
           fetchAdminData(true);
         });
     } else if (type === 'tender') {
-      const tenderToDelete = interests.find((i) => i.id === id);
+      const tenderToDelete = interests.find((i) => String(i.id) === String(id));
       setInterests((prev) => {
-        const updated = prev.filter((i) => i.id !== id);
+        const updated = prev.filter((i) => String(i.id) !== String(id));
         localStorage.setItem('sr_admin_interests', JSON.stringify(updated));
         return updated;
       });
       if (tenderToDelete) {
         pushUndoAction(`Delete Tender Request (${tenderToDelete.user_name})`, () => {
           setInterests((prev) => {
-            const restored = [tenderToDelete, ...prev.filter((i) => i.id !== id)];
+            const restored = [tenderToDelete, ...prev.filter((i) => String(i.id) !== String(id))];
             localStorage.setItem('sr_admin_interests', JSON.stringify(restored));
             return restored;
           });
@@ -2285,25 +2449,31 @@ export default function AdminDashboard() {
       broadcastRealtimeEvent('tender_deleted', { id });
       showNotification(`✓ Tender access request removed permanently!`);
     } else if (type === 'bid') {
-      const bidToDelete = bidsList.find((b) => b.id === id);
-      setBidsList((prev) => {
-        const updated = prev.filter((b) => b.id !== id);
-        persistBidUpdate(updated);
-        return updated;
-      });
+      const bidToDelete = bidsList.find((b) => String(b.id) === String(id));
+      const updatedList = bidsList.filter((b) => String(b.id) !== String(id));
+      setBidsList(updatedList);
+      persistBidUpdate(updatedList);
+
       if (bidToDelete) {
-        pushUndoAction(`Delete Bid #${bidToDelete.id} (₹${Number(bidToDelete.amount).toLocaleString('en-IN')})`, () => {
+        pushUndoAction(`Delete Bid #${bidToDelete.id} (₹${Number(bidToDelete.amount).toLocaleString('en-IN')})`, async () => {
           setBidsList((prev) => {
-            const restored = [bidToDelete, ...prev.filter((b) => b.id !== id)];
+            const restored = [bidToDelete, ...prev.filter((b) => String(b.id) !== String(id))];
             persistBidUpdate(restored);
             return restored;
           });
           broadcastRealtimeEvent('bid_submitted', bidToDelete);
+          await fetchBidsList();
         });
       }
-      api.delete(`/admin/bids/${id}`).catch(() => {});
+
+      try {
+        await api.delete(`/admin/bids/${id}`);
+      } catch (err) {
+        console.error('Failed to delete bid on backend:', err);
+      }
       broadcastRealtimeEvent('bid_deleted', { bidId: id });
-      showNotification(`✓ Bid #${id} removed and deleted permanently!`);
+      showNotification(`✓ Bid #${id} removed and deleted permanently from database!`);
+      await fetchBidsList();
     } else if (type === 'user') {
       const userToDelete = users.find((u) => u.id === id);
       const isTargetMaster = userToDelete && (userToDelete.id === 3 || userToDelete.role === 'master_admin' || userToDelete.email === 'admin@salvagereef.com');
@@ -2889,7 +3059,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-2.5">
                 {[
                   { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
-                  { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+                  { label: '➕ Add Lot / Classified', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
                   { label: '📩 Buyer Tender Requests', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
                   { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                   { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
@@ -2935,7 +3105,7 @@ export default function AdminDashboard() {
             {[
               { id: 'overview', label: 'Executive Overview', icon: LayoutDashboard },
               { id: 'sell-scrap-requests', label: 'Sell Scrap Requests', icon: FileText, badge: scrapRequests.filter(r => r.status === 'pending').length || undefined, highlight: scrapRequests.filter(r => r.status === 'pending').length > 0 },
-              { id: 'add-product', label: 'Add New Product / Lot', icon: PackagePlus, highlight: true },
+              { id: 'add-product', label: 'Add New Lot / Classified', icon: PackagePlus, highlight: true },
               { id: 'categories-locations', label: 'Categories & Locations', icon: Layers, badge: storeCategories.length },
               { id: 'approvals', label: 'Buyer Tender Requests', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
               { id: 'bid-approvals', label: 'Live Bids & Moderation', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined },
@@ -3015,7 +3185,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                   {[
                     { label: '📦 Sell Scrap Requests', tab: 'sell-scrap-requests', color: 'bg-amber-700 hover:bg-amber-800 text-white font-black' },
-                    { label: '➕ Add New Lot', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+                    { label: '➕ Add Lot / Classified', tab: 'add-product', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
                     { label: '📩 Buyer Tender Requests', tab: 'approvals', color: 'bg-amber-600 hover:bg-amber-700 text-white' },
                     { label: '📊 Live Bids & Moderation', tab: 'bid-approvals', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
                     { label: '🏆 Auction Lots & Winners', tab: 'auctions', color: 'bg-[#D48B1C] hover:bg-[#b87614] text-white' },
@@ -3591,15 +3761,62 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: ADD PRODUCT / LOT */}
+          {/* TAB 3: ADD PRODUCT / LOT / CLASSIFIED */}
           {activeTab === 'add-product' && (
-            <form onSubmit={handleAddProductSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="border-b border-slate-200 pb-3">
-                <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                  <PackagePlus className="w-5 h-5 text-emerald-600" /> Publish New Auction / Salvage Lot
-                </h3>
-                <p className="text-xs text-slate-500">Create new forward auction lot listing for corporate disposal in Mumbai.</p>
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              {/* Sub-Tab Selector for Auction vs Classified */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg sm:text-xl flex items-center gap-2">
+                    {publishType === 'auction' ? (
+                      <>
+                        <PackagePlus className="w-6 h-6 text-emerald-600" />
+                        <span>Publish New Forward Auction Lot</span>
+                      </>
+                    ) : (
+                      <>
+                        <Tag className="w-6 h-6 text-purple-600" />
+                        <span>Publish Machinery & Scrap Classified Listing</span>
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {publishType === 'auction'
+                      ? 'Create timed B2B forward auction lots with bidding controls & winner tiers.'
+                      : 'Create direct buy & sell machinery / idle asset classified listings with instant seller contact.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPublishType('auction')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                      publishType === 'auction'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                    }`}
+                  >
+                    <PackagePlus className="w-4 h-4" />
+                    <span>1. Auction Lot</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPublishType('classified')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                      publishType === 'classified'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                    }`}
+                  >
+                    <Tag className="w-4 h-4" />
+                    <span>2. Classified Ad</span>
+                  </button>
+                </div>
               </div>
+
+              {publishType === 'auction' ? (
+                <form onSubmit={handleAddProductSubmit} className="space-y-6">
 
               <div className="space-y-4 text-xs font-semibold text-slate-700">
                 {/* Unique Lot Code & Lot Title */}
@@ -3638,8 +3855,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Category, Type, Starting Price, Min Bid Increment */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Category, Type, Starting Price, Min Bid Increment, EMD Deposit */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-slate-900 font-bold mb-1">Category *</label>
                     <select
@@ -3697,6 +3914,18 @@ export default function AdminDashboard() {
                       onChange={(e) => setProductBidIncrement(e.target.value)}
                       placeholder="e.g. 1000 or 5000"
                       className="w-full p-3 bg-amber-50/90 border-2 border-[#D48B1C] rounded-xl font-mono text-amber-950 font-black focus:outline-none focus:ring-2 focus:ring-[#D48B1C] h-11"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-900 font-bold mb-1">EMD Deposit (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={productEmdAmount}
+                      onChange={(e) => setProductEmdAmount(e.target.value)}
+                      placeholder="e.g. 50000"
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-900 font-bold h-11"
                     />
                   </div>
                 </div>
@@ -3860,15 +4089,36 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-slate-900 font-bold mb-1">Lot Description & Specifications</label>
-                  <textarea
-                    rows={3}
-                    value={productDescription}
-                    onChange={(e) => setProductDescription(e.target.value)}
-                    placeholder="Describe material purity, weight, location inspection details..."
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-                  ></textarea>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
+                      <span>Lot Description & Specifications *</span>
+                      <span className="text-[10px] text-slate-500 font-normal">Technical specs</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={productDescription}
+                      onChange={(e) => setProductDescription(e.target.value)}
+                      placeholder="Describe material purity, weight, location inspection details..."
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-[#D48B1C] focus:border-[#D48B1C]"
+                    ></textarea>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-emerald-800 font-extrabold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Lot Condition / Material State *
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Quality Grade</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={productCondition}
+                      onChange={(e) => setProductCondition(e.target.value)}
+                      placeholder="e.g. As is where is basis - Grade A clean copper, tested 99.2% purity, ready for immediate lifting."
+                      className="w-full p-3 bg-emerald-50/40 border-2 border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400/20 rounded-xl font-medium text-slate-900"
+                    ></textarea>
+                  </div>
                 </div>
 
                 {/* Product / Lot Image or PDF Upload Box */}
@@ -3953,6 +4203,282 @@ export default function AdminDashboard() {
                 {submittingProduct ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />} Publish Auction Lot Now
               </button>
             </form>
+          ) : (
+            <form onSubmit={handleAddClassifiedSubmit} className="space-y-6">
+                  <div className="space-y-4 text-xs font-semibold text-slate-700">
+                    {/* Classified Title */}
+                    <div>
+                      <label className="block text-slate-900 font-bold mb-1">Classified Machinery / Scrap Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={classifiedTitle}
+                        onChange={(e) => setClassifiedTitle(e.target.value)}
+                        placeholder="e.g. Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy"
+                        className="w-full p-3 bg-purple-50/40 border border-purple-200 rounded-xl font-bold text-slate-900 text-sm h-11 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    {/* Category, Fixed Price, Quantity, Unit */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">Category *</label>
+                        <select
+                          value={classifiedCategory}
+                          onChange={(e) => setClassifiedCategory(e.target.value)}
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
+                        >
+                          {storeCategories.map((c) => (
+                            <option key={c.id} value={c.id.toString()}>{c.name}</option>
+                          ))}
+                          <option value="custom">➕ Write Own Custom Category...</option>
+                        </select>
+                        {classifiedCategory === 'custom' && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Type custom scrap category..."
+                            value={customClassifiedCategory}
+                            onChange={(e) => setCustomClassifiedCategory(e.target.value)}
+                            className="w-full mt-2 p-3 bg-white border-2 border-purple-500 rounded-xl font-bold text-slate-900 focus:outline-none h-11"
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">Direct Buy / Selling Price (₹) *</label>
+                        <input
+                          type="number"
+                          required
+                          value={classifiedPrice}
+                          onChange={(e) => setClassifiedPrice(e.target.value)}
+                          placeholder="e.g. 240000"
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-900 font-bold h-11"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">Quantity *</label>
+                        <input
+                          type="number"
+                          required
+                          value={classifiedQuantity}
+                          onChange={(e) => setClassifiedQuantity(e.target.value)}
+                          placeholder="e.g. 1 or 10"
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">Unit of Measurement *</label>
+                        <input
+                          type="text"
+                          required
+                          value={classifiedUnit}
+                          onChange={(e) => setClassifiedUnit(e.target.value)}
+                          placeholder="e.g. nos, MT, tons, kg, lot"
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
+                        />
+                      </div>
+                    </div>
+
+                    {/* State & City Location */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">State Location *</label>
+                        <select
+                          value={classifiedState}
+                          onChange={(e) => {
+                            const newState = e.target.value;
+                            setClassifiedState(newState);
+                            if (newState === 'custom') {
+                              setClassifiedCity('custom');
+                            } else {
+                              const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
+                              setClassifiedCity(firstCity);
+                            }
+                          }}
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                        >
+                          {INDIAN_STATES.map((st) => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                          <option value="custom">➕ Other / Custom State...</option>
+                        </select>
+                        {classifiedState === 'custom' && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Enter state name..."
+                            value={customClassifiedState}
+                            onChange={(e) => setCustomClassifiedState(e.target.value)}
+                            className="w-full mt-2 p-3 bg-white border-2 border-purple-500 rounded-xl font-bold text-slate-900 focus:outline-none"
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-900 font-bold mb-1">City Location *</label>
+                        {classifiedState !== 'custom' ? (
+                          <select
+                            value={classifiedCity}
+                            onChange={(e) => setClassifiedCity(e.target.value)}
+                            className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                          >
+                            {(STATE_CITIES_MAP[classifiedState] || ['Mumbai', 'Pune', 'Nagpur', 'Nashik']).map((ct) => (
+                              <option key={ct} value={ct}>{ct}</option>
+                            ))}
+                            <option value="custom">➕ Type Custom City...</option>
+                          </select>
+                        ) : null}
+                        {(classifiedCity === 'custom' || classifiedState === 'custom') && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Enter city / industrial hub name..."
+                            value={customClassifiedCity}
+                            onChange={(e) => setCustomClassifiedCity(e.target.value)}
+                            className="w-full mt-2 p-3 bg-white border-2 border-purple-500 rounded-xl font-bold text-slate-900 focus:outline-none"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact Person Details */}
+                    <div className="p-4 bg-purple-50/40 rounded-2xl border border-purple-200/80 space-y-3">
+                      <span className="text-[11px] font-black uppercase text-purple-800 tracking-wider flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-purple-600" /> Seller / Operations Contact Info (Displayed on Classified Ad)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-slate-800 font-bold mb-1">Contact Person Name</label>
+                          <input
+                            type="text"
+                            value={classifiedSellerName}
+                            onChange={(e) => setClassifiedSellerName(e.target.value)}
+                            placeholder="e.g. Executive Admin Desk"
+                            className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-800 font-bold mb-1">Phone Number</label>
+                          <input
+                            type="text"
+                            value={classifiedSellerPhone}
+                            onChange={(e) => setClassifiedSellerPhone(e.target.value)}
+                            placeholder="e.g. 7304481166"
+                            className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-800 font-bold mb-1">Contact Email</label>
+                          <input
+                            type="email"
+                            value={classifiedSellerEmail}
+                            onChange={(e) => setClassifiedSellerEmail(e.target.value)}
+                            placeholder="e.g. admin@salvagereef.com"
+                            className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-slate-900 font-bold mb-1">Detailed Description & Machine Specifications *</label>
+                      <textarea
+                        rows={3}
+                        required
+                        value={classifiedDescription}
+                        onChange={(e) => setClassifiedDescription(e.target.value)}
+                        placeholder="Describe machinery condition, capacity, working status, maintenance history, inspection availability..."
+                        className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    {/* Photo / PDF Upload */}
+                    <div>
+                      <label className="block text-slate-900 font-bold mb-1">Classified Photo or PDF Catalog Upload *</label>
+                      <div className="mt-1">
+                        {classifiedCompressedImage ? (
+                          <div className="relative p-4 bg-purple-50 rounded-2xl border-2 border-dashed border-purple-300 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {classifiedCompressedImage.isPdf ? (
+                                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center font-black text-xs">
+                                  PDF
+                                </div>
+                              ) : (
+                                <img
+                                  src={classifiedCompressedImage.dataUrl}
+                                  alt="Classified Preview"
+                                  className="w-12 h-12 rounded-xl object-cover border border-purple-200"
+                                />
+                              )}
+                              <div>
+                                <div className="text-xs font-black text-slate-900 truncate max-w-[220px]">
+                                  {classifiedCompressedImage.fileName}
+                                </div>
+                                <div className="text-[10px] text-purple-700 font-bold">
+                                  {classifiedCompressedImage.isPdf ? 'PDF Document' : 'Compressed WebP Image'} • {classifiedCompressedImage.compressedSizeStr}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClassifiedCompressedImage(null);
+                                setClassifiedCompressedImageFile(null);
+                              }}
+                              className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center justify-center p-6 bg-slate-50 hover:bg-purple-50/50 rounded-2xl border-2 border-dashed border-slate-300 hover:border-purple-400 cursor-pointer transition-all text-center">
+                            <UploadCloud className="w-8 h-8 text-purple-600 mb-1 animate-bounce" />
+                            <div className="text-xs font-extrabold text-slate-800">
+                              {compressingClassified ? 'Processing & Compressing...' : 'Click to upload Machinery Photo or PDF Document'}
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                              JPEG, PNG, WebP or PDF (Auto-compressed client-side for rapid loading)
+                            </p>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf,.pdf"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setCompressingClassified(true);
+                                  try {
+                                    const res = await processUploadFile(file);
+                                    setClassifiedCompressedImage(res);
+                                    setClassifiedCompressedImageFile(file);
+                                  } catch (err: any) {
+                                    alert(err.message || 'File upload error');
+                                  } finally {
+                                    setCompressingClassified(false);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingClassified}
+                    className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider active:scale-[0.99]"
+                  >
+                    {submittingClassified ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />} Publish Classified Ad Live Now
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {/* TAB 4: CATEGORIES & LOCATIONS (SIDE-BY-SIDE LAYOUT) */}
@@ -4720,16 +5246,28 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-xs text-slate-500">Manage scrap machinery & equipment classifieds published on SalvageReef.</p>
                 </div>
-                {undoStack.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {undoStack.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePerformUndo}
+                      className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 animate-pulse"
+                      title={`Undo latest action: ${undoStack[0].description}`}
+                    >
+                      <Undo2 className="w-4 h-4 text-slate-950" /> Undo Action ({undoStack.length})
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handlePerformUndo}
-                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 animate-pulse"
-                    title={`Undo latest action: ${undoStack[0].description}`}
+                    onClick={() => {
+                      setPublishType('classified');
+                      setActiveTab('add-product');
+                    }}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
                   >
-                    <Undo2 className="w-4 h-4 text-slate-950" /> Undo Action ({undoStack.length})
+                    <PlusCircle className="w-4 h-4" /> Add New Classified
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -7367,8 +7905,8 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Pricing Row (3 Columns) & Location Row (2 Columns) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Pricing Row (4 Columns) & Location Row (2 Columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-slate-900 font-bold mb-1 whitespace-nowrap">Starting Price (₹) *</label>
                   <input
@@ -7388,6 +7926,16 @@ export default function AdminDashboard() {
                     value={editingAuction.bid_increment || 1000}
                     onChange={(e) => setEditingAuction({ ...editingAuction, bid_increment: Number(e.target.value) })}
                     className="w-full p-3 bg-amber-50 border-2 border-amber-400 rounded-xl font-mono font-black text-amber-950 h-11"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-900 font-bold mb-1 whitespace-nowrap">EMD Deposit (₹)</label>
+                  <input
+                    type="number"
+                    value={editingAuction.emd_amount ?? 50000}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, emd_amount: Number(e.target.value) })}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900 h-11"
                   />
                 </div>
 
@@ -7670,14 +8218,32 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-900 font-bold mb-1">Full Description & T&C</label>
-                <textarea
-                  rows={3}
-                  value={editingAuction.description || ''}
-                  onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
-                ></textarea>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-900 font-bold mb-1">Full Description & T&C</label>
+                  <textarea
+                    rows={3}
+                    value={editingAuction.description || ''}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-emerald-800">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Lot Condition / Material State
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Quality Grade</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editingAuction.condition || ''}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, condition: e.target.value })}
+                    placeholder="e.g. As is where is basis - Grade A clean copper, tested 99.2% purity"
+                    className="w-full p-3 bg-emerald-50/40 border-2 border-emerald-300 focus:border-emerald-500 rounded-xl font-medium text-slate-900"
+                  ></textarea>
+                </div>
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex gap-3">
@@ -8116,7 +8682,7 @@ export default function AdminDashboard() {
       {/* FULL USER & SELLER PROFILE DETAILS MODAL */}
       {selectedUserDetailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white max-w-3xl w-full rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-0 flex flex-col max-h-[90vh]">
+          <div className="bg-white max-w-4xl w-full rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-0 flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}
             <div className="bg-[#0B192C] text-white p-6 border-b border-slate-800 flex justify-between items-start shrink-0">
@@ -8410,163 +8976,238 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* 1. PAN Card Document */}
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> 1. PAN Card Proof
-                        </span>
-                        <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-                          {selectedUserDetailModal.pan_number || 'PAN PROOF'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Registered firm/proprietor PAN document</p>
-                    </div>
+                  {(() => {
+                    const panDoc = selectedUserDetailModal.pan_file || selectedUserDetailModal.pan_document;
+                    const isPdf = isPdfDocument(panDoc);
+                    return (
+                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> 1. PAN Card Proof
+                            </span>
+                            <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                              {selectedUserDetailModal.pan_number || 'PAN PROOF'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Registered firm/proprietor PAN document</p>
+                        </div>
 
-                    <div 
-                      onClick={() => setPreviewDocumentModal({
-                        title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
-                        type: 'Permanent Account Number (PAN) Card',
-                        url: selectedUserDetailModal.pan_file || selectedUserDetailModal.pan_document || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&q=80',
-                        userName: selectedUserDetailModal.name
-                      })}
-                      className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
-                    >
-                      <img 
-                        src={selectedUserDetailModal.pan_file || selectedUserDetailModal.pan_document || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&q=80'} 
-                        alt="PAN Card Preview" 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                      />
-                      <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                        <Eye className="w-5 h-5 text-amber-400" />
-                        <span>Click to Enlarge</span>
-                      </div>
-                    </div>
+                        {panDoc ? (
+                          <div 
+                            onClick={() => setPreviewDocumentModal({
+                              title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
+                              type: 'Permanent Account Number (PAN) Card',
+                              url: panDoc,
+                              userName: selectedUserDetailModal.name
+                            })}
+                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                          >
+                            {isPdf ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-center p-3">
+                                <FileText className="w-8 h-8 text-red-600 mb-1" />
+                                <span className="text-[11px] font-bold text-red-900">PDF Document</span>
+                                <span className="text-[9px] text-red-700">Click to view/download</span>
+                              </div>
+                            ) : (
+                              <img 
+                                src={panDoc} 
+                                alt="PAN Card Preview" 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                              <Eye className="w-5 h-5 text-amber-400" />
+                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
+                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-bold text-slate-600">No PAN Attached</span>
+                            <span className="text-[9px] text-slate-400">User did not upload a PAN copy</span>
+                          </div>
+                        )}
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                      <span className="text-emerald-700 font-bold flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-600" /> Verified PAN
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewDocumentModal({
-                          title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
-                          type: 'Permanent Account Number (PAN) Card',
-                          url: selectedUserDetailModal.pan_file || selectedUserDetailModal.pan_document || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&q=80',
-                          userName: selectedUserDetailModal.name
-                        })}
-                        className="text-[#D48B1C] font-extrabold hover:underline"
-                      >
-                        View High-Res &rarr;
-                      </button>
-                    </div>
-                  </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className={`${panDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
+                            {panDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
+                            {panDoc ? 'Verified PAN Proof' : 'Not Uploaded'}
+                          </span>
+                          {panDoc && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDocumentModal({
+                                title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
+                                type: 'Permanent Account Number (PAN) Card',
+                                url: panDoc,
+                                userName: selectedUserDetailModal.name
+                              })}
+                              className="text-[#D48B1C] font-extrabold hover:underline"
+                            >
+                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 2. GST Registration Certificate */}
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-[#D48B1C]" /> 2. GST Certificate
-                        </span>
-                        <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-                          {selectedUserDetailModal.gst_number ? selectedUserDetailModal.gst_number.substring(0, 7) + '...' : 'GST REG-06'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Government GST REG-06 registration</p>
-                    </div>
+                  {(() => {
+                    const gstDoc = selectedUserDetailModal.gst_file || selectedUserDetailModal.gst_document;
+                    const isPdf = isPdfDocument(gstDoc);
+                    return (
+                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-[#D48B1C]" /> 2. GST Certificate
+                            </span>
+                            <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                              {selectedUserDetailModal.gst_number ? selectedUserDetailModal.gst_number.substring(0, 7) + '...' : 'GST REG-06'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Government GST REG-06 registration</p>
+                        </div>
 
-                    <div 
-                      onClick={() => setPreviewDocumentModal({
-                        title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
-                        type: 'GSTIN Business Registration Certificate (REG-06)',
-                        url: selectedUserDetailModal.gst_file || selectedUserDetailModal.gst_document || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1000&q=80',
-                        userName: selectedUserDetailModal.name
-                      })}
-                      className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
-                    >
-                      <img 
-                        src={selectedUserDetailModal.gst_file || selectedUserDetailModal.gst_document || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1000&q=80'} 
-                        alt="GST Certificate Preview" 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                      />
-                      <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                        <Eye className="w-5 h-5 text-amber-400" />
-                        <span>Click to Enlarge</span>
-                      </div>
-                    </div>
+                        {gstDoc ? (
+                          <div 
+                            onClick={() => setPreviewDocumentModal({
+                              title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
+                              type: 'GSTIN Business Registration Certificate (REG-06)',
+                              url: gstDoc,
+                              userName: selectedUserDetailModal.name
+                            })}
+                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                          >
+                            {isPdf ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-center p-3">
+                                <FileText className="w-8 h-8 text-blue-600 mb-1" />
+                                <span className="text-[11px] font-bold text-blue-900">PDF Document</span>
+                                <span className="text-[9px] text-blue-700">Click to view/download</span>
+                              </div>
+                            ) : (
+                              <img 
+                                src={gstDoc} 
+                                alt="GST Certificate Preview" 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                              <Eye className="w-5 h-5 text-amber-400" />
+                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
+                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-bold text-slate-600">No GST Attached</span>
+                            <span className="text-[9px] text-slate-400">User did not upload a GST certificate</span>
+                          </div>
+                        )}
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                      <span className="text-emerald-700 font-bold flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-600" /> Active GSTIN
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewDocumentModal({
-                          title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
-                          type: 'GSTIN Business Registration Certificate (REG-06)',
-                          url: selectedUserDetailModal.gst_file || selectedUserDetailModal.gst_document || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1000&q=80',
-                          userName: selectedUserDetailModal.name
-                        })}
-                        className="text-[#D48B1C] font-extrabold hover:underline"
-                      >
-                        View High-Res &rarr;
-                      </button>
-                    </div>
-                  </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className={`${gstDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
+                            {gstDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
+                            {gstDoc ? 'Active GSTIN Proof' : 'Not Uploaded'}
+                          </span>
+                          {gstDoc && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDocumentModal({
+                                title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
+                                type: 'GSTIN Business Registration Certificate (REG-06)',
+                                url: gstDoc,
+                                userName: selectedUserDetailModal.name
+                              })}
+                              className="text-[#D48B1C] font-extrabold hover:underline"
+                            >
+                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 3. Cancelled Cheque / Bank Mandate */}
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> 3. Cancelled Cheque
-                        </span>
-                        <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-                          {selectedUserDetailModal.bank_ifsc_code || 'BANK MANDATE'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Account verification & IFSC verification proof</p>
-                    </div>
+                  {(() => {
+                    const chequeDoc = selectedUserDetailModal.cheque_file || selectedUserDetailModal.cheque_document;
+                    const isPdf = isPdfDocument(chequeDoc);
+                    return (
+                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> 3. Cancelled Cheque
+                            </span>
+                            <span className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                              {selectedUserDetailModal.bank_ifsc_code || 'BANK MANDATE'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Account verification & IFSC verification proof</p>
+                        </div>
 
-                    <div 
-                      onClick={() => setPreviewDocumentModal({
-                        title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
-                        type: 'Bank Account Mandate & Cancelled Cheque',
-                        url: selectedUserDetailModal.cheque_file || selectedUserDetailModal.cheque_document || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1000&q=80',
-                        userName: selectedUserDetailModal.name
-                      })}
-                      className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
-                    >
-                      <img 
-                        src={selectedUserDetailModal.cheque_file || selectedUserDetailModal.cheque_document || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1000&q=80'} 
-                        alt="Cancelled Cheque Preview" 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                      />
-                      <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                        <Eye className="w-5 h-5 text-amber-400" />
-                        <span>Click to Enlarge</span>
-                      </div>
-                    </div>
+                        {chequeDoc ? (
+                          <div 
+                            onClick={() => setPreviewDocumentModal({
+                              title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
+                              type: 'Bank Account Mandate & Cancelled Cheque',
+                              url: chequeDoc,
+                              userName: selectedUserDetailModal.name
+                            })}
+                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                          >
+                            {isPdf ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-50 text-center p-3">
+                                <FileText className="w-8 h-8 text-emerald-600 mb-1" />
+                                <span className="text-[11px] font-bold text-emerald-900">PDF Document</span>
+                                <span className="text-[9px] text-emerald-700">Click to view/download</span>
+                              </div>
+                            ) : (
+                              <img 
+                                src={chequeDoc} 
+                                alt="Cancelled Cheque Preview" 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                              <Eye className="w-5 h-5 text-amber-400" />
+                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
+                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
+                            <span className="text-[11px] font-bold text-slate-600">No Cheque Attached</span>
+                            <span className="text-[9px] text-slate-400">User did not upload bank proof</span>
+                          </div>
+                        )}
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                      <span className="text-emerald-700 font-bold flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-600" /> Verified Bank
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewDocumentModal({
-                          title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
-                          type: 'Bank Account Mandate & Cancelled Cheque',
-                          url: selectedUserDetailModal.cheque_file || selectedUserDetailModal.cheque_document || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1000&q=80',
-                          userName: selectedUserDetailModal.name
-                        })}
-                        className="text-[#D48B1C] font-extrabold hover:underline"
-                      >
-                        View High-Res &rarr;
-                      </button>
-                    </div>
-                  </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className={`${chequeDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
+                            {chequeDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
+                            {chequeDoc ? 'Verified Bank Proof' : 'Not Uploaded'}
+                          </span>
+                          {chequeDoc && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDocumentModal({
+                                title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
+                                type: 'Bank Account Mandate & Cancelled Cheque',
+                                url: chequeDoc,
+                                userName: selectedUserDetailModal.name
+                              })}
+                              className="text-[#D48B1C] font-extrabold hover:underline"
+                            >
+                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -8600,11 +9241,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* Modal Action Bar Footer */}
-            <div className="bg-slate-100 p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
-              <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
+            <div className="bg-slate-100 p-4 sm:p-5 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3 shrink-0">
+              <div className="flex items-center flex-wrap gap-2.5 w-full md:w-auto">
 
                 {isReadOnlyAdmin ? (
-                  <span className="px-4 py-2.5 bg-slate-200 text-slate-700 border border-slate-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5">
+                  <span className="px-4 py-2.5 bg-slate-200 text-slate-700 border border-slate-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0">
                     <Lock className="w-4 h-4 text-slate-500" /> Read-Only Desk Admin Access
                   </span>
                 ) : (
@@ -8615,7 +9256,7 @@ export default function AdminDashboard() {
                         setEditingUser({ ...selectedUserDetailModal });
                         setSelectedUserDetailModal(null);
                       }}
-                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow"
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow whitespace-nowrap shrink-0 active:scale-95"
                     >
                       <Edit className="w-4 h-4" /> Edit Account Profile
                     </button>
@@ -8624,15 +9265,17 @@ export default function AdminDashboard() {
                     {selectedUserDetailModal.role === 'agent' && (!selectedUserDetailModal.is_verified || !selectedUserDetailModal.is_active) && (
                       <>
                         <button
+                          type="button"
                           onClick={() => {
                             handleToggleUserApproval(selectedUserDetailModal);
                             setSelectedUserDetailModal(null);
                           }}
-                          className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+                          className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md whitespace-nowrap shrink-0 active:scale-95"
                         >
                           <ShieldCheck className="w-4 h-4" /> Approve Seller Account
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             const u = selectedUserDetailModal;
                             setSelectedUserDetailModal(null);
@@ -8664,7 +9307,7 @@ export default function AdminDashboard() {
                               },
                             });
                           }}
-                          className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5"
+                          className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
                         >
                           <XCircle className="w-4 h-4 text-red-600" /> Reject Application
                         </button>
@@ -8674,11 +9317,12 @@ export default function AdminDashboard() {
                     {/* Approved agent: show Revoke */}
                     {selectedUserDetailModal.role === 'agent' && selectedUserDetailModal.is_verified && selectedUserDetailModal.is_active && (
                       <button
+                        type="button"
                         onClick={() => {
                           handleToggleUserApproval(selectedUserDetailModal);
                           setSelectedUserDetailModal(null);
                         }}
-                        className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300"
+                        className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 whitespace-nowrap shrink-0 active:scale-95"
                       >
                         <ShieldAlert className="w-4 h-4" /> Revoke Approval
                       </button>
@@ -8686,17 +9330,18 @@ export default function AdminDashboard() {
 
                     {/* Delete button (Protected for Master Admin) */}
                     {selectedUserDetailModal.role === 'master_admin' || selectedUserDetailModal.email === 'admin@salvagereef.com' ? (
-                      <span className="px-4 py-2.5 bg-amber-50 text-amber-950 border border-amber-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5">
+                      <span className="px-4 py-2.5 bg-amber-50 text-amber-950 border border-amber-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0">
                         <Lock className="w-4 h-4 text-[#D48B1C]" /> Protected Master Account
                       </span>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => {
                           const u = selectedUserDetailModal;
                           setSelectedUserDetailModal(null);
                           setDeleteConfirmItem({ type: 'user', id: u.id, name: u.name });
                         }}
-                        className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5"
+                        className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" /> Remove / Delete User
                       </button>
@@ -8708,7 +9353,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => setSelectedUserDetailModal(null)}
-                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider w-full sm:w-auto"
+                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition-all uppercase tracking-wider whitespace-nowrap shrink-0 shadow-sm active:scale-95 text-center min-w-[130px]"
               >
                 Close Profile
               </button>
@@ -8966,13 +9611,34 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Lightbox Image Container */}
-            <div className="flex-1 bg-slate-950/90 p-4 sm:p-6 overflow-auto flex items-center justify-center min-h-[300px]">
-              <img
-                src={previewDocumentModal.url}
-                alt={previewDocumentModal.title}
-                className="max-h-[68vh] w-auto max-w-full object-contain rounded-2xl border border-slate-800 shadow-2xl"
-              />
+            {/* Lightbox Content Container */}
+            <div className="flex-1 bg-slate-950/90 p-4 sm:p-6 overflow-auto flex items-center justify-center min-h-[350px]">
+              {isPdfDocument(previewDocumentModal.url) ? (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                  <iframe
+                    src={previewDocumentModal.url}
+                    title={previewDocumentModal.title}
+                    className="w-full h-[65vh] rounded-2xl border border-slate-800 bg-white shadow-2xl"
+                  />
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={previewDocumentModal.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-[#D48B1C] hover:bg-[#b87614] text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Open PDF in Full Screen</span>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={previewDocumentModal.url}
+                  alt={previewDocumentModal.title}
+                  className="max-h-[68vh] w-auto max-w-full object-contain rounded-2xl border border-slate-800 shadow-2xl"
+                />
+              )}
             </div>
 
             {/* Lightbox Footer */}

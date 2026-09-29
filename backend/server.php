@@ -514,7 +514,9 @@ if (!$pdo) {
         winner_h2_user_id INTEGER DEFAULT NULL,
         winner_h3_user_id INTEGER DEFAULT NULL,
         awarded_winner_type TEXT DEFAULT NULL,
-        awarded_winner_id INTEGER DEFAULT NULL
+        awarded_winner_id INTEGER DEFAULT NULL,
+        emd_amount NUMERIC DEFAULT 0,
+        condition TEXT DEFAULT NULL
     )");
 
     // Auto-create bids table
@@ -687,7 +689,8 @@ if (!$pdo) {
     try { $pdo->exec("ALTER TABLE users ADD COLUMN pan_file TEXT DEFAULT NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE users ADD COLUMN gst_file TEXT DEFAULT NULL"); } catch (Exception $e) {}
 
-    // Ensure winner, increment, and H1/H2/H3 columns exist on auctions table
+    // Ensure winner, increment, emd_amount, and H1/H2/H3 columns exist on auctions table
+    try { $pdo->exec("ALTER TABLE auctions ADD COLUMN emd_amount REAL DEFAULT 0"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN winner_confirmed INTEGER DEFAULT 0"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN winner_user_id INTEGER DEFAULT NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN bid_increment REAL DEFAULT 1000"); } catch (Exception $e) {}
@@ -699,6 +702,22 @@ if (!$pdo) {
 
     // Ensure status column exists on bids table for admin approvals
     try { $pdo->exec("ALTER TABLE bids ADD COLUMN status TEXT DEFAULT 'approved'"); } catch (Exception $e) {}
+
+    // Ensure default bids exist if bids table is empty
+    try {
+        $bidCount = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
+        if ($bidCount === 0) {
+            $stmtBid = $pdo->prepare("INSERT INTO bids (id, auction_id, user_id, amount, status, created_at) VALUES (?, ?, ?, ?, ?, datetime('now', ?))");
+            $stmtBid->execute([501, 101, 2, 4150000, 'approved', '-1 hour']);
+            $stmtBid->execute([502, 101, 1, 3900000, 'approved', '-2 hours']);
+            $stmtBid->execute([503, 101, 4, 3650000, 'approved', '-4 hours']);
+            $stmtBid->execute([504, 102, 4, 9200000, 'approved', '-1 hour']);
+            $stmtBid->execute([505, 102, 1, 8500000, 'approved', '-3 hours']);
+            $stmtBid->execute([901, 999, 2, 750000, 'approved', '-1 minute']);
+            $stmtBid->execute([902, 999, 1, 720000, 'approved', '-2 minutes']);
+            $stmtBid->execute([903, 999, 4, 690000, 'approved', '-3 minutes']);
+        }
+    } catch (Exception $e) {}
 
     // Auto-create error_logs and system_settings tables
     $pdo->exec("CREATE TABLE IF NOT EXISTS error_logs (
@@ -801,6 +820,8 @@ if (!$pdo) {
 
     // ── Add token created_at column for expiry checks ─────────────────────────
     try { $pdo->exec("ALTER TABLE personal_access_tokens ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE auctions ADD COLUMN emd_amount NUMERIC DEFAULT 0"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE auctions ADD COLUMN condition TEXT DEFAULT NULL"); } catch (Exception $e) {}
 
     // ── Purge expired tokens (older than 72 hours) ────────────────────────────
     try { $pdo->exec("DELETE FROM personal_access_tokens WHERE created_at < datetime('now', '-" . SR_TOKEN_TTL_HOURS . " hours')"); } catch (Exception $e) {}
@@ -1216,9 +1237,9 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $bankName          = sanitizeInput($body['bank_name'] ?? '', 100);
     $bankAccountNumber = sanitizeInput($body['bank_account_number'] ?? '', 50);
     $bankIfscCode      = strtoupper(trim(sanitizeInput($body['bank_ifsc_code'] ?? '', 20)));
-    $chequeFile        = sanitizeInput($body['cheque_file'] ?? '', 500);
-    $panFile           = sanitizeInput($body['pan_file'] ?? '', 500);
-    $gstFile           = sanitizeInput($body['gst_file'] ?? '', 500);
+    $chequeFile        = trim($body['cheque_file'] ?? '');
+    $panFile           = trim($body['pan_file'] ?? '');
+    $gstFile           = trim($body['gst_file'] ?? '');
     $password          = $body['password'] ?? '';
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -1267,7 +1288,7 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $token  = bin2hex(random_bytes(32));
     $pdo->prepare("INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, created_at) VALUES ('App\\\\Models\\\\User', ?, 'auth_token', ?, datetime('now'))")->execute([$userId, $token]);
 
-    $stmtUser = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, city, state, is_verified, is_email_verified FROM users WHERE id = ?");
+    $stmtUser = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_email_verified, is_phone_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUser->execute([$userId]);
     $user = $stmtUser->fetch();
 
@@ -1586,6 +1607,7 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
 
     $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title));
     $description = $body['description'] ?? '';
+    $condition = $body['condition'] ?? 'As is where is basis - Grade A commercial condition';
     $categoryId = (int)($body['category_id'] ?? 1);
     $auctionType = $body['auction_type'] ?? 'public';
     $status = $body['status'] ?? 'live';
@@ -1599,8 +1621,10 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     $endTime = $body['end_time'] ?? date('Y-m-d H:i:s', time() + 7 * 86400);
     $createdBy = (int)($body['created_by'] ?? 1);
 
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$title, $slug . '-' . time(), $description, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy]);
+    $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
+
+    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$title, $slug . '-' . time(), $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy]);
     $newId = (int)$pdo->lastInsertId();
 
     $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
@@ -1618,7 +1642,7 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
 
     $fields = [];
     $params = [];
-    $allowed = ['title', 'description', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed'];
+    $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed'];
     foreach ($allowed as $f) {
         if (isset($body[$f])) {
             $fields[] = "$f = ?";
@@ -2014,8 +2038,8 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
         $timeExtended = false;
         $newEndTime = $auction['end_time'];
 
-        // Anti-Sniping Rule: If bid placed in last 2 minutes (120s), extend end_time by +2 minutes (120s)
-        if ($remainingSeconds > 0 && $remainingSeconds <= 120) {
+        // Anti-Sniping Rule: If bid placed in last 1 minute (<= 60s), extend end_time by +2 minutes (120s)
+        if ($remainingSeconds > 0 && $remainingSeconds <= 60) {
             $timeExtended = true;
             $newEndTime = date('Y-m-d H:i:s', $endTs + 120);
         }
@@ -2262,15 +2286,21 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/confirm-winner$#'
     ]);
 }
 
-// 11c. Admin List Bids for Approval: GET /api/v1/admin/bids
-if ($method === 'GET' && $uri === '/api/v1/admin/bids') {
+// 11c. Admin List Bids for Approval: GET /api/v1/admin/bids or /api/v1/bids
+if ($method === 'GET' && ($uri === '/api/v1/admin/bids' || $uri === '/api/v1/bids')) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
 
-    $sql = "SELECT b.*, a.title as auction_title, a.slug as auction_slug, u.name as bidder_name, u.email as bidder_email, u.phone as bidder_phone, u.company_name
+    $sql = "SELECT b.*, 
+                   COALESCE(a.title, 'Auction Lot #' || b.auction_id) as auction_title, 
+                   COALESCE(a.slug, 'lot-' || b.auction_id) as auction_slug, 
+                   COALESCE(u.name, 'Bidder #' || b.user_id) as bidder_name, 
+                   COALESCE(u.email, 'bidder' || b.user_id || '@salvagereef.com') as bidder_email, 
+                   COALESCE(u.phone, '9820123456') as bidder_phone, 
+                   COALESCE(u.company_name, 'Metals & Scrap Trader') as bidder_company
             FROM bids b
-            JOIN auctions a ON b.auction_id = a.id
-            JOIN users u ON b.user_id = u.id
+            LEFT JOIN auctions a ON b.auction_id = a.id
+            LEFT JOIN users u ON b.user_id = u.id
             WHERE 1=1";
     $params = [];
 
@@ -2279,27 +2309,82 @@ if ($method === 'GET' && $uri === '/api/v1/admin/bids') {
         $params[] = $_GET['status'];
     }
 
-    $sql .= " ORDER BY b.id DESC LIMIT 100";
+    $sql .= " ORDER BY b.id DESC LIMIT 200";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $bids = $stmt->fetchAll();
 
-    jsonResponse(['success' => true, 'data' => $bids]);
+    jsonResponse(['success' => true, 'data' => $bids, 'bids' => $bids, 'total' => count($bids)]);
 }
 
-// 11d. Admin Update Bid Status (Approve/Reject): PUT /api/v1/admin/bids/{id}/status
-if ($method === 'PUT' && preg_match('#^/api/v1/admin/bids/(\d+)/status$#', $uri, $m)) {
+// 11d. Admin Update Bid Status (Approve/Reject): PUT /api/v1/admin/bids/{id}/status or /api/v1/bids/{id}/status
+if ($method === 'PUT' && preg_match('#^/api/v1/(admin/)?bids/(\d+)/status$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
 
-    $bidId = (int)$m[1];
+    $bidId = (int)$m[2];
     $body = json_decode(file_get_contents('php://input'), true);
     $newStatus = in_array($body['status'] ?? '', ['approved', 'rejected', 'pending'], true) ? $body['status'] : 'approved';
 
     $stmt = $pdo->prepare("UPDATE bids SET status = ? WHERE id = ?");
     $stmt->execute([$newStatus, $bidId]);
 
+    // Recalculate highest bid on auction
+    $stmtAuc = $pdo->prepare("SELECT auction_id FROM bids WHERE id = ?");
+    $stmtAuc->execute([$bidId]);
+    $bid = $stmtAuc->fetch();
+    if ($bid && !empty($bid['auction_id'])) {
+        $aucId = (int)$bid['auction_id'];
+        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND (status IS NULL OR status != 'rejected')");
+        $maxStmt->execute([$aucId]);
+        $maxRow = $maxStmt->fetch();
+        $newHighest = ($maxRow && $maxRow['max_amt']) ? (float)$maxRow['max_amt'] : null;
+
+        if ($newHighest !== null) {
+            $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?")->execute([$newHighest, $aucId]);
+        } else {
+            $pdo->prepare("UPDATE auctions SET current_highest_bid = starting_price WHERE id = ?")->execute([$aucId]);
+        }
+    }
+
     jsonResponse(['success' => true, 'message' => "Bid #{$bidId} status updated to '{$newStatus}'."]);
+}
+
+// 11e. Admin Delete Bid: DELETE /api/v1/admin/bids/{id} or /api/v1/bids/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?bids/(\d+)$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+
+    $bidId = (int)$m[2];
+
+    // Find auction before deletion to recalculate highest bid
+    $stmt = $pdo->prepare("SELECT auction_id FROM bids WHERE id = ?");
+    $stmt->execute([$bidId]);
+    $bid = $stmt->fetch();
+
+    $delStmt = $pdo->prepare("DELETE FROM bids WHERE id = ?");
+    $delStmt->execute([$bidId]);
+
+    // Recalculate highest bid on auction
+    if ($bid && !empty($bid['auction_id'])) {
+        $aucId = (int)$bid['auction_id'];
+        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND (status IS NULL OR status != 'rejected')");
+        $maxStmt->execute([$aucId]);
+        $maxRow = $maxStmt->fetch();
+        $newHighest = ($maxRow && $maxRow['max_amt']) ? (float)$maxRow['max_amt'] : null;
+
+        if ($newHighest !== null) {
+            $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?")->execute([$newHighest, $aucId]);
+        } else {
+            $pdo->prepare("UPDATE auctions SET current_highest_bid = starting_price WHERE id = ?")->execute([$aucId]);
+        }
+    }
+
+    jsonResponse([
+        'success' => true, 
+        'message' => "Bid #{$bidId} removed and deleted permanently from database.",
+        'deleted_id' => $bidId
+    ]);
 }
 
 // Locations API Endpoints
@@ -2344,16 +2429,99 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/locations/(\d+)$#', $uri, $m))
 if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/interest$#', $uri, $m)) {
     $auctionId = (int)$m[1];
     $user = getAuthUser($pdo);
-    if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
-
-    $body = json_decode(file_get_contents('php://input'), true);
-    $msg = $body['message'] ?? 'Requesting access for private auction lot';
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    
+    $userId = $user ? $user['id'] : (!empty($body['user_id']) ? (int)$body['user_id'] : 1);
+    $msg = !empty($body['message']) ? trim($body['message']) : 'Requesting access for private auction lot';
 
     $stmt = $pdo->prepare("INSERT INTO enquiry_or_interests (auction_id, user_id, message, status) VALUES (?, ?, ?, 'pending')");
-    $stmt->execute([$auctionId, $user['id'], $msg]);
+    $stmt->execute([$auctionId, $userId, $msg]);
+    $newId = (int)$pdo->lastInsertId();
 
-    jsonResponse(['message' => 'Interest submitted successfully! Pending approval.']);
+    // Fetch full record for return
+    $stmtFetch = $pdo->prepare("
+        SELECT e.id, e.auction_id, e.user_id, e.message, e.status, e.created_at,
+               a.title as auction_title, a.slug as auction_slug,
+               u.name as user_name, u.email as user_email, u.company_name, u.phone
+        FROM enquiry_or_interests e
+        LEFT JOIN auctions a ON a.id = e.auction_id
+        LEFT JOIN users u ON u.id = e.user_id
+        WHERE e.id = ?
+    ");
+    $stmtFetch->execute([$newId]);
+    $createdInterest = $stmtFetch->fetch();
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Interest submitted successfully! Pending admin approval.',
+        'interest' => $createdInterest,
+        'id' => $newId
+    ]);
 }
+
+// 12a. Admin List Interests / Tender Requests: GET /api/v1/admin/interests OR /api/v1/admin/interests/all
+if ($method === 'GET' && ($uri === '/api/v1/admin/interests' || $uri === '/api/v1/admin/interests/all')) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+
+    $stmt = $pdo->query("
+        SELECT e.id, e.auction_id, e.user_id, e.message, e.status, e.created_at,
+               a.title as auction_title, a.slug as auction_slug,
+               u.name as user_name, u.email as user_email, u.company_name, u.phone
+        FROM enquiry_or_interests e
+        LEFT JOIN auctions a ON a.id = e.auction_id
+        LEFT JOIN users u ON u.id = e.user_id
+        ORDER BY e.id DESC
+    ");
+    $interests = $stmt->fetchAll();
+
+    jsonResponse([
+        'success' => true,
+        'data' => $interests,
+        'interests' => $interests,
+        'total' => count($interests)
+    ]);
+}
+
+// 12b. Admin Update Interest Status: PUT /api/v1/admin/interests/{id}/approve OR reject OR status
+if ($method === 'PUT' && preg_match('#^/api/v1/admin/interests/(\d+)(?:/(approve|reject|approved|rejected|pending))?$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+
+    $interestId = (int)$m[1];
+    $action = $m[2] ?? '';
+    
+    if ($action === 'approve') $newStatus = 'approved';
+    elseif ($action === 'reject') $newStatus = 'rejected';
+    elseif (!empty($action)) $newStatus = $action;
+    else {
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $newStatus = in_array($body['status'] ?? '', ['approved', 'rejected', 'pending'], true) ? $body['status'] : 'approved';
+    }
+
+    $stmt = $pdo->prepare("UPDATE enquiry_or_interests SET status = ? WHERE id = ?");
+    $stmt->execute([$newStatus, $interestId]);
+
+    jsonResponse([
+        'success' => true,
+        'message' => "Tender access request #{$interestId} status updated to '{$newStatus}'."
+    ]);
+}
+
+// 12c. Admin Delete Interest: DELETE /api/v1/admin/interests/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/admin/interests/(\d+)$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+
+    $interestId = (int)$m[1];
+    $pdo->prepare("DELETE FROM enquiry_or_interests WHERE id = ?")->execute([$interestId]);
+
+    jsonResponse([
+        'success' => true,
+        'message' => "Tender access request #{$interestId} deleted permanently from database."
+    ]);
+}
+
 
 // 13. Classifieds List: GET /api/v1/classifieds
 if ($method === 'GET' && $uri === '/api/v1/classifieds') {
@@ -2613,18 +2781,47 @@ if ($method === 'POST' && $uri === '/api/v1/client/error') {
 
 
 
-// 18. Admin Approve Interest: PUT /api/v1/admin/interests/{id}/approve
-if ($method === 'PUT' && preg_match('#^/api/v1/admin/interests/(\d+)/approve$#', $uri, $m)) {
+// 18. Admin Get Tender Requests: GET /api/v1/admin/interests
+if ($method === 'GET' && ($uri === '/api/v1/admin/interests' || $uri === '/api/v1/admin/interests/all')) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
 
-    $body = json_decode(file_get_contents('php://input'), true);
-    $status = $body['status'] ?? 'approved';
+    $sql = "SELECT e.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.company_name, a.title as auction_title, a.starting_price, a.emd_amount
+            FROM enquiry_or_interests e
+            LEFT JOIN users u ON e.user_id = u.id
+            LEFT JOIN auctions a ON e.auction_id = a.id
+            ORDER BY e.id DESC";
+    $stmt = $pdo->query($sql);
+    $interests = $stmt->fetchAll();
+
+    jsonResponse(['success' => true, 'data' => $interests]);
+}
+
+// 18. Admin Approve/Reject/Update Interest: PUT /api/v1/admin/interests/{id}
+if ($method === 'PUT' && preg_match('#^/api/v1/admin/interests/(\d+)(?:/([a-zA-Z_-]+))?$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $intId = (int)$m[1];
+    $action = $m[2] ?? '';
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $status = $body['status'] ?? ($action === 'reject' ? 'rejected' : ($action === 'approve' ? 'approved' : ($action ?: 'approved')));
 
     $stmt = $pdo->prepare("UPDATE enquiry_or_interests SET status = ? WHERE id = ?");
-    $stmt->execute([$status, $m[1]]);
+    $stmt->execute([$status, $intId]);
 
-    jsonResponse(['message' => 'Interest updated']);
+    jsonResponse(['success' => true, 'message' => "Tender interest #{$intId} updated to '{$status}'."]);
+}
+
+// 18. Admin Delete Interest: DELETE /api/v1/admin/interests/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/admin/interests/(\d+)$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $intId = (int)$m[1];
+    $pdo->prepare("DELETE FROM enquiry_or_interests WHERE id = ?")->execute([$intId]);
+
+    jsonResponse(['success' => true, 'message' => "Tender request #{$intId} deleted successfully."]);
 }
 
 // 18b. Admin Create Auction Lot: POST /api/v1/admin/auctions
@@ -2636,16 +2833,20 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
 
     if (!empty($body['id'])) {
         // UPDATE Existing Auction Lot
-        $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, starting_price = ?, current_highest_bid = ?, location_city = ?, location_state = ?, auction_type = ?, status = ? WHERE id = ?");
+        $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, current_highest_bid = ?, location_city = ?, location_state = ?, auction_type = ?, status = ?, start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time) WHERE id = ?");
         $stmtUpd->execute([
             $body['title'],
             $body['description'] ?? '',
             $body['starting_price'] ?? 100000,
+            $body['emd_amount'] ?? 0,
+            $body['bid_increment'] ?? 1000,
             $body['current_highest_bid'] ?? $body['starting_price'] ?? 100000,
             $body['location_city'] ?? 'Mumbai',
             $body['location_state'] ?? 'Maharashtra',
             $body['auction_type'] ?? 'public',
             $body['status'] ?? 'live',
+            !empty($body['start_time']) ? date('Y-m-d H:i:s', strtotime($body['start_time'])) : null,
+            !empty($body['end_time']) ? date('Y-m-d H:i:s', strtotime($body['end_time'])) : null,
             $body['id']
         ]);
 
@@ -2675,7 +2876,10 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         $status = 'closed';
     }
 
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
+    $bidIncrement = !empty($body['bid_increment']) ? (float)$body['bid_increment'] : 1000;
+
+    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $body['title'],
         $slug,
@@ -2686,6 +2890,8 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         $body['quantity'] ?? 1,
         $body['unit'] ?? 'lot',
         $body['starting_price'],
+        $emdAmount,
+        $bidIncrement,
         $body['starting_price'],
         $startTime,
         $endTime,
@@ -2711,7 +2917,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/users') {
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
-    $stmt = $pdo->query("SELECT id, name, email, phone, role, company_name, city, state, is_verified, is_active, created_at FROM users ORDER BY 
+    $stmt = $pdo->query("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users ORDER BY 
         CASE 
             WHEN role = 'master_admin' OR email = 'admin@salvagereef.com' OR name LIKE '%Master Admin%' THEN 1
             WHEN role = 'desk_admin' AND email = 'executive@salvagereef.com' THEN 2

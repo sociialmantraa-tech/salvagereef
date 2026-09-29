@@ -103,12 +103,14 @@ export const INITIAL_AUCTIONS: Auction[] = [
     title: 'EXP-999 | 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
     slug: '2-minute-express-demo-copper-scrap',
     description: 'Special 2-minute express live auction demo with top 3 bidders (H1, H2, H3). Test winner selection desk in Admin Panel.',
+    condition: 'As is where is basis - Grade A commercial copper scrap, purity verified and ready for instant dispatch.',
     category_id: 2,
     auction_type: 'public',
     status: 'live',
     quantity: 15,
     unit: 'MT',
     starting_price: 500000,
+    emd_amount: 50000,
     current_highest_bid: 750000,
     bid_increment: 10000,
     start_time: new Date(Date.now() - 300000).toISOString(),
@@ -135,12 +137,14 @@ export const INITIAL_AUCTIONS: Auction[] = [
     title: 'PL-101 | 50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
     slug: '50-mt-industrial-copper-cable-scrap-grade-a',
     description: 'Bulk lot of high-grade copper cables stripped from power sub-station dismantling. Inspection invited at Thane scrap yard. Purity verified at 99.2% Cu. Instant loading assistance available.',
+    condition: 'Grade A Clean Wire Scrap - As is where is basis (99.2% copper purity tested, no PVC sheath contamination).',
     category_id: 2,
     auction_type: 'public',
     status: 'live',
     quantity: 50,
     unit: 'MT',
     starting_price: 3500000,
+    emd_amount: 100000,
     current_highest_bid: 4150000,
     bid_increment: 10000,
     start_time: new Date(Date.now() - 86400000).toISOString(),
@@ -168,6 +172,7 @@ export const INITIAL_AUCTIONS: Auction[] = [
     title: 'PL-102 | CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)',
     slug: 'cnc-milling-machine-5-axis-surplus-equipment',
     description: 'Heavy duty Japanese manufactured 5-axis CNC Milling machine in prime working condition. Includes original control panel, tool changers, and coolant system. Plant clearance sale.',
+    condition: 'Pre-owned Heavy Industrial Machinery - As is where is basis, fully operational prior to plant decommissioning.',
     category_id: 1,
     auction_type: 'public',
     status: 'live',
@@ -390,6 +395,14 @@ export const getMockClassifieds = (): Classified[] => {
     return INITIAL_CLASSIFIEDS;
   }
 };
+export const INITIAL_ADMIN_BIDS = [
+  { id: 501, amount: 600000, auction_id: 999, auction_title: '2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap', status: 'approved', bidder_name: 'Sunil Automotive Recycler', created_at: '2026-09-28T09:33:00Z' },
+  { id: 502, amount: 720000, auction_id: 999, auction_title: '2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap', status: 'approved', bidder_name: 'SalvageReef Operations Desk', created_at: '2026-09-28T09:33:00Z' },
+  { id: 503, amount: 750000, auction_id: 999, auction_title: '2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap', status: 'approved', bidder_name: 'Rajesh Metals Agent', created_at: '2026-09-28T09:33:00Z' },
+  { id: 504, amount: 9200000, auction_id: 102, auction_title: 'CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)', status: 'approved', bidder_name: 'Rajesh Metals Agent', created_at: '2026-09-28T09:33:00Z' },
+  { id: 505, amount: 3900000, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire', status: 'approved', bidder_name: 'SalvageReef Operations Desk', created_at: '2026-09-28T09:33:00Z' },
+];
+export const getMockAdminBids = (): any[] => getItem('sr_admin_bids', INITIAL_ADMIN_BIDS);
 export const getMockInterests = (): any[] => getItem('sr_interests', INITIAL_INTERESTS);
 export const getMockSellScrapRequests = (): any[] => getItem('sr_sell_scrap_requests', INITIAL_SELL_SCRAP_REQUESTS);
 export const getMockUserBids = (): any[] => getItem('sr_user_bids', [
@@ -497,7 +510,32 @@ export function handleMockApi(config: any): any {
         created_at: new Date().toISOString(),
       };
       const updatedAdminBids = [newAdminBid, ...adminBids.filter((b: any) => b.id !== newAdminBid.id)];
-      setItem('sr_admin_bids', updatedAdminBids);
+      // Anti-Sniping Rule: If bid placed in last 1 minute (<= 60s), extend auction end_time by +2 minutes (120s)
+      let timeExtended = false;
+      let newEndTime = auctions[aucIndex].end_time;
+      if (auctions[aucIndex].end_time) {
+        const endTs = new Date(auctions[aucIndex].end_time).getTime();
+        const nowTs = Date.now();
+        const remainingSeconds = (endTs - nowTs) / 1000;
+        if (remainingSeconds > 0 && remainingSeconds <= 60) {
+          timeExtended = true;
+          newEndTime = new Date(endTs + 120 * 1000).toISOString();
+          auctions[aucIndex].end_time = newEndTime;
+        }
+      }
+
+      setItem('sr_auctions', auctions);
+      setItem('sr_admin_auctions', auctions);
+
+      return {
+        message: timeExtended
+          ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule)'
+          : 'Bid placed successfully!',
+        current_highest_bid: amount,
+        time_extended: timeExtended,
+        extended_seconds: 120,
+        new_end_time: newEndTime,
+      };
     }
 
     return {
@@ -511,21 +549,35 @@ export function handleMockApi(config: any): any {
     const parts = cleanUrl.split('/');
     const idIdx = parts.indexOf('auctions') + 1;
     const auctionId = Number(parts[idIdx]);
+    const auctions = getMockAuctions();
+    const targetAuction = auctions.find((a) => Number(a.id) === Number(auctionId));
 
     const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null') || INITIAL_USERS[1];
     const interests = getMockInterests();
 
-    interests.push({
+    const newInterest = {
       id: Date.now(),
       auction_id: auctionId,
+      auction_title: targetAuction?.title || `Auction Lot #${auctionId}`,
       user_id: currentUser.id,
+      user_name: currentUser.name || 'Interested Buyer',
+      user_email: currentUser.email || 'buyer@example.com',
+      company_name: currentUser.company_name || currentUser.company || 'Enterprise Metals',
+      phone: currentUser.phone || currentUser.mobile || '+91 9820123456',
       message: bodyData.message || 'Expressing interest for corporate tender access',
       status: 'pending',
+      created_at: new Date().toISOString(),
       user: currentUser,
-    });
+    };
 
+    interests.unshift(newInterest);
     setItem('sr_interests', interests);
-    return { message: 'Interest submitted to admin desk successfully' };
+    setItem('sr_admin_interests', interests);
+    return {
+      success: true,
+      message: 'Interest submitted to admin desk successfully',
+      interest: newInterest,
+    };
   }
 
   // 3b. POST /sell-scrap-requests
@@ -1116,9 +1168,67 @@ export function handleMockApi(config: any): any {
     return { data, total: data.length };
   }
 
-  // 10h. GET /admin/interests/all
-  if (url.includes('/admin/interests/all') && method === 'get') {
-    return getMockInterests();
+  // 10h. GET /admin/interests or /admin/interests/all
+  if ((url.includes('/admin/interests') || cleanUrl.includes('/admin/interests')) && method === 'get') {
+    const data = getMockInterests();
+    return { success: true, data, interests: data, total: data.length };
+  }
+
+  // 10h1. PUT /admin/interests/:id/approve OR reject OR status
+  if ((url.includes('/admin/interests/') || cleanUrl.includes('/admin/interests/')) && method === 'put') {
+    const parts = cleanUrl.split('/');
+    const id = parts[parts.indexOf('interests') + 1];
+    const action = parts[parts.length - 1];
+    let newStatus = 'approved';
+    if (action === 'reject' || action === 'rejected') newStatus = 'rejected';
+    else if (action === 'approve' || action === 'approved') newStatus = 'approved';
+    else if (bodyData?.status) newStatus = bodyData.status;
+
+    let interests = getMockInterests();
+    interests = interests.map((i: any) => (String(i.id) === String(id) ? { ...i, status: newStatus } : i));
+    setItem('sr_interests', interests);
+    setItem('sr_admin_interests', interests);
+    return { success: true, message: `Tender request #${id} updated to ${newStatus}` };
+  }
+
+  // 10h2. DELETE /admin/interests/:id
+  if ((url.includes('/admin/interests/') || cleanUrl.includes('/admin/interests/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const id = parts[parts.length - 1];
+    let interests = getMockInterests();
+    interests = interests.filter((i: any) => String(i.id) !== String(id));
+    setItem('sr_interests', interests);
+    setItem('sr_admin_interests', interests);
+    return { success: true, message: `Tender request #${id} deleted permanently.` };
+  }
+
+  // 10h3. GET /admin/bids
+  if (url.includes('/admin/bids') && method === 'get') {
+    const bids = getItem('sr_admin_bids', INITIAL_ADMIN_BIDS);
+    return { success: true, data: bids, bids, total: bids.length };
+  }
+
+  // 10h4. PUT /admin/bids/:id/status
+  if ((url.includes('/admin/bids/') || cleanUrl.includes('/admin/bids/')) && method === 'put') {
+    const parts = cleanUrl.split('/');
+    const id = parts[parts.indexOf('bids') + 1];
+    const newStatus = bodyData?.status || 'approved';
+    let bids = getItem('sr_admin_bids', INITIAL_ADMIN_BIDS);
+    bids = bids.map((b: any) => (String(b.id) === String(id) ? { ...b, status: newStatus } : b));
+    setItem('sr_admin_bids', bids);
+    setItem('sr_bids', bids);
+    return { success: true, message: `Bid #${id} status updated to ${newStatus}` };
+  }
+
+  // 10h5. DELETE /admin/bids/:id
+  if ((url.includes('/admin/bids/') || cleanUrl.includes('/admin/bids/')) && method === 'delete') {
+    const parts = cleanUrl.split('/');
+    const id = parts[parts.length - 1];
+    let bids = getItem('sr_admin_bids', INITIAL_ADMIN_BIDS);
+    bids = bids.filter((b: any) => String(b.id) !== String(id));
+    setItem('sr_admin_bids', bids);
+    setItem('sr_bids', bids);
+    return { success: true, message: `Bid #${id} removed and deleted permanently.` };
   }
 
   // 10i. POST /admin/auctions
@@ -1138,12 +1248,14 @@ export function handleMockApi(config: any): any {
       title,
       slug: uniqueSlug,
       description: bodyData.description || 'Admin created salvage lot.',
+      condition: bodyData.condition || 'As is where is basis - Grade A commercial condition',
       category_id: Number(bodyData.category_id || 1),
       auction_type: bodyData.auction_type || 'public',
       status: 'live',
       quantity: Number(bodyData.quantity || 50),
       unit: bodyData.unit || 'MT',
       starting_price: Number(bodyData.starting_price || 100000),
+      emd_amount: Number(bodyData.emd_amount ?? 50000),
       current_highest_bid: Number(bodyData.starting_price || 100000),
       start_time: bodyData.start_time || new Date().toISOString(),
       end_time: bodyData.end_time || new Date(Date.now() + 604800000).toISOString(),
@@ -1241,6 +1353,78 @@ export function handleMockApi(config: any): any {
     };
   }
 
+  // 10k1. POST /admin/classifieds (create new classified)
+  if ((url.includes('/admin/classifieds') || cleanUrl.endsWith('/classifieds')) && method === 'post' && !cleanUrl.match(/\/classifieds\/\d+/)) {
+    const classifieds = getMockClassifieds();
+    const categories = getMockCategories();
+    const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null') || INITIAL_USERS[2];
+
+    const title = bodyData.title || 'New Machinery Classified';
+    const slugBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const uniqueSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+    const categoryObj = categories.find((c) => c.id === Number(bodyData.category_id) || c.name === bodyData.category || c.name === bodyData.category_name) || categories[0];
+
+    const newClassified: Classified = {
+      id: Date.now(),
+      title,
+      slug: uniqueSlug,
+      description: bodyData.description || 'Verified machinery classified item published by admin.',
+      category_id: Number(bodyData.category_id || categoryObj.id || 1),
+      price: Number(bodyData.price || 50000),
+      quantity: Number(bodyData.quantity || 1),
+      unit: bodyData.unit || 'nos',
+      location_city: bodyData.location_city || 'Mumbai',
+      location_state: bodyData.location_state || 'Maharashtra',
+      status: bodyData.status || 'available',
+      created_by: currentUser.id,
+      category: categoryObj,
+      creator: currentUser,
+      images: [
+        {
+          id: Date.now(),
+          image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+          is_primary: true,
+        },
+      ],
+      primary_image: {
+        id: Date.now(),
+        image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+        is_primary: true,
+      },
+    };
+
+    classifieds.unshift(newClassified);
+    setItem('sr_classifieds', classifieds);
+    setItem('sr_admin_classifieds', classifieds);
+    return newClassified;
+  }
+
+  // 10k2. PUT/POST /admin/classifieds/:id (update classified)
+  if ((url.includes('/admin/classifieds') || cleanUrl.includes('/classifieds')) && (method === 'put' || (method === 'post' && cleanUrl.match(/\/classifieds\/\d+/)))) {
+    const classifieds = getMockClassifieds();
+    const matchId = cleanUrl.match(/\/classifieds\/(\d+)/)?.[1] || bodyData?.id;
+    const targetId = matchId ? Number(matchId) : bodyData?.id;
+
+    if (targetId) {
+      const idx = classifieds.findIndex((c) => Number(c.id) === Number(targetId) || String(c.id) === String(targetId));
+      if (idx >= 0) {
+        classifieds[idx] = {
+          ...classifieds[idx],
+          ...bodyData,
+          id: classifieds[idx].id,
+          images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : classifieds[idx].images,
+          primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : classifieds[idx].primary_image,
+        };
+      } else {
+        classifieds.unshift({ ...bodyData, id: targetId });
+      }
+      setItem('sr_classifieds', classifieds);
+      setItem('sr_admin_classifieds', classifieds);
+      return { success: true, message: 'Classified updated live', data: classifieds[idx] || bodyData };
+    }
+  }
+
   // 12. POST /auth/login
   if (url.includes('/auth/login') && method === 'post') {
     const rawEmail = (bodyData.email || '').trim();
@@ -1303,15 +1487,38 @@ export function handleMockApi(config: any): any {
   if (url.includes('/auth/register') && method === 'post') {
     const user: User = {
       id: Date.now(),
-      name: bodyData.name || 'New Registered User',
+      name: bodyData.name || bodyData.spoc_name || 'New Registered User',
       email: bodyData.email || 'user@salvagereef.com',
       phone: bodyData.phone || '7304481166',
       role: bodyData.role || 'bidder',
-      company_name: bodyData.company_name || 'Individual Firm',
-      city: bodyData.city || 'Thane',
+      company_name: bodyData.company_name || bodyData.vendor_name || 'Individual Firm',
+      entity_type: bodyData.entity_type || 'Proprietorship',
+      pan_number: bodyData.pan_number || '',
+      gst_number: bodyData.gst_number || '',
+      registered_address: bodyData.registered_address || '',
+      city: bodyData.city || 'Mumbai',
       state: bodyData.state || 'Maharashtra',
+      pincode: bodyData.pincode || '',
+      spoc_name: bodyData.spoc_name || bodyData.name || '',
+      bank_name: bodyData.bank_name || '',
+      bank_account_number: bodyData.bank_account_number || '',
+      bank_ifsc_code: bodyData.bank_ifsc_code || '',
+      pan_file: bodyData.pan_file || '',
+      gst_file: bodyData.gst_file || '',
+      cheque_file: bodyData.cheque_file || '',
       is_verified: true,
+      is_active: true,
     };
+
+    try {
+      const storedAdminUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
+      const updatedAdmin = [user, ...storedAdminUsers.filter((u: any) => u.email !== user.email && u.id !== user.id)];
+      localStorage.setItem('sr_admin_users', JSON.stringify(updatedAdmin));
+
+      const storedAllUsers = JSON.parse(localStorage.getItem('sr_all_users') || '[]');
+      const updatedAll = [user, ...storedAllUsers.filter((u: any) => u.email !== user.email && u.id !== user.id)];
+      localStorage.setItem('sr_all_users', JSON.stringify(updatedAll));
+    } catch {}
 
     const token = 'mock-jwt-token-' + Date.now();
     return {

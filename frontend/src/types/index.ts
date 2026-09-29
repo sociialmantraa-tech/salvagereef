@@ -59,12 +59,14 @@ export interface Auction {
   title: string;
   slug: string;
   description: string;
+  condition?: string | null;
   category_id: number;
   auction_type: 'public' | 'private' | 'group';
-  status: 'draft' | 'upcoming' | 'live' | 'closed';
+  status: 'draft' | 'upcoming' | 'live' | 'closed' | 'completed' | 'cancelled';
   quantity: number;
   unit: string;
   starting_price: number;
+  emd_amount?: number | null;
   bid_increment?: number;
   current_highest_bid?: number | null;
   winner_confirmed?: boolean | number;

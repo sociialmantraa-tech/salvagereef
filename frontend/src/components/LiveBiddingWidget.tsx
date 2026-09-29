@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { getEcho } from '../services/echo';
 import api from '../services/api';
-import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck } from 'lucide-react';
+import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck, Scale, FileText } from 'lucide-react';
 import { Auction, Bid } from '../types';
 import { formatBidderName } from '../utils/formatUtils';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
+import AuctionTermsModal from './AuctionTermsModal';
 
 interface LiveBiddingWidgetProps {
   auction: Auction;
@@ -35,6 +36,27 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
   // Pre-Bid Confirmation Modal State
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+
+  // Mandatory 1-Time Terms & Conditions Acceptance State
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(() => {
+    try {
+      const key = `sr_terms_accepted_auc_${initialAuction?.id}_user_${user?.id || 'guest'}`;
+      return localStorage.getItem(key) === 'true' || localStorage.getItem('sr_terms_accepted_all_auctions') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [showTermsModal, setShowTermsModal] = useState<boolean>(false);
+
+  const handleTermsAcceptance = () => {
+    setTermsAccepted(true);
+    setError(null);
+    try {
+      const key = `sr_terms_accepted_auc_${auction?.id}_user_${user?.id || 'guest'}`;
+      localStorage.setItem(key, 'true');
+      localStorage.setItem('sr_terms_accepted_all_auctions', 'true');
+    } catch {}
+  };
 
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number; isClosed: boolean }>({
     hours: 0,
@@ -166,6 +188,12 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       return;
     }
 
+    if (!termsAccepted) {
+      setError('⚠️ Please review and tick the Terms & Conditions before placing your bid.');
+      setShowTermsModal(true);
+      return;
+    }
+
     setShowConfirmModal(true);
   };
 
@@ -177,7 +205,23 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     try {
       const res = await api.post(`/auctions/${auction.id}/bid`, { amount: numAmount });
       setSuccessMsg(res.data?.message || `✓ Your bid of ₹${numAmount.toLocaleString('en-IN')} is submitted! Pending Admin Review & Approval.`);
-      if (res.data?.new_end_time) {
+      if (res.data?.time_extended && res.data?.new_end_time) {
+        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
+        try {
+          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+          const updatedStored = currentStored.map((a: any) =>
+            a.id === auction.id ? { ...a, end_time: res.data.new_end_time, current_highest_bid: numAmount } : a
+          );
+          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+        } catch {}
+        broadcastRealtimeEvent('auction_updated', {
+          id: auction.id,
+          end_time: res.data.new_end_time,
+          current_highest_bid: numAmount,
+        });
+        setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minute! Auction extended by +2 minutes.');
+      } else if (res.data?.new_end_time) {
         setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
       }
 
@@ -215,10 +259,67 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     }
   };
 
-  const isClosed = auction?.status === 'closed' || timeLeft.isClosed;
+  const isClosed = auction?.status === 'closed' || auction?.status === 'completed' || !!auction?.winner_confirmed || timeLeft.isClosed;
   const isUpcoming = auction?.status === 'upcoming';
   const isLive = auction?.status === 'live' && !isClosed;
   const isOwner = user?.id === auction?.created_by;
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
+
+  // If auction is closed and viewer is not an admin, show ONLY the beautiful Thank You message with complete privacy
+  if (isClosed && !isAdmin) {
+    return (
+      <div className="bg-gradient-to-br from-[#0B192C] via-[#1E3E62] to-[#0B192C] rounded-3xl p-6 sm:p-8 text-white shadow-2xl border border-slate-700/80 space-y-6 relative overflow-hidden">
+        {/* Subtle Decorative Ambient Glow */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#D48B1C]/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        {/* Top Status Header */}
+        <div className="flex items-center justify-between gap-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-500/20 text-red-300 border border-red-500/40 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+            Auction Closed
+          </span>
+          <span className="text-slate-300 font-mono text-xs font-bold bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">
+            {auction?.lot_code || `LOT #${auction?.id}`}
+          </span>
+        </div>
+
+        {/* Beautiful Icon & Warm Thanks Message */}
+        <div className="text-center space-y-4 py-3 relative z-10">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-tr from-[#D48B1C] to-amber-300 text-slate-950 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/30 ring-4 ring-amber-400/20">
+            <CheckCircle2 className="w-9 h-9 sm:w-11 sm:h-11" />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Thank You for Your Participation!
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed max-w-md mx-auto">
+              This auction lot has officially concluded. We sincerely thank all registered buyers and participants for their valuable bids and interest.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Help & Action Buttons */}
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 relative z-10">
+          <Link
+            to="/auctions"
+            className="flex-1 py-3.5 px-4 bg-[#D48B1C] hover:bg-[#B87514] text-white font-black rounded-xl text-xs text-center uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Gavel className="w-4 h-4" /> Explore Other Live Auctions
+          </Link>
+          <a
+            href="https://wa.me/917304481166?text=Hello%20SalvageReef%2C%20I%20participated%20in%20Auction%20Lot%20and%20would%20like%20to%20inquire%20about%20the%20status."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold rounded-xl text-xs text-center uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+          >
+            Contact Desk
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const getWhatsAppAlertUrl = () => {
     const highestBidderName = bids[0]?.user?.name || bids[0]?.bidder_name || 'Highest Bidder';
@@ -393,6 +494,59 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             </p>
           </div>
 
+          {/* MANDATORY 1-TIME TERMS & CONDITIONS CHECKBOX */}
+          <div
+            className={`p-3.5 rounded-2xl border-2 transition-all ${
+              termsAccepted
+                ? 'bg-emerald-50/70 border-emerald-300'
+                : 'bg-gradient-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 border-amber-400/90 shadow-sm ring-2 ring-amber-300/30'
+            }`}
+          >
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    handleTermsAcceptance();
+                  } else {
+                    setTermsAccepted(false);
+                    try {
+                      localStorage.removeItem(`sr_terms_accepted_auc_${auction?.id}_user_${user?.id || 'guest'}`);
+                    } catch {}
+                  }
+                }}
+                className="mt-0.5 w-4.5 h-4.5 rounded text-[#D48B1C] focus:ring-[#D48B1C] accent-[#D48B1C] cursor-pointer shrink-0"
+              />
+              <div className="text-xs text-slate-800 leading-snug">
+                <span className="font-extrabold text-slate-900 block">
+                  I accept the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowTermsModal(true);
+                    }}
+                    className="text-[#D48B1C] font-black underline hover:text-[#B87514] inline-flex items-center gap-1"
+                  >
+                    Terms & Conditions – SalvageReef
+                    <FileText className="w-3.5 h-3.5 inline text-[#D48B1C]" />
+                  </button>{' '}
+                  *
+                </span>
+                <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                  Mandatory 1-time start agreement: Strictly “As Is Where Is” basis, EMD retention for H1/H2/H3, 3-day payment & 10-day lifting rule.
+                </p>
+              </div>
+            </label>
+            {termsAccepted && (
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-bold pl-7 mt-1.5 pt-1.5 border-t border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Terms & Conditions agreed for this auction session (1-Time Verified)</span>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={submitting}
@@ -508,6 +662,11 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
               </p>
             </div>
 
+            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-bold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Agreed to 20-Clause SalvageReef Terms & Conditions</span>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -527,6 +686,16 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           </div>
         </div>
       )}
+
+      {/* FULL 20-POINT TERMS & CONDITIONS MODAL */}
+      <AuctionTermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleTermsAcceptance}
+        isAccepted={termsAccepted}
+        auctionTitle={auction.title}
+        auctionLotCode={auction.lot_code || `LOT #${auction.id}`}
+      />
     </div>
   );
 }

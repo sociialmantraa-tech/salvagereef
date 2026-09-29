@@ -3,17 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import LiveBiddingWidget from '../components/LiveBiddingWidget';
 import { useAuthStore } from '../store/useAuthStore';
-import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight, FileText, Download, ExternalLink } from 'lucide-react';
+import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight, FileText, Download, ExternalLink, ClipboardCheck, Sparkles, Scale } from 'lucide-react';
 import { Auction } from '../types';
 import { INITIAL_AUCTIONS } from '../services/mockService';
 import { isPdfDocument } from '../utils/imageCompressor';
 
 import SEOHead from '../components/SEOHead';
-import { subscribeRealtimeEvents } from '../services/realtimeSync';
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
 
 export default function AuctionDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   const [auction, setAuction] = useState<Auction | null>(null);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
@@ -60,7 +60,30 @@ export default function AuctionDetail() {
 
     setSubmittingInterest(true);
     try {
-      await api.post(`/auctions/${auction.id}/interest`, { message: interestMsg });
+      const res = await api.post(`/auctions/${auction.id}/interest`, { message: interestMsg });
+      
+      const newInterestItem = res.data?.interest || {
+        id: Date.now(),
+        auction_id: auction.id,
+        auction_title: auction.title,
+        user_id: user?.id,
+        user_name: user?.name || 'Interested Buyer',
+        user_email: user?.email || '',
+        company_name: user?.company_name || 'Buyer Enterprise',
+        phone: user?.phone || '',
+        message: interestMsg || 'Requesting tender access permission',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+
+      try {
+        const currentInterests = JSON.parse(localStorage.getItem('sr_admin_interests') || '[]');
+        const updated = [newInterestItem, ...currentInterests.filter((i: any) => String(i.id) !== String(newInterestItem.id))];
+        localStorage.setItem('sr_admin_interests', JSON.stringify(updated));
+        localStorage.setItem('sr_interests', JSON.stringify(updated));
+      } catch {}
+
+      broadcastRealtimeEvent('tender_request_submitted', newInterestItem);
       setInterestSubmitted(true);
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to submit interest');
@@ -240,7 +263,7 @@ export default function AuctionDetail() {
               })()}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
               <div>
                 <span className="text-slate-400 font-medium block">Total Quantity</span>
                 <span className="font-bold text-slate-900 text-sm">{auction.quantity} {auction.unit}</span>
@@ -248,6 +271,14 @@ export default function AuctionDetail() {
               <div>
                 <span className="text-slate-400 font-medium block">Starting Price</span>
                 <span className="font-bold text-slate-900 text-sm">₹{Number(auction.starting_price).toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium block">EMD Deposit</span>
+                <span className="font-bold text-amber-700 text-sm">
+                  {auction.emd_amount && Number(auction.emd_amount) > 0
+                    ? `₹${Number(auction.emd_amount).toLocaleString('en-IN')}`
+                    : '₹50,000'}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium block">Location</span>
@@ -264,6 +295,58 @@ export default function AuctionDetail() {
               <p className="text-slate-600 text-xs sm:text-sm leading-relaxed whitespace-pre-line">
                 {auction.description}
               </p>
+            </div>
+
+            {/* Condition Showcase Box */}
+            <div className="bg-gradient-to-br from-emerald-50/80 via-slate-50 to-amber-50/50 border-2 border-emerald-300/80 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/80 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                    <ClipboardCheck className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm uppercase tracking-wider flex items-center gap-1.5">
+                      Lot Material Condition
+                    </h3>
+                    <p className="text-[10px] text-emerald-800 font-bold">Physical State & Quality Grading</p>
+                  </div>
+                </div>
+                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Condition Verified
+                </span>
+              </div>
+
+              <div className="bg-white/95 border border-emerald-200 rounded-xl p-3.5 text-slate-800 text-xs sm:text-sm leading-relaxed font-semibold shadow-2xs">
+                {auction.condition || 'As is where is basis - Grade A commercial scrap quality, verified and ready for immediate loading.'}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                <div className="bg-white/90 border border-emerald-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span><strong>Basis:</strong> As Is Where Is</span>
+                </div>
+                <div className="bg-white/90 border border-blue-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                  <span><strong>Inspection:</strong> Site Visit Open</span>
+                </div>
+                <div className="bg-white/90 border border-amber-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                  <span><strong>Lifting:</strong> Immediate Loading</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-emerald-200/70 flex items-center justify-between text-[11px] text-slate-600 font-medium">
+                <span className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                  <Scale className="w-3.5 h-3.5 text-[#D48B1C]" />
+                  Governed by SalvageReef 20-Point Auction Terms
+                </span>
+                <Link
+                  to="/terms"
+                  className="text-[#D48B1C] font-extrabold hover:underline flex items-center gap-1"
+                >
+                  Read Policy <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
             </div>
 
             {auction.is_group && auction.group_children && auction.group_children.length > 0 && (

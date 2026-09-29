@@ -538,24 +538,40 @@ export default function Register() {
         bank_name: formData.bank_name,
         bank_account_number: formData.bank_account_number,
         bank_ifsc_code: formData.bank_ifsc_code,
-        cheque_file: formData.cheque_file || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&q=80',
-        pan_file: formData.pan_file || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
-        gst_file: formData.gst_file || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&q=80',
+        cheque_file: formData.cheque_file || '',
+        pan_file: formData.pan_file || '',
+        gst_file: formData.gst_file || '',
       };
 
       const res = await api.post('/auth/register', payload);
 
-      const userToSave = res.data?.user || { ...payload, id: Date.now(), is_verified: true, is_active: true };
+      const userToSave = {
+        ...payload,
+        ...(res.data?.user || {}),
+        id: res.data?.user?.id || Date.now(),
+        is_verified: res.data?.user?.is_verified ?? true,
+        is_active: res.data?.user?.is_active ?? true,
+        pan_file: formData.pan_file || res.data?.user?.pan_file || '',
+        gst_file: formData.gst_file || res.data?.user?.gst_file || '',
+        cheque_file: formData.cheque_file || res.data?.user?.cheque_file || '',
+      };
       const tokenToSave = res.data?.token || 'verified-user-token-' + Date.now();
 
       // Store in users lists so Admin Panel displays all uploaded KYC proofs
       try {
         const storedAdminUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
         const updatedAdminUsers = [
-          ...storedAdminUsers.filter((u: any) => u.email !== userToSave.email),
           userToSave,
+          ...storedAdminUsers.filter((u: any) => u.email !== userToSave.email && u.id !== userToSave.id),
         ];
         localStorage.setItem('sr_admin_users', JSON.stringify(updatedAdminUsers));
+
+        const storedAllUsers = JSON.parse(localStorage.getItem('sr_all_users') || '[]');
+        const updatedAllUsers = [
+          userToSave,
+          ...storedAllUsers.filter((u: any) => u.email !== userToSave.email && u.id !== userToSave.id),
+        ];
+        localStorage.setItem('sr_all_users', JSON.stringify(updatedAllUsers));
       } catch {}
 
       localStorage.setItem('salvagereef_user', JSON.stringify(userToSave));

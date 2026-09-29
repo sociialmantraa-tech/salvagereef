@@ -137,11 +137,20 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
               {isGroup ? auction.quantity || 3 : `${auction.quantity || 40600} ${auction.unit || 'Kg'}`}
             </span>
           </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-slate-600 font-semibold">EMD Deposit</span>
+            <span className="font-bold text-amber-700">
+              {auction.emd_amount && Number(auction.emd_amount) > 0
+                ? `₹${Number(auction.emd_amount).toLocaleString('en-IN')}`
+                : '₹50,000'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Title & Lot Code Section - Lot Code smaller with distinct color */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="bg-[#0077B6]/15 text-[#0077B6] border border-[#0077B6]/30 font-mono text-[11px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider shadow-2xs shrink-0">
             {displayCode}
@@ -155,6 +164,12 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
         >
           {displayTitle}
         </Link>
+        {auction.condition && (
+          <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-semibold bg-emerald-50/90 border border-emerald-200/90 px-2 py-0.5 rounded-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+            <span className="truncate">{auction.condition}</span>
+          </div>
+        )}
       </div>
 
       {/* Card Footer: Starts In : 3D 1H 12M 44S Cyan Blocks + Action Buttons */}
