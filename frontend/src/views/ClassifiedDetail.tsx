@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Phone, Mail, User, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Phone, Mail, User, ShieldCheck, ChevronRight, FileText, Download, ExternalLink } from 'lucide-react';
 import { Classified } from '../types';
 import { INITIAL_CLASSIFIEDS } from '../services/mockService';
+import { isPdfDocument } from '../utils/imageCompressor';
 
 import SEOHead from '../components/SEOHead';
 
@@ -89,8 +90,44 @@ export default function ClassifiedDetail() {
         {/* Images & Details */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm">
-            <div className="h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900">
-              <img src={primaryImg} alt={classified.title} className="w-full h-full object-cover" />
+            <div className="h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
+              {isPdfDocument(primaryImg) ? (
+                <div className="w-full h-full bg-[#0B192C] flex flex-col items-center justify-center p-6 text-center space-y-4">
+                  <div className="w-20 h-20 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-xl border border-red-400">
+                    <FileText className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="bg-red-600 text-white text-[11px] font-black uppercase px-3 py-1 rounded-full tracking-wider inline-block">
+                      PDF Document Attached
+                    </span>
+                    <h3 className="text-white font-extrabold text-base pt-1">
+                      {classified.title} - Asset Technical Specifications
+                    </h3>
+                    <p className="text-slate-400 text-xs max-w-sm">
+                      Inspect or download the official verification document for this listing.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <a
+                      href={primaryImg}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Open Full PDF Document
+                    </a>
+                    <a
+                      href={primaryImg}
+                      download={`Classified-${classified.id}-Document.pdf`}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <Download className="w-4 h-4" /> Download PDF
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <img src={primaryImg} alt={classified.title} className="w-full h-full object-cover" />
+              )}
             </div>
           </div>
 

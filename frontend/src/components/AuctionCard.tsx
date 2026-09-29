@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Auction } from '../types';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, FileText } from 'lucide-react';
+import { isPdfDocument } from '../utils/imageCompressor';
 
 interface AuctionCardProps {
   auction: Auction;
@@ -69,13 +70,13 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
   }, [auction?.end_time]);
 
   // Extract or format Lot Code & Main Title
-  let displayCode = isGroup ? `GR-${auction.id}` : isPrivate ? `PR-${auction.id}` : `PL-${auction.id}`;
+  let displayCode = (auction as any).lot_code || (isGroup ? `GR-${auction.id}` : isPrivate ? `PR-${auction.id}` : `PL-${auction.id}`);
   let displayTitle = auction.title;
 
   if (auction.title && auction.title.includes('|')) {
     const parts = auction.title.split('|');
-    if (parts[0] && parts[0].trim().length <= 15) {
-      displayCode = parts[0].trim();
+    if (parts[0] && parts[0].trim().length <= 25) {
+      displayCode = (auction as any).lot_code || parts[0].trim();
       displayTitle = parts.slice(1).join('|').trim();
     }
   }
@@ -85,13 +86,22 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
       {/* Top Section: Thumbnail Image + Right Specs Table + Badge */}
       <div className="flex gap-4 items-start">
         {/* Left Thumbnail Image */}
-        <div className="w-36 sm:w-40 h-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
-          <img
-            src={imgSrc}
-            alt={displayTitle}
-            onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
-            className="w-full h-full object-cover"
-          />
+        <div className="w-36 sm:w-40 h-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm flex items-center justify-center">
+          {isPdfDocument(imgSrc) ? (
+            <div className="w-full h-full bg-slate-900 text-red-400 flex flex-col items-center justify-center p-2 text-center group-hover:scale-105 transition-transform">
+              <FileText className="w-8 h-8 text-red-500 mb-1" />
+              <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded">
+                PDF Tender
+              </span>
+            </div>
+          ) : (
+            <img
+              src={imgSrc}
+              alt={displayTitle}
+              onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
 
         {/* Right Specs Table & Badge */}

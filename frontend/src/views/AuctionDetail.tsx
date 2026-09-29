@@ -3,9 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import LiveBiddingWidget from '../components/LiveBiddingWidget';
 import { useAuthStore } from '../store/useAuthStore';
-import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight } from 'lucide-react';
+import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight, FileText, Download, ExternalLink } from 'lucide-react';
 import { Auction } from '../types';
 import { INITIAL_AUCTIONS } from '../services/mockService';
+import { isPdfDocument } from '../utils/imageCompressor';
 
 import SEOHead from '../components/SEOHead';
 import { subscribeRealtimeEvents } from '../services/realtimeSync';
@@ -132,12 +133,48 @@ export default function AuctionDetail() {
         {/* Left Column */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-4">
-            <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900">
-              <img
-                src={images[activeImage]}
-                alt={auction.title}
-                className="w-full h-full object-cover"
-              />
+            <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
+              {isPdfDocument(images[activeImage]) ? (
+                <div className="w-full h-full bg-[#0B192C] flex flex-col items-center justify-center p-6 text-center space-y-4">
+                  <div className="w-20 h-20 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-xl border border-red-400">
+                    <FileText className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="bg-red-600 text-white text-[11px] font-black uppercase px-3 py-1 rounded-full tracking-wider inline-block">
+                      PDF Document Attached
+                    </span>
+                    <h3 className="text-white font-extrabold text-base pt-1">
+                      Official Lot Specifications & Inspection Document
+                    </h3>
+                    <p className="text-slate-400 text-xs max-w-sm">
+                      Click below to inspect or download the official verification PDF document.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <a
+                      href={images[activeImage]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Open Full PDF Document
+                    </a>
+                    <a
+                      href={images[activeImage]}
+                      download={`Auction-Lot-${auction.id}-Document.pdf`}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <Download className="w-4 h-4" /> Download PDF
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={images[activeImage]}
+                  alt={auction.title}
+                  className="w-full h-full object-cover"
+                />
+              )}
               <div className="absolute top-4 left-4 flex gap-2">
                 <span className="bg-[#0B192C] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                   {auction.auction_type} Lot
@@ -160,7 +197,14 @@ export default function AuctionDetail() {
                       activeImage === idx ? 'border-[#D48B1C] scale-105' : 'border-slate-200 opacity-60'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    {isPdfDocument(img) ? (
+                      <div className="w-full h-full bg-red-950 text-red-400 flex flex-col items-center justify-center p-1">
+                        <FileText className="w-5 h-5 mb-0.5" />
+                        <span className="text-[9px] font-bold">PDF</span>
+                      </div>
+                    ) : (
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -170,12 +214,12 @@ export default function AuctionDetail() {
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div>
               {(() => {
-                let displayCode = `LOT-#${auction.id}`;
+                let displayCode = (auction as any).lot_code || `LOT-#${auction.id}`;
                 let displayTitle = auction.title;
                 if (auction.title && auction.title.includes('|')) {
                   const parts = auction.title.split('|');
-                  if (parts[0] && parts[0].trim().length <= 15) {
-                    displayCode = parts[0].trim();
+                  if (parts[0] && parts[0].trim().length <= 25) {
+                    displayCode = (auction as any).lot_code || parts[0].trim();
                     displayTitle = parts.slice(1).join('|').trim();
                   }
                 }

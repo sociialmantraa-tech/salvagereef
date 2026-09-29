@@ -99,7 +99,8 @@ export const INITIAL_USERS: (User & { password?: string; login_id?: string })[] 
 export const INITIAL_AUCTIONS: Auction[] = [
   {
     id: 999,
-    title: '⚡ 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
+    lot_code: 'EXP-999',
+    title: 'EXP-999 | 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap',
     slug: '2-minute-express-demo-copper-scrap',
     description: 'Special 2-minute express live auction demo with top 3 bidders (H1, H2, H3). Test winner selection desk in Admin Panel.',
     category_id: 2,
@@ -130,7 +131,8 @@ export const INITIAL_AUCTIONS: Auction[] = [
   },
   {
     id: 101,
-    title: '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
+    lot_code: 'PL-101',
+    title: 'PL-101 | 50 MT Industrial Copper Cable Scrap - Grade A Clean Wire',
     slug: '50-mt-industrial-copper-cable-scrap-grade-a',
     description: 'Bulk lot of high-grade copper cables stripped from power sub-station dismantling. Inspection invited at Thane scrap yard. Purity verified at 99.2% Cu. Instant loading assistance available.',
     category_id: 2,
@@ -140,6 +142,7 @@ export const INITIAL_AUCTIONS: Auction[] = [
     unit: 'MT',
     starting_price: 3500000,
     current_highest_bid: 4150000,
+    bid_increment: 10000,
     start_time: new Date(Date.now() - 86400000).toISOString(),
     end_time: new Date(Date.now() + 172800000).toISOString(),
     location_city: 'Mumbai',
@@ -161,7 +164,8 @@ export const INITIAL_AUCTIONS: Auction[] = [
   },
   {
     id: 102,
-    title: 'CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)',
+    lot_code: 'PL-102',
+    title: 'PL-102 | CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)',
     slug: 'cnc-milling-machine-5-axis-surplus-equipment',
     description: 'Heavy duty Japanese manufactured 5-axis CNC Milling machine in prime working condition. Includes original control panel, tool changers, and coolant system. Plant clearance sale.',
     category_id: 1,
@@ -171,6 +175,7 @@ export const INITIAL_AUCTIONS: Auction[] = [
     unit: 'nos',
     starting_price: 8000000,
     current_highest_bid: 9200000,
+    bid_increment: 25000,
     start_time: new Date(Date.now() - 172800000).toISOString(),
     end_time: new Date(Date.now() + 86400000).toISOString(),
     location_city: 'Mumbai',
@@ -911,7 +916,7 @@ export function handleMockApi(config: any): any {
   }
 
   // 10b. GET /admin/users
-  if (url.includes('/admin/users') && method === 'get') {
+  if (cleanUrl.includes('/admin/users') && method === 'get') {
     const rawUsers = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     let masterFound = false;
     const users = (Array.isArray(rawUsers) ? rawUsers : []).map((u: any) => {
@@ -1002,7 +1007,7 @@ export function handleMockApi(config: any): any {
   }
 
   // 10b2. POST /admin/users (Create User)
-  if (url.includes('/admin/users') && method === 'post') {
+  if (cleanUrl.includes('/admin/users') && method === 'post' && !cleanUrl.match(/\/admin\/users\/\d+/)) {
     const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
     const role = bodyData.role || 'bidder';
     const isExec = role === 'desk_admin';
@@ -1033,35 +1038,35 @@ export function handleMockApi(config: any): any {
   }
 
   // 10b3. PUT /admin/users/:id (Update User)
-  if (url.includes('/admin/users/') && !url.endsWith('/toggle-active') && !url.endsWith('/verify') && !url.endsWith('/role') && (method === 'put' || method === 'post')) {
-    const parts = url.split('/');
-    const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+  if (cleanUrl.includes('/admin/users/') && !cleanUrl.endsWith('/toggle-active') && !cleanUrl.endsWith('/verify') && !cleanUrl.endsWith('/role') && (method === 'put' || method === 'post')) {
+    const userMatch = cleanUrl.match(/\/admin\/users\/(\d+)/);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+    const users = getItem<any[]>('sr_admin_users', getItem<any[]>('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx] = { ...users[idx], ...bodyData };
       setItem('sr_admin_users', users);
       setItem('sr_all_users', users);
     }
-    return { message: 'User updated successfully', user: users[idx] };
+    return { message: 'User updated successfully', user: idx !== -1 ? users[idx] : bodyData };
   }
 
   // 10b4. DELETE /admin/users/:id
-  if (url.includes('/admin/users/') && method === 'delete') {
-    const parts = url.split('/');
-    const userId = Number(parts[parts.indexOf('users') + 1]);
-    let users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
-    users = users.filter((u: any) => u.id !== userId);
+  if (cleanUrl.includes('/admin/users/') && method === 'delete') {
+    const userMatch = cleanUrl.match(/\/admin\/users\/(\d+)/);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+    let users = getItem<any[]>('sr_admin_users', getItem<any[]>('sr_all_users', INITIAL_USERS));
+    users = users.filter((u: any) => Number(u.id) !== userId && String(u.id) !== String(userId));
     setItem('sr_admin_users', users);
     setItem('sr_all_users', users);
-    return { message: 'User deleted successfully' };
+    return { success: true, message: 'User deleted successfully', deleted_id: userId };
   }
 
   // 10c. PUT /admin/users/:id/toggle-active
-  if (url.includes('/admin/users/') && url.endsWith('/toggle-active') && method === 'put') {
-    const parts = url.split('/');
-    const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+  if (cleanUrl.includes('/admin/users/') && cleanUrl.endsWith('/toggle-active') && method === 'put') {
+    const userMatch = cleanUrl.match(/\/admin\/users\/(\d+)/);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+    const users = getItem<any[]>('sr_admin_users', getItem<any[]>('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].is_active = !users[idx].is_active;
@@ -1072,10 +1077,10 @@ export function handleMockApi(config: any): any {
   }
 
   // 10d. PUT /admin/users/:id/verify
-  if (url.includes('/admin/users/') && url.endsWith('/verify') && method === 'put') {
-    const parts = url.split('/');
-    const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+  if (cleanUrl.includes('/admin/users/') && cleanUrl.endsWith('/verify') && method === 'put') {
+    const userMatch = cleanUrl.match(/\/admin\/users\/(\d+)/);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+    const users = getItem<any[]>('sr_admin_users', getItem<any[]>('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].is_verified = !users[idx].is_verified;
@@ -1086,10 +1091,10 @@ export function handleMockApi(config: any): any {
   }
 
   // 10e. PUT /admin/users/:id/role
-  if (url.includes('/admin/users/') && url.endsWith('/role') && method === 'put') {
-    const parts = url.split('/');
-    const userId = Number(parts[parts.indexOf('users') + 1]);
-    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+  if (cleanUrl.includes('/admin/users/') && cleanUrl.endsWith('/role') && method === 'put') {
+    const userMatch = cleanUrl.match(/\/admin\/users\/(\d+)/);
+    const userId = userMatch ? Number(userMatch[1]) : 0;
+    const users = getItem<any[]>('sr_admin_users', getItem<any[]>('sr_all_users', INITIAL_USERS));
     const idx = users.findIndex((u: any) => u.id === userId);
     if (idx !== -1) {
       users[idx].role = bodyData.role || 'bidder';
@@ -1160,25 +1165,31 @@ export function handleMockApi(config: any): any {
     return newAuction;
   }
 
-  // 10i2. POST /admin/auctions (update auction or list)
-  if (url.includes('/admin/auctions') && method === 'post') {
+  // 10i2. POST/PUT /admin/auctions (update auction or list)
+  if ((url.includes('/admin/auctions') || cleanUrl.includes('/auctions')) && (method === 'post' || method === 'put')) {
     const auctions = getMockAuctions();
-    if (bodyData && bodyData.id) {
-      const idx = auctions.findIndex((a) => a.id === bodyData.id);
+    const matchId = cleanUrl.match(/\/auctions\/(\d+)/)?.[1] || bodyData?.id;
+    const targetId = matchId ? Number(matchId) : bodyData?.id;
+
+    if (targetId) {
+      const idx = auctions.findIndex((a) => Number(a.id) === Number(targetId) || String(a.id) === String(targetId));
       if (idx >= 0) {
         auctions[idx] = {
           ...auctions[idx],
           ...bodyData,
+          id: auctions[idx].id,
           images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : auctions[idx].images,
           primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : auctions[idx].primary_image,
         };
       } else {
-        auctions.unshift(bodyData);
+        auctions.unshift({ ...bodyData, id: targetId });
       }
       setItem('sr_auctions', auctions);
-      return { success: true, message: 'Auction updated', data: auctions[idx] || bodyData };
+      setItem('sr_admin_auctions', auctions);
+      return { success: true, message: 'Auction updated live', data: auctions[idx] || bodyData };
     } else if (Array.isArray(bodyData)) {
       setItem('sr_auctions', bodyData);
+      setItem('sr_admin_auctions', bodyData);
       return { success: true, message: 'Auctions list updated', data: bodyData };
     }
   }
@@ -1646,19 +1657,6 @@ export function handleMockApi(config: any): any {
     };
   }
 
-  // 31. DELETE /admin/users/:id
-  if (cleanUrl.includes('/admin/users/') && method === 'delete') {
-    const parts = cleanUrl.split('/');
-    const userId = parts[parts.length - 1];
-    const users = getItem<any[]>('sr_admin_users', INITIAL_USERS);
-    const updatedUsers = users.filter((u: any) => String(u.id) !== String(userId));
-    setItem('sr_admin_users', updatedUsers);
-    return {
-      success: true,
-      message: 'User account removed from database.',
-      deleted_id: userId,
-    };
-  }
 
   // 32. DELETE /admin/categories/:id
   if (cleanUrl.includes('/admin/categories/') && method === 'delete') {

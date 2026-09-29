@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { uploadFile } from '../services/api';
-import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
+import { compressAndSanitizeImage, processUploadFile, isPdfDocument, formatBytes, CompressionResult } from '../utils/imageCompressor';
 import { useContentStore } from '../store/useContentStore';
 import { useCategoryLocationStore, LocationItem, STATE_CITIES_MAP, INDIAN_STATES } from '../store/useCategoryLocationStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -722,25 +722,83 @@ export default function AdminDashboard() {
   // Edit Auction Modal State & Handler
   const [editingAuction, setEditingAuction] = useState<any | null>(null);
 
+  const formatForDateTimeLocal = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const extendEditingAuctionEndTime = (addMinutes: number) => {
+    if (!editingAuction) return;
+    const currentEnd = editingAuction.end_time ? new Date(editingAuction.end_time).getTime() : Date.now();
+    const baseTime = currentEnd > Date.now() ? currentEnd : Date.now();
+    const newEndTime = new Date(baseTime + addMinutes * 60 * 1000).toISOString();
+    setEditingAuction({
+      ...editingAuction,
+      end_time: newEndTime,
+      status: (editingAuction.status === 'closed' || editingAuction.status === 'completed') ? 'live' : editingAuction.status,
+    });
+  };
+
   const handleSaveAuctionEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAuction) return;
 
+    const resolvedStartTime = editingAuction.start_time
+      ? new Date(editingAuction.start_time).toISOString()
+      : new Date().toISOString();
+
+    const resolvedEndTime = editingAuction.end_time
+      ? new Date(editingAuction.end_time).toISOString()
+      : new Date(Date.now() + 7 * 86400000).toISOString();
+
+    const isEndTimeInFuture = new Date(resolvedEndTime).getTime() > Date.now();
+
+    const code = editingAuction.lot_code ? editingAuction.lot_code.trim() : (editingAuction.title?.includes('|') ? editingAuction.title.split('|')[0].trim() : `LOT-#${editingAuction.id}`);
+    const rawTitle = editingAuction.title?.includes('|') ? editingAuction.title.split('|').slice(1).join('|').trim() : (editingAuction.title || '');
+    const combinedTitle = code ? `${code} | ${rawTitle}` : rawTitle;
+
+    const updatedAuction = {
+      ...editingAuction,
+      title: combinedTitle,
+      lot_code: code,
+      start_time: resolvedStartTime,
+      end_time: resolvedEndTime,
+      status: (isEndTimeInFuture && (editingAuction.status === 'closed' || editingAuction.status === 'completed') && !editingAuction.winner_confirmed)
+        ? 'live'
+        : editingAuction.status,
+    };
+
     setAuctionsPersisted((prev) =>
-      prev.map((a) => (a.id === editingAuction.id ? { ...editingAuction } : a))
+      prev.map((a) => (a.id === updatedAuction.id ? { ...updatedAuction } : a))
     );
 
-    broadcastRealtimeEvent('auction_updated', editingAuction);
+    // Save into localStorage so other tabs and public pages instantly have the latest date/time
+    try {
+      const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+      const updatedStored = currentStored.map((a: any) => a.id === updatedAuction.id ? { ...a, ...updatedAuction } : a);
+      localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+      localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+    } catch {}
+
+    // Broadcast real-time update event so all customer windows & timers update live immediately!
+    broadcastRealtimeEvent('auction_updated', updatedAuction);
 
     try {
-      await api.put(`/admin/auctions/${editingAuction.id}`, editingAuction);
+      await api.put(`/admin/auctions/${updatedAuction.id}`, updatedAuction);
     } catch {
       try {
-        await api.post('/admin/auctions', editingAuction);
+        await api.post('/admin/auctions', updatedAuction);
       } catch {}
     }
 
-    showNotification(`✓ Auction "${editingAuction.title}" updated & synced live across whole website!`);
+    showNotification(`✓ Auction "${updatedAuction.title}" date, time & specs updated live across all browsers!`);
     setEditingAuction(null);
   };
 
@@ -818,11 +876,8 @@ export default function AdminDashboard() {
 
     broadcastRealtimeEvent('user_updated', editingUser);
 
-    // If currently logged-in user or master admin is updated, synchronize authStore and stored user session
-    if (
-      (authUser && (authUser.id === editingUser.id || authUser.email === editingUser.email)) ||
-      editingUser.role === 'master_admin'
-    ) {
+    // Only synchronize authStore if editing currently logged-in user's own profile
+    if (authUser && authUser.id === editingUser.id && authUser.email === editingUser.email) {
       const updatedAuthUser = {
         ...(authUser || {}),
         ...editingUser,
@@ -847,10 +902,12 @@ export default function AdminDashboard() {
   const [newCatSlug, setNewCatSlug] = useState('');
 
   const [newLocState, setNewLocState] = useState('Maharashtra');
+  const [customNewLocState, setCustomNewLocState] = useState('');
   const [newLocCity, setNewLocCity] = useState('Mumbai');
   const [customNewLocCity, setCustomNewLocCity] = useState('');
 
   // Add Product Form State
+  const [productLotCode, setProductLotCode] = useState(() => `LOT-${Math.floor(1000 + Math.random() * 9000)}`);
   const [productTitle, setProductTitle] = useState('');
   const [productCategory, setProductCategory] = useState('1');
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -860,6 +917,7 @@ export default function AdminDashboard() {
   const [productStartingPrice, setProductStartingPrice] = useState('100000');
   const [productBidIncrement, setProductBidIncrement] = useState('1000');
   const [productState, setProductState] = useState('Maharashtra');
+  const [customProductState, setCustomProductState] = useState('');
   const [productCity, setProductCity] = useState('Mumbai');
   const [customProductCity, setCustomProductCity] = useState('');
   const [productStartTime, setProductStartTime] = useState('2026-08-07T12:00');
@@ -1494,7 +1552,20 @@ export default function AdminDashboard() {
       let adminUser;
       let token = 'sr_master_admin_token';
 
-      if (matchedUser) {
+      if (isMasterMatch) {
+        adminUser = {
+          id: 3,
+          name: 'Master Admin',
+          email: 'admin@salvagereef.com',
+          role: 'master_admin',
+          company_name: 'SalvageReef Master Operations',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          is_verified: true,
+          is_active: true,
+        };
+        token = 'sr_master_admin_token';
+      } else if (matchedUser) {
         adminUser = {
           id: matchedUser.id,
           name: matchedUser.name,
@@ -1858,12 +1929,17 @@ export default function AdminDashboard() {
   // Add Location Handler with Toast
   const handleCreateLocation = (e: React.FormEvent) => {
     e.preventDefault();
-    const cityToAdd = newLocCity === 'custom' ? customNewLocCity.trim() : newLocCity.trim();
-    if (!cityToAdd) return;
-    addLocation(cityToAdd, newLocState);
-    showNotification(`✓ New location "${cityToAdd}, ${newLocState}" added & synced live across website!`);
+    const stateToAdd = newLocState === 'custom' ? customNewLocState.trim() : newLocState.trim();
+    const cityToAdd = (newLocState === 'custom' || newLocCity === 'custom') ? customNewLocCity.trim() : newLocCity.trim();
+    if (!stateToAdd || !cityToAdd) {
+      showNotification('❌ Please enter both a valid State and City name.');
+      return;
+    }
+    addLocation(cityToAdd, stateToAdd);
+    showNotification(`✓ New location "${cityToAdd}, ${stateToAdd}" added & synced live across website!`);
     setNewLocCity(STATE_CITIES_MAP[newLocState]?.[0] || 'Mumbai');
     setCustomNewLocCity('');
+    setCustomNewLocState('');
   };
 
   // Add Product Handler
@@ -1879,7 +1955,11 @@ export default function AdminDashboard() {
       addCategory(customCategoryName.trim());
     }
 
-    const resolvedCity = productCity === 'custom'
+    const resolvedState = productState === 'custom'
+      ? (customProductState.trim() || 'Maharashtra')
+      : productState;
+
+    const resolvedCity = (productState === 'custom' || productCity === 'custom')
       ? (customProductCity.trim() || 'Mumbai')
       : productCity;
 
@@ -1906,8 +1986,12 @@ export default function AdminDashboard() {
         finalImageUrl = compressedImage.dataUrl;
       }
 
+      const finalLotCode = productLotCode.trim() || `LOT-${Math.floor(1000 + Math.random() * 9000)}`;
+      const combinedTitle = `${finalLotCode} | ${productTitle.trim()}`;
+
       const payload = {
-        title: productTitle,
+        title: combinedTitle,
+        lot_code: finalLotCode,
         description: productDescription || 'High quality salvage lot published by admin desk.',
         category_id: productCategory === 'custom' ? Date.now() : productCategory,
         category_name: resolvedCategoryName,
@@ -1919,13 +2003,14 @@ export default function AdminDashboard() {
         start_time: productStartTime,
         end_time: productEndTime,
         location_city: resolvedCity,
-        location_state: productState,
+        location_state: resolvedState,
         image_url: finalImageUrl,
       };
 
       const newAuctionItem = {
         id: Date.now(),
-        title: productTitle,
+        title: combinedTitle,
+        lot_code: finalLotCode,
         slug: productTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         category: resolvedCategoryName,
         auction_type: productType,
@@ -1934,7 +2019,10 @@ export default function AdminDashboard() {
         bid_increment: parseFloat(productBidIncrement) || 1000,
         current_highest_bid: parseFloat(productStartingPrice),
         location_city: resolvedCity,
-        location_state: productState,
+        location_state: resolvedState,
+        start_time: productStartTime,
+        end_time: productEndTime,
+        image_url: finalImageUrl,
       };
 
       setAuctionsPersisted((prev) => [newAuctionItem, ...prev]);
@@ -1945,10 +2033,12 @@ export default function AdminDashboard() {
         // Fallback — local state already updated
       }
 
-      showNotification(`✓ Product / Auction Lot "${productTitle}" published successfully!`);
+      showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" published successfully!`);
+      setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`);
       setProductTitle('');
       setProductDescription('');
       setCustomCategoryName('');
+      setCustomProductState('');
       setCustomProductCity('');
       setCompressedImage(null);
       setActiveTab('auctions');
@@ -2215,7 +2305,15 @@ export default function AdminDashboard() {
       broadcastRealtimeEvent('bid_deleted', { bidId: id });
       showNotification(`✓ Bid #${id} removed and deleted permanently!`);
     } else if (type === 'user') {
-      if (authUser && id === authUser.id) {
+      const userToDelete = users.find((u) => u.id === id);
+      const isTargetMaster = userToDelete && (userToDelete.id === 3 || userToDelete.role === 'master_admin' || userToDelete.email === 'admin@salvagereef.com');
+
+      if (isTargetMaster) {
+        showNotification('❌ Security Policy: Master Admin account is permanently protected and cannot be deleted.');
+        setDeleteConfirmItem(null);
+        return;
+      }
+      if (!isMasterAdmin && authUser && (id === authUser.id || (userToDelete && userToDelete.email === authUser.email))) {
         showNotification('❌ Security Policy: You cannot delete your own logged-in active admin account!');
         setDeleteConfirmItem(null);
         return;
@@ -2226,19 +2324,20 @@ export default function AdminDashboard() {
         return;
       }
 
-      const userToDelete = users.find((u) => u.id === id);
       try {
         await api.delete(`/admin/users/${id}`);
-        setUsers((prev) => {
-          const updated = sortUsersByHierarchy(prev.filter((u) => u.id !== id));
-          localStorage.setItem('sr_admin_users', JSON.stringify(updated));
-          return updated;
-        });
+        const filtered = users.filter((u) => u.id !== id && (userToDelete ? u.email !== userToDelete.email : true));
+        const updated = sortUsersByHierarchy(filtered);
+        setUsers(updated);
+        localStorage.setItem('sr_admin_users', JSON.stringify(updated));
+        localStorage.setItem('sr_all_users', JSON.stringify(updated));
+
         if (userToDelete) {
           pushUndoAction(`Delete User "${userToDelete.name}"`, () => {
             setUsers((prev) => {
               const restored = sortUsersByHierarchy([userToDelete, ...prev.filter((u) => u.id !== id)]);
               localStorage.setItem('sr_admin_users', JSON.stringify(restored));
+              localStorage.setItem('sr_all_users', JSON.stringify(restored));
               return restored;
             });
           });
@@ -3050,8 +3149,23 @@ export default function AdminDashboard() {
                           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200/80 pb-3">
                             <div className="flex items-start gap-4">
                               {/* Thumbnail */}
-                              <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 shadow-sm bg-slate-100">
-                                <img src={item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'} alt={item.title} className="w-full h-full object-cover" />
+                              <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 shadow-sm bg-slate-100 flex items-center justify-center">
+                                {isPdfDocument(item.image_url) ? (
+                                  <a
+                                    href={item.image_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full h-full bg-red-50 hover:bg-red-100 text-red-700 flex flex-col items-center justify-center p-1 text-center transition-colors group/pdf"
+                                    title="Click to view attached PDF Document"
+                                  >
+                                    <FileText className="w-6 h-6 text-red-600 mb-0.5 group-hover/pdf:scale-110 transition-transform" />
+                                    <span className="text-[9px] font-black uppercase tracking-wider bg-red-600 text-white px-1.5 py-0.5 rounded">
+                                      PDF DOC
+                                    </span>
+                                  </a>
+                                ) : (
+                                  <img src={item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'} alt={item.title} className="w-full h-full object-cover" />
+                                )}
                               </div>
 
                               <div className="space-y-1">
@@ -3442,7 +3556,7 @@ export default function AdminDashboard() {
                               >
                                 <Lock className="w-3 h-3 text-[#D48B1C]" /> Protected
                               </span>
-                            ) : (authUser && (u.id === authUser.id || u.email === authUser.email)) ? (
+                            ) : (!isMasterAdmin && authUser && (u.id === authUser.id || u.email === authUser.email)) ? (
                               <span
                                 className="px-2 py-1.5 bg-blue-50 text-blue-900 font-extrabold text-[10px] rounded-lg border border-blue-300 inline-flex items-center justify-center gap-1 cursor-not-allowed"
                                 title="Security Policy: You cannot delete your own active admin account"
@@ -3488,25 +3602,50 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-4 text-xs font-semibold text-slate-700">
-                <div>
-                  <label className="block text-slate-900 font-bold mb-1">Auction Lot Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={productTitle}
-                    onChange={(e) => setProductTitle(e.target.value)}
-                    placeholder="e.g. 50 MT Industrial Copper Cable Scrap - Grade A"
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                  />
+                {/* Unique Lot Code & Lot Title */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                  <div className="sm:col-span-4">
+                    <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
+                      <span>Unique Lot / Auction Code *</span>
+                      <button
+                        type="button"
+                        onClick={() => setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`)}
+                        className="text-[10px] text-amber-600 hover:text-amber-700 font-bold"
+                      >
+                        ⚡ Auto-Code
+                      </button>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={productLotCode}
+                      onChange={(e) => setProductLotCode(e.target.value)}
+                      placeholder="e.g. LOT-1001"
+                      className="w-full p-3 bg-amber-50/90 border-2 border-amber-400 font-mono font-black text-amber-950 rounded-xl h-11"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-8">
+                    <label className="block text-slate-900 font-bold mb-1">Auction Lot Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={productTitle}
+                      onChange={(e) => setProductTitle(e.target.value)}
+                      placeholder="e.g. 50 MT Industrial Copper Cable Scrap - Grade A"
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                {/* Category, Type, Starting Price, Min Bid Increment */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-slate-900 font-bold mb-1">Category *</label>
                     <select
                       value={productCategory}
                       onChange={(e) => setProductCategory(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                     >
                       {storeCategories.map((c) => (
                         <option key={c.id} value={c.id.toString()}>{c.name}</option>
@@ -3520,7 +3659,7 @@ export default function AdminDashboard() {
                         placeholder="Type custom scrap category..."
                         value={customCategoryName}
                         onChange={(e) => setCustomCategoryName(e.target.value)}
-                        className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none"
+                        className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none h-11"
                       />
                     )}
                   </div>
@@ -3530,7 +3669,7 @@ export default function AdminDashboard() {
                     <select
                       value={productType}
                       onChange={(e) => setProductType(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                     >
                       <option value="public">Public Auction (Open to All)</option>
                       <option value="private">Private Tender (Requires Approval)</option>
@@ -3545,21 +3684,19 @@ export default function AdminDashboard() {
                       required
                       value={productStartingPrice}
                       onChange={(e) => setProductStartingPrice(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-900 font-bold"
+                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-slate-900 font-bold h-11"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
-                      <span>Min Bid Increment (₹) *</span>
-                    </label>
+                    <label className="block text-slate-900 font-bold mb-1">Min Bid Increment (₹) *</label>
                     <input
                       type="number"
                       required
                       value={productBidIncrement}
                       onChange={(e) => setProductBidIncrement(e.target.value)}
                       placeholder="e.g. 1000 or 5000"
-                      className="w-full p-3 bg-amber-50/90 border-2 border-[#D48B1C] rounded-xl font-mono text-amber-950 font-black focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                      className="w-full p-3 bg-amber-50/90 border-2 border-[#D48B1C] rounded-xl font-mono text-amber-950 font-black focus:outline-none focus:ring-2 focus:ring-[#D48B1C] h-11"
                     />
                   </div>
                 </div>
@@ -3600,38 +3737,66 @@ export default function AdminDashboard() {
                       onChange={(e) => {
                         const newState = e.target.value;
                         setProductState(newState);
-                        const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
-                        setProductCity(firstCity);
+                        if (newState === 'custom') {
+                          setProductCity('custom');
+                        } else {
+                          const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
+                          setProductCity(firstCity);
+                        }
                       }}
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
                     >
                       {INDIAN_STATES.map((st) => (
                         <option key={st} value={st}>{st}</option>
                       ))}
+                      <option value="custom">➕ Custom / Other State...</option>
                     </select>
+                    {productState === 'custom' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Type custom state name..."
+                        value={customProductState}
+                        onChange={(e) => setCustomProductState(e.target.value)}
+                        className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none"
+                      />
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-slate-900 font-bold mb-1">Pickup City Location *</label>
-                    <select
-                      value={productCity}
-                      onChange={(e) => setProductCity(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
-                    >
-                      {(STATE_CITIES_MAP[productState] || ['Mumbai']).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                      <option value="custom">➕ Custom / Other City...</option>
-                    </select>
-                    {productCity === 'custom' && (
+                    {productState === 'custom' ? (
                       <input
                         type="text"
                         required
-                        placeholder="Type custom city name..."
+                        placeholder="Type city name..."
                         value={customProductCity}
                         onChange={(e) => setCustomProductCity(e.target.value)}
-                        className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                        className="w-full p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none"
                       />
+                    ) : (
+                      <>
+                        <select
+                          value={productCity}
+                          onChange={(e) => setProductCity(e.target.value)}
+                          className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                        >
+                          {(STATE_CITIES_MAP[productState] || ['Mumbai']).map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="custom">➕ Custom / Other City...</option>
+                        </select>
+                        {productCity === 'custom' && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Type custom city name..."
+                            value={customProductCity}
+                            onChange={(e) => setCustomProductCity(e.target.value)}
+                            className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -3706,29 +3871,43 @@ export default function AdminDashboard() {
                   ></textarea>
                 </div>
 
-                {/* Product / Lot Image Upload Box */}
+                {/* Product / Lot Image or PDF Upload Box */}
                 <div>
                   <label className="block text-slate-900 font-bold mb-1">
-                    Auction Lot Photo / Image Upload *
+                    Auction Lot Photo or PDF Document Upload *
                   </label>
                   <div className="border-2 border-dashed border-slate-300 hover:border-[#D48B1C] bg-slate-50/80 rounded-2xl p-4 text-center transition-all">
                     {compressedImage ? (
-                      <div className="relative inline-block group">
-                        <img
-                          src={compressedImage.dataUrl}
-                          alt="Lot Preview"
-                          className="w-44 h-32 object-cover rounded-xl border border-slate-200 shadow-md"
-                        />
+                      <div className="relative inline-block group text-center">
+                        {compressedImage.isPdf ? (
+                          <div className="w-56 p-4 rounded-xl border border-red-200 bg-red-50/90 shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div className="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                              <FileText className="w-6 h-6" />
+                            </div>
+                            <div className="text-xs font-black text-slate-900 truncate max-w-[200px]" title={compressedImage.fileName}>
+                              {compressedImage.fileName}
+                            </div>
+                            <span className="inline-block px-2 py-0.5 bg-red-100 text-red-800 font-mono text-[10px] font-bold rounded">
+                              PDF Document ({compressedImage.compressedSizeStr})
+                            </span>
+                          </div>
+                        ) : (
+                          <img
+                            src={compressedImage.dataUrl}
+                            alt="Lot Preview"
+                            className="w-44 h-32 object-cover rounded-xl border border-slate-200 shadow-md"
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() => { setCompressedImage(null); setCompressedImageFile(null); }}
                           className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow transition-transform group-hover:scale-110"
-                          title="Remove Image"
+                          title="Remove File"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                         <span className="block text-[10px] text-emerald-700 font-bold mt-1">
-                          ✓ Image Compressed ({compressedImage.compressedSizeStr})
+                          ✓ {compressedImage.isPdf ? 'PDF Document Ready' : 'Image Compressed'} ({compressedImage.compressedSizeStr})
                         </span>
                       </div>
                     ) : (
@@ -3737,24 +3916,25 @@ export default function AdminDashboard() {
                           <UploadCloud className="w-6 h-6" />
                         </div>
                         <div className="text-xs font-bold text-slate-800">
-                          Click to upload or drag & drop lot image
+                          Click to upload or drag & drop lot image or PDF document
                         </div>
                         <p className="text-[10px] text-slate-400 font-medium">
-                          PNG, JPG, WEBP or GIF (Auto-compressed client-side for fast loading)
+                          PDF, PNG, JPG, WEBP or GIF (Auto-processed client-side for fast loading)
                         </p>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,application/pdf,.pdf"
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
                               try {
-                                const res = await compressAndSanitizeImage(file);
+                                const res = await processUploadFile(file);
                                 setCompressedImage(res);
                                 setCompressedImageFile(file); // store original for server upload
-                              } catch (err) {
-                                console.error('Image compression error:', err);
+                              } catch (err: any) {
+                                console.error('File upload error:', err);
+                                alert(err.message || 'File upload error');
                               }
                             }
                           }}
@@ -3896,36 +4076,64 @@ export default function AdminDashboard() {
                         onChange={(e) => {
                           const st = e.target.value;
                           setNewLocState(st);
-                          const firstCity = STATE_CITIES_MAP[st]?.[0] || 'Mumbai';
-                          setNewLocCity(firstCity);
+                          if (st === 'custom') {
+                            setNewLocCity('custom');
+                          } else {
+                            const firstCity = STATE_CITIES_MAP[st]?.[0] || 'Mumbai';
+                            setNewLocCity(firstCity);
+                          }
                         }}
                         className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
                       >
                         {INDIAN_STATES.map((st) => (
                           <option key={st} value={st}>{st}</option>
                         ))}
+                        <option value="custom">➕ Custom / Other State...</option>
                       </select>
-                    </div>
-                    <div className="sm:col-span-5">
-                      <select
-                        value={newLocCity}
-                        onChange={(e) => setNewLocCity(e.target.value)}
-                        className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
-                      >
-                        {(STATE_CITIES_MAP[newLocState] || ['Mumbai']).map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                        <option value="custom">➕ Custom / Other City...</option>
-                      </select>
-                      {newLocCity === 'custom' && (
+                      {newLocState === 'custom' && (
                         <input
                           type="text"
                           required
-                          placeholder="Type custom city name..."
-                          value={customNewLocCity}
-                          onChange={(e) => setCustomNewLocCity(e.target.value)}
+                          placeholder="Type custom state name..."
+                          value={customNewLocState}
+                          onChange={(e) => setCustomNewLocState(e.target.value)}
                           className="w-full mt-1.5 p-2 bg-white border-2 border-[#D48B1C] rounded-xl text-xs font-bold text-slate-900"
                         />
+                      )}
+                    </div>
+                    <div className="sm:col-span-5">
+                      {newLocState === 'custom' ? (
+                        <input
+                          type="text"
+                          required
+                          placeholder="Type city name..."
+                          value={customNewLocCity}
+                          onChange={(e) => setCustomNewLocCity(e.target.value)}
+                          className="w-full p-2 bg-white border-2 border-[#D48B1C] rounded-xl text-xs font-bold text-slate-900"
+                        />
+                      ) : (
+                        <>
+                          <select
+                            value={newLocCity}
+                            onChange={(e) => setNewLocCity(e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
+                          >
+                            {(STATE_CITIES_MAP[newLocState] || ['Mumbai']).map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                            <option value="custom">➕ Custom / Other City...</option>
+                          </select>
+                          {newLocCity === 'custom' && (
+                            <input
+                              type="text"
+                              required
+                              placeholder="Type custom city name..."
+                              value={customNewLocCity}
+                              onChange={(e) => setCustomNewLocCity(e.target.value)}
+                              className="w-full mt-1.5 p-2 bg-white border-2 border-[#D48B1C] rounded-xl text-xs font-bold text-slate-900"
+                            />
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="sm:col-span-3">
@@ -7066,17 +7274,36 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleSaveAuctionEdit} className="space-y-4 text-xs font-semibold text-slate-700">
-              <div>
-                <label className="block text-slate-900 font-bold mb-1">Auction Lot Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={editingAuction.title || ''}
-                  onChange={(e) => setEditingAuction({ ...editingAuction, title: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-sm"
-                />
+              {/* Lot Code & Lot Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <div className="sm:col-span-4">
+                  <label className="block text-slate-900 font-bold mb-1">Unique Lot / Auction Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingAuction.lot_code || (editingAuction.title?.includes('|') ? editingAuction.title.split('|')[0].trim() : `LOT-#${editingAuction.id}`)}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, lot_code: e.target.value })}
+                    placeholder="e.g. LOT-1001"
+                    className="w-full p-3 bg-amber-50/90 border-2 border-amber-400 font-mono font-black text-amber-950 rounded-xl h-11"
+                  />
+                </div>
+                <div className="sm:col-span-8">
+                  <label className="block text-slate-900 font-bold mb-1">Auction Lot Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingAuction.title?.includes('|') ? editingAuction.title.split('|').slice(1).join('|').trim() : (editingAuction.title || '')}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      const code = editingAuction.lot_code || (editingAuction.title?.includes('|') ? editingAuction.title.split('|')[0].trim() : `LOT-#${editingAuction.id}`);
+                      setEditingAuction({ ...editingAuction, title: `${code} | ${newTitle}` });
+                    }}
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-sm h-11"
+                  />
+                </div>
               </div>
 
+              {/* Category, Auction Type, Status */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-900 font-bold mb-1">Category *</label>
@@ -7090,7 +7317,7 @@ export default function AdminDashboard() {
                         setEditingAuction({ ...editingAuction, category: val });
                       }
                     }}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
                     {storeCategories.map((c) => (
                       <option key={c.id} value={c.name}>{c.name}</option>
@@ -7107,7 +7334,7 @@ export default function AdminDashboard() {
                         setEditCustomCategory(e.target.value);
                         setEditingAuction({ ...editingAuction, category: e.target.value });
                       }}
-                      className="w-full mt-2 p-3 bg-white border-2 border-blue-600 rounded-xl font-bold text-slate-900"
+                      className="w-full mt-2 p-3 bg-white border-2 border-blue-600 rounded-xl font-bold text-slate-900 h-11"
                     />
                   )}
                 </div>
@@ -7117,7 +7344,7 @@ export default function AdminDashboard() {
                   <select
                     value={editingAuction.auction_type || 'public'}
                     onChange={(e) => setEditingAuction({ ...editingAuction, auction_type: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
                     <option value="public">Public Auction</option>
                     <option value="private">Private Tender</option>
@@ -7130,7 +7357,7 @@ export default function AdminDashboard() {
                   <select
                     value={editingAuction.status || 'live'}
                     onChange={(e) => setEditingAuction({ ...editingAuction, status: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
                     <option value="live">Live Bidding Active</option>
                     <option value="upcoming">Upcoming Auction</option>
@@ -7140,39 +7367,42 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              {/* Pricing Row (3 Columns) & Location Row (2 Columns) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1">Starting Price (₹) *</label>
+                  <label className="block text-slate-900 font-bold mb-1 whitespace-nowrap">Starting Price (₹) *</label>
                   <input
                     type="number"
                     required
                     value={editingAuction.starting_price || 0}
                     onChange={(e) => setEditingAuction({ ...editingAuction, starting_price: Number(e.target.value) })}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900 h-11"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1">Bid Increment (₹) *</label>
+                  <label className="block text-slate-900 font-bold mb-1 whitespace-nowrap">Bid Increment (₹) *</label>
                   <input
                     type="number"
                     required
                     value={editingAuction.bid_increment || 1000}
                     onChange={(e) => setEditingAuction({ ...editingAuction, bid_increment: Number(e.target.value) })}
-                    className="w-full p-3 bg-amber-50 border-2 border-amber-400 rounded-xl font-mono font-black text-amber-950"
+                    className="w-full p-3 bg-amber-50 border-2 border-amber-400 rounded-xl font-mono font-black text-amber-950 h-11"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1">Current Highest Bid (₹)</label>
+                  <label className="block text-slate-900 font-bold mb-1 whitespace-nowrap">Current Highest Bid (₹)</label>
                   <input
                     type="number"
                     value={editingAuction.current_highest_bid || editingAuction.starting_price || 0}
                     onChange={(e) => setEditingAuction({ ...editingAuction, current_highest_bid: Number(e.target.value) })}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-emerald-700"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-emerald-700 h-11"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-900 font-bold mb-1">Location State *</label>
                   <select
@@ -7182,7 +7412,7 @@ export default function AdminDashboard() {
                       const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
                       setEditingAuction({ ...editingAuction, location_state: newState, location_city: firstCity });
                     }}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
                     {INDIAN_STATES.map((st) => (
                       <option key={st} value={st}>{st}</option>
@@ -7198,7 +7428,7 @@ export default function AdminDashboard() {
                       const val = e.target.value;
                       setEditingAuction({ ...editingAuction, location_city: val });
                     }}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
                     {(STATE_CITIES_MAP[editingAuction.location_state || 'Maharashtra'] || ['Mumbai']).map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -7215,79 +7445,226 @@ export default function AdminDashboard() {
                         setEditCustomCity(e.target.value);
                         setEditingAuction({ ...editingAuction, location_city: e.target.value });
                       }}
-                      className="w-full mt-2 p-3 bg-white border-2 border-blue-600 rounded-xl font-bold text-slate-900"
+                      className="w-full mt-2 p-3 bg-white border-2 border-blue-600 rounded-xl font-bold text-slate-900 h-11"
                     />
                   )}
                 </div>
               </div>
 
-              {/* Auction Lot Image Customizer Box */}
+              {/* Auction Live Date & Time Settings (Real-Time Editable & Synced) */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 sm:p-5 rounded-2xl border-2 border-[#D48B1C]/40 space-y-3 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                      <Clock className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm uppercase tracking-wider">
+                      Live Auction Date & Bidding Duration Settings
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Real-Time Multi-Browser Sync
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* START TIME */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-extrabold text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#D48B1C]" /> Bidding Launch Start Time *
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-bold">Start Date & Time</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formatForDateTimeLocal(editingAuction.start_time)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditingAuction({
+                          ...editingAuction,
+                          start_time: val ? new Date(val).toISOString() : editingAuction.start_time,
+                        });
+                      }}
+                      className="w-full p-2.5 bg-white border-2 border-amber-300 focus:border-[#D48B1C] rounded-xl font-black text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#D48B1C]/30 shadow-xs cursor-pointer"
+                    />
+                  </div>
+
+                  {/* END TIME */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-900 font-extrabold text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-emerald-800">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" /> Bidding Close End Time *
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-bold">Auction Expiry Time</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formatForDateTimeLocal(editingAuction.end_time)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const newEndIso = val ? new Date(val).toISOString() : editingAuction.end_time;
+                        const isFuture = val ? new Date(val).getTime() > Date.now() : true;
+                        setEditingAuction({
+                          ...editingAuction,
+                          end_time: newEndIso,
+                          status: isFuture && (editingAuction.status === 'closed' || editingAuction.status === 'completed') ? 'live' : editingAuction.status,
+                        });
+                      }}
+                      className="w-full p-2.5 bg-white border-2 border-emerald-400 focus:border-emerald-600 rounded-xl font-black text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-xs cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* 1-Click Quick Time Extension Presets */}
+                <div className="pt-2 border-t border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
+                    ⚡ <strong>Quick Extend Live Auction Time:</strong>
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => extendEditingAuctionEndTime(15)}
+                      className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-black rounded-lg text-[10px] border border-amber-300 transition-all active:scale-95 shadow-xs"
+                      title="Add 15 Minutes to auction end time"
+                    >
+                      +15 Mins
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => extendEditingAuctionEndTime(60)}
+                      className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-black rounded-lg text-[10px] border border-amber-300 transition-all active:scale-95 shadow-xs"
+                      title="Add 1 Hour to auction end time"
+                    >
+                      +1 Hour
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => extendEditingAuctionEndTime(24 * 60)}
+                      className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black rounded-lg text-[10px] border border-emerald-300 transition-all active:scale-95 shadow-xs"
+                      title="Add 1 Full Day (24 Hours) to auction end time"
+                    >
+                      +1 Day
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => extendEditingAuctionEndTime(7 * 24 * 60)}
+                      className="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-950 font-black rounded-lg text-[10px] border border-blue-300 transition-all active:scale-95 shadow-xs"
+                      title="Add 7 Days to auction end time"
+                    >
+                      +7 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const start = new Date(now.getTime() - 60000).toISOString();
+                        const end = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+                        setEditingAuction({
+                          ...editingAuction,
+                          start_time: start,
+                          end_time: end,
+                          status: 'live',
+                        });
+                      }}
+                      className="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-950 font-black rounded-lg text-[10px] border border-purple-300 transition-all active:scale-95 shadow-xs"
+                      title="Set as Express Demo (Now + 10 Mins Live)"
+                    >
+                      ⚡ 10 Min Demo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auction Lot Image or PDF Document Customizer Box */}
               <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-4 shadow-lg">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
                   <h4 className="font-extrabold text-amber-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
-                    <ImageIcon className="w-4 h-4 text-amber-400" /> Auction Lot Image Customizer
+                    <ImageIcon className="w-4 h-4 text-amber-400" /> Auction Lot Image / PDF Document Customizer
                   </h4>
-                  <span className="text-[10px] text-slate-400">Live Thumbnail & Photo Specs</span>
+                  <span className="text-[10px] text-slate-400">Live Thumbnail & Document Preview</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-slate-200 font-bold mb-1 text-xs">Auction Lot Image URL / Data Base64 *</label>
+                      <label className="block text-slate-200 font-bold mb-1 text-xs">Auction Lot File URL / Data Base64 *</label>
                       <input
                         type="text"
                         value={editingAuction.image_url || ''}
                         onChange={(e) => setEditingAuction({ ...editingAuction, image_url: e.target.value })}
-                        placeholder="https://images.unsplash.com/... or upload image"
+                        placeholder="https://images.unsplash.com/... or upload image / PDF"
                         className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-100 text-xs focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 font-bold mb-1 text-xs">Or Upload New Image File:</label>
+                      <label className="block text-slate-300 font-bold mb-1 text-xs">Or Upload New Image or PDF Document:</label>
                       <input
                         type="file"
-                        accept="image/*"
-                        onChange={(e) => {
+                        accept="image/*,application/pdf,.pdf"
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditingAuction({ ...editingAuction, image_url: reader.result as string });
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const res = await processUploadFile(file);
+                              setEditingAuction({ ...editingAuction, image_url: res.dataUrl });
+                            } catch (err: any) {
+                              alert(err.message || 'File processing failed');
+                            }
                           }
                         }}
                         className="w-full text-xs text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
                       />
                     </div>
 
-                    {/* Auction Image Specs Box */}
+                    {/* Auction Image / PDF Specs Box */}
                     <div className="bg-slate-800/90 border border-amber-500/30 rounded-xl p-3 space-y-1.5 text-slate-300 text-[11px]">
                       <div className="font-extrabold text-amber-400 flex items-center gap-1 uppercase tracking-wider text-[10px]">
-                        <Info className="w-3.5 h-3.5 text-amber-400" /> Auction Photo Specs Guide
+                        <Info className="w-3.5 h-3.5 text-amber-400" /> Photo & PDF Specs Guide
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>📄 <strong>Documents:</strong> PDF (Up to 25MB)</div>
+                        <div>📷 <strong>Photos:</strong> WebP, JPG, PNG</div>
                         <div>📐 <strong>Aspect Ratio:</strong> 16:10 or 4:3</div>
-                        <div>📏 <strong>Optimal Size:</strong> 800px × 500px</div>
-                        <div>💾 <strong>Max Size:</strong> &lt; 1 MB</div>
-                        <div>📷 <strong>Format:</strong> WebP / JPG / PNG</div>
+                        <div>⚡ <strong>Security:</strong> Header verified</div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Auction Image Preview Box */}
+                  {/* Auction Image / PDF Preview Box */}
                   <div className="space-y-1.5">
-                    <label className="block text-slate-300 font-bold text-xs">Live Lot Image Preview:</label>
+                    <label className="block text-slate-300 font-bold text-xs">Live Lot File Preview:</label>
                     <div className="relative h-44 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shadow-inner">
-                      <img
-                        src={editingAuction.image_url || "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&auto=format&fit=crop&q=80"}
-                        alt="Auction Lot Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&auto=format&fit=crop&q=80";
-                        }}
-                      />
+                      {isPdfDocument(editingAuction.image_url) ? (
+                        <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-4 text-center space-y-2">
+                          <div className="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                            <FileText className="w-6 h-6" />
+                          </div>
+                          <span className="text-xs font-black text-white">PDF Document Attached</span>
+                          <a
+                            href={editingAuction.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1 bg-red-600/30 hover:bg-red-600 text-red-300 hover:text-white rounded-lg text-[10px] font-bold border border-red-500/40 transition-colors"
+                          >
+                            Preview / Open PDF ↗
+                          </a>
+                        </div>
+                      ) : (
+                        <img
+                          src={editingAuction.image_url || "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&auto=format&fit=crop&q=80"}
+                          alt="Auction Lot Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&auto=format&fit=crop&q=80";
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -7408,14 +7785,32 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-slate-900 font-bold mb-1">State *</label>
                 <select
-                  value={editingLocation.state}
-                  onChange={(e) => setEditingLocation({ ...editingLocation, state: e.target.value })}
+                  value={INDIAN_STATES.includes(editingLocation.state) ? editingLocation.state : 'custom'}
+                  onChange={(e) => {
+                    const st = e.target.value;
+                    if (st === 'custom') {
+                      setEditingLocation({ ...editingLocation, state: '' });
+                    } else {
+                      setEditingLocation({ ...editingLocation, state: st });
+                    }
+                  }}
                   className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
                 >
                   {INDIAN_STATES.map((st) => (
                     <option key={st} value={st}>{st}</option>
                   ))}
+                  <option value="custom">➕ Custom / Other State...</option>
                 </select>
+                {(!INDIAN_STATES.includes(editingLocation.state) || editingLocation.state === '') && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Type custom state name..."
+                    value={editingLocation.state}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, state: e.target.value })}
+                    className="w-full mt-2 p-3 bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
+                  />
+                )}
               </div>
 
               <div>

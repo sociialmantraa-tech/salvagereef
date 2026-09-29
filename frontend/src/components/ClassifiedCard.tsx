@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Classified } from '../types';
-import { MapPin, Phone } from 'lucide-react';
+import { MapPin, Phone, FileText } from 'lucide-react';
+import { isPdfDocument } from '../utils/imageCompressor';
 
 interface ClassifiedCardProps {
   classified: Classified;
@@ -20,13 +21,22 @@ export default function ClassifiedCard({ classified }: ClassifiedCardProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group">
       {/* Image Banner */}
-      <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
-        <img
-          src={imgSrc}
-          alt={classified.title}
-          onError={() => setImgSrc(FALLBACK_CLASSIFIED_IMG)}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+      <div className="relative h-44 w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+        {isPdfDocument(imgSrc) ? (
+          <div className="w-full h-full bg-slate-900 text-red-400 flex flex-col items-center justify-center p-3 text-center group-hover:scale-105 transition-transform">
+            <FileText className="w-10 h-10 text-red-500 mb-1" />
+            <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded shadow">
+              PDF Spec Doc
+            </span>
+          </div>
+        ) : (
+          <img
+            src={imgSrc}
+            alt={classified.title}
+            onError={() => setImgSrc(FALLBACK_CLASSIFIED_IMG)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        )}
 
         <div className="absolute top-2.5 left-2.5">
           <span className="bg-[#D48B1C] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded shadow">

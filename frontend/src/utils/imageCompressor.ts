@@ -6,8 +6,9 @@
 
 export interface CompressionResult {
   dataUrl: string;
-  width: number;
-  height: number;
+  isPdf?: boolean;
+  width?: number;
+  height?: number;
   originalSizeStr: string;
   compressedSizeStr: string;
   originalSizeBytes: number;
@@ -24,6 +25,21 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
+ * Checks if a data URL or file URL represents a PDF document
+ */
+export function isPdfDocument(urlOrData?: string | null): boolean {
+  if (!urlOrData) return false;
+  const str = urlOrData.toLowerCase();
+  return (
+    str.startsWith('data:application/pdf') ||
+    str.endsWith('.pdf') ||
+    str.includes('.pdf?') ||
+    str.includes('type=pdf') ||
+    str.includes('application/pdf')
+  );
+}
+
+/**
  * Verifies true file type via Magic Bytes (Binary Header Analysis)
  */
 function verifyMagicBytes(file: File): Promise<boolean> {
@@ -33,6 +49,9 @@ function verifyMagicBytes(file: File): Promise<boolean> {
       if (!e.target?.result) return resolve(false);
       const arr = new Uint8Array(e.target.result as ArrayBuffer);
       if (arr.length < 4) return resolve(false);
+
+      // PDF: 25 50 44 46 (%PDF)
+      const isPdf = arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46;
 
       // JPEG: FF D8 FF
       const isJpeg = arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF;
@@ -48,10 +67,62 @@ function verifyMagicBytes(file: File): Promise<boolean> {
         arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
         arr.length >= 12 && arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50;
 
-      resolve(isJpeg || isPng || isGif || isWebp);
+      resolve(isPdf || isJpeg || isPng || isGif || isWebp);
     };
     reader.onerror = () => resolve(false);
     reader.readAsArrayBuffer(file.slice(0, 12));
+  });
+}
+
+/**
+ * Universal file processor for images (JPG/PNG/WEBP/GIF) and PDF documents.
+ */
+export function processUploadFile(
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 900,
+  quality = 0.82
+): Promise<CompressionResult> {
+  return new Promise(async (resolve, reject) => {
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+    const isPdf = file.type === 'application/pdf' || fileExt === 'pdf';
+
+    if (isPdf) {
+      if (file.size > 25 * 1024 * 1024) {
+        return reject(new Error('PDF document size exceeds 25 MB limit.'));
+      }
+      const isAuthentic = await verifyMagicBytes(file);
+      if (!isAuthentic) {
+        return reject(new Error('Security Alert: Corrupted or invalid PDF header. Upload blocked.'));
+      }
+
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read PDF document.'));
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        resolve({
+          dataUrl,
+          isPdf: true,
+          width: 800,
+          height: 1100,
+          originalSizeStr: formatBytes(file.size),
+          compressedSizeStr: formatBytes(file.size),
+          originalSizeBytes: file.size,
+          compressedSizeBytes: file.size,
+          fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+        });
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // Process standard image
+    try {
+      const res = await compressAndSanitizeImage(file, maxWidth, maxHeight, quality);
+      resolve({ ...res, isPdf: false });
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 

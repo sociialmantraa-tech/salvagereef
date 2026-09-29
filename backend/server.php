@@ -46,11 +46,14 @@ if (!is_dir($_SR_LOG_DIR)) {
 @error_reporting(E_ALL);          // Capture everything internally
 
 // Define log file paths
-define('SR_LOG_ERROR',    $_SR_LOG_DIR . '/error.log');
-define('SR_LOG_ACCESS',   $_SR_LOG_DIR . '/access.log');
-define('SR_LOG_SECURITY', $_SR_LOG_DIR . '/security.log');
-define('SR_LOG_UPLOAD',   $_SR_LOG_DIR . '/upload.log');
-define('SR_LOG_FATAL',    $_SR_LOG_DIR . '/fatal.log');
+define('SR_LOG_ERROR',            $_SR_LOG_DIR . '/error.log');
+define('SR_LOG_ACCESS',           $_SR_LOG_DIR . '/access.log');
+define('SR_LOG_SECURITY',         $_SR_LOG_DIR . '/security.log');
+define('SR_LOG_UPLOAD',           $_SR_LOG_DIR . '/upload.log');
+define('SR_LOG_FATAL',            $_SR_LOG_DIR . '/fatal.log');
+define('SR_LOG_AI_ACTIVITY_JSON', $_SR_LOG_DIR . '/ai_activity_log.json');
+define('SR_LOG_AI_ACTIVITY_TXT',  $_SR_LOG_DIR . '/ai_activity_log.txt');
+define('SR_LOG_SYSTEM_ERRORS',    $_SR_LOG_DIR . '/system_errors.log');
 
 $_SR_REQUEST_START = microtime(true); // for response-time tracking in access log
 
@@ -105,6 +108,87 @@ function logServerSecurityEvent(string $message, string $severity = 'WARNING', a
  */
 function logUploadEvent(string $message, bool $success = true, array $context = []): void {
     srWriteLog(SR_LOG_UPLOAD, $success ? 'UPLOAD_OK' : 'UPLOAD_FAIL', $message, $context);
+}
+
+/**
+ * Log an AI Autonomous Action & Save Hosting Audit Record.
+ * Writes to SQLite database, backend/logs/ai_activity_log.json, and backend/logs/ai_activity_log.txt.
+ */
+function logAiActivity(
+    PDO $pdo,
+    string $actionCode,
+    string $actionType,
+    string $description,
+    string $status = 'success',
+    ?array $parameters = null,
+    ?array $changes = null,
+    ?string $devNotes = null,
+    string $initiatedBy = 'Admin via Salvage AI Copilot'
+): array {
+    $receiptCode = 'SR-AI-' . date('Ymd-His') . '-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 4));
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? 'SalvageReef AI Autonomous Engine', 0, 150);
+    $paramsJson = $parameters ? json_encode($parameters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+    $changesJson = $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+
+    $insertId = 0;
+    try {
+        $stmt = $pdo->prepare("INSERT INTO ai_activity_logs (
+            receipt_code, action_code, action_type, description, status,
+            parameters_json, changes_json, developer_notes, initiated_by, ip_address, user_agent
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $receiptCode, $actionCode, $actionType, $description, $status,
+            $paramsJson, $changesJson, $devNotes, $initiatedBy, $ip, $ua
+        ]);
+        $insertId = (int)$pdo->lastInsertId();
+    } catch (Exception $e) {
+        $insertId = time();
+    }
+
+    $entry = [
+        'id' => $insertId,
+        'receipt_code' => $receiptCode,
+        'timestamp' => date('Y-m-d H:i:s'),
+        'action_code' => $actionCode,
+        'action_type' => $actionType,
+        'description' => $description,
+        'status' => $status,
+        'parameters' => $parameters,
+        'changes' => $changes,
+        'developer_notes' => $devNotes ?: 'Autonomous execution logged to hosting storage',
+        'initiated_by' => $initiatedBy,
+        'ip_address' => $ip,
+        'user_agent' => $ua
+    ];
+
+    // Append JSON record to backend/logs/ai_activity_log.json
+    $jsonLine = json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+    @file_put_contents(SR_LOG_AI_ACTIVITY_JSON, $jsonLine, FILE_APPEND | LOCK_EX);
+
+    // Append human-readable entry to backend/logs/ai_activity_log.txt
+    $txtSummary = sprintf(
+        "[%s] [%s] %s | ACTION: %s (%s) | BY: %s | IP: %s\n  Summary: %s\n  Developer Info: %s\n  Parameters: %s\n  Changes Applied: %s\n%s\n",
+        date('Y-m-d H:i:s'),
+        strtoupper($status),
+        $receiptCode,
+        $actionCode,
+        $actionType,
+        $initiatedBy,
+        $ip,
+        $description,
+        $devNotes ?: 'Auto-verified by Salvage AI Engine',
+        $paramsJson ?: 'none',
+        $changesJson ?: 'none',
+        str_repeat('-', 80)
+    );
+    @file_put_contents(SR_LOG_AI_ACTIVITY_TXT, $txtSummary, FILE_APPEND | LOCK_EX);
+
+    if ($status === 'error' || $status === 'failed') {
+        logServerError("AI Copilot Action Failed: {$actionCode} - {$description}", 'AI_ACTION_ERROR', ['receipt' => $receiptCode, 'params' => $parameters]);
+    }
+
+    return $entry;
 }
 
 // ─── Global Exception Handler ─────────────────────────────────────────────────
@@ -572,11 +656,6 @@ if (!$pdo) {
         // Auto-migrate role for existing Desk Admin
         try {
             $pdo->exec("UPDATE users SET role = 'read_only_admin', name = 'SalvageReef Desk Admin (Read-Only)' WHERE id = 5 AND email = 'inspector@salvagereef.com'");
-            $hasExec = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE email = 'executive@salvagereef.com' OR role = 'desk_admin'")->fetchColumn();
-            if ($hasExec === 0) {
-                $stmtUser = $pdo->prepare("INSERT INTO users (id, name, email, login_id, password, phone, role, company_name, city, state, is_verified, is_email_verified, is_phone_verified, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, 1)");
-                $stmtUser->execute([6, 'SalvageReef Executive Desk Admin', 'executive@salvagereef.com', 'SR-EXEC-1', password_hash('execadmin123', PASSWORD_DEFAULT), '9820777777', 'desk_admin', 'SalvageReef Executive Desk', 'Mumbai', 'Maharashtra']);
-            }
         } catch (Exception $e) {}
     }
 
@@ -672,6 +751,37 @@ if (!$pdo) {
         user_id INTEGER DEFAULT NULL,
         extra TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // ── AI Autonomous Activity & Hosting Audit Log Table ─────────────────────
+    $pdo->exec("CREATE TABLE IF NOT EXISTS ai_activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        receipt_code TEXT UNIQUE,
+        action_code TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT DEFAULT 'success',
+        parameters_json TEXT DEFAULT NULL,
+        changes_json TEXT DEFAULT NULL,
+        developer_notes TEXT DEFAULT NULL,
+        initiated_by TEXT DEFAULT 'Admin via Salvage AI Copilot',
+        ip_address TEXT DEFAULT NULL,
+        user_agent TEXT DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // ── AI Dynamic Features & Custom Website Functions Table ─────────────────
+    $pdo->exec("CREATE TABLE IF NOT EXISTS ai_custom_features (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        feature_key TEXT UNIQUE NOT NULL,
+        feature_name TEXT NOT NULL,
+        category TEXT DEFAULT 'general',
+        description TEXT DEFAULT NULL,
+        config_json TEXT DEFAULT '{}',
+        code_snippet TEXT DEFAULT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
 
     // ── Security: Personal Access Tokens Table ──────────────────────────────
@@ -2858,13 +2968,14 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/users/(\d+)$#', $uri, $m
         jsonResponse(['message' => 'User account not found in database'], 404);
     }
 
-    if ($user && ($user['id'] == $targetId || ($targetUser && strtolower($targetUser['email']) === strtolower($user['email'] ?? '')))) {
-        jsonResponse(['message' => 'Security Policy: You cannot delete your own logged-in admin account.'], 403);
-    }
-
     // Only protect root admin@salvagereef.com from being deleted
     if ($targetUser && strtolower($targetUser['email']) === 'admin@salvagereef.com') {
         jsonResponse(['message' => 'Security Policy: Root Master Admin account (admin@salvagereef.com) is permanently protected against deletion.'], 403);
+    }
+
+    // A non-master admin cannot delete their own logged-in admin account
+    if (!isMasterAdmin($user) && $user && ($user['id'] == $targetId || ($targetUser && strtolower($targetUser['email']) === strtolower($user['email'] ?? '')))) {
+        jsonResponse(['message' => 'Security Policy: You cannot delete your own logged-in admin account.'], 403);
     }
 
     try {
@@ -3590,5 +3701,319 @@ if ($method === 'DELETE' && $uri === '/api/v1/admin/security-logs/clear') {
     jsonResponse(['success' => true, 'message' => 'Security logs older than 30 days have been cleared.']);
 }
 
+// 30. Admin AI Activity Audit Logs: GET /api/v1/admin/ai-activity-logs
+if ($method === 'GET' && $uri === '/api/v1/admin/ai-activity-logs') {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $sql = "SELECT * FROM ai_activity_logs WHERE 1=1";
+    $params = [];
+
+    if (!empty($_GET['status']) && $_GET['status'] !== 'all') {
+        $sql .= " AND status = ?";
+        $params[] = $_GET['status'];
+    }
+    if (!empty($_GET['action_type']) && $_GET['action_type'] !== 'all') {
+        $sql .= " AND action_type = ?";
+        $params[] = $_GET['action_type'];
+    }
+    if (!empty($_GET['search'])) {
+        $s = '%' . $_GET['search'] . '%';
+        $sql .= " AND (receipt_code LIKE ? OR action_code LIKE ? OR description LIKE ? OR developer_notes LIKE ?)";
+        $params = array_merge($params, [$s, $s, $s, $s]);
+    }
+
+    $limit = isset($_GET['limit']) ? min((int)$_GET['limit'], 200) : 50;
+    $sql .= " ORDER BY id DESC LIMIT {$limit}";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rawLogs = $stmt->fetchAll();
+
+    // Decode json fields for clean API response
+    $logs = array_map(function($row) {
+        $row['parameters'] = !empty($row['parameters_json']) ? json_decode($row['parameters_json'], true) : null;
+        $row['changes'] = !empty($row['changes_json']) ? json_decode($row['changes_json'], true) : null;
+        return $row;
+    }, $rawLogs);
+
+    // Get statistics
+    $totalCount = (int)$pdo->query("SELECT COUNT(*) FROM ai_activity_logs")->fetchColumn();
+    $successCount = (int)$pdo->query("SELECT COUNT(*) FROM ai_activity_logs WHERE status = 'success'")->fetchColumn();
+    $errorCount = (int)$pdo->query("SELECT COUNT(*) FROM ai_activity_logs WHERE status IN ('error', 'failed')")->fetchColumn();
+    $todayCount = (int)$pdo->query("SELECT COUNT(*) FROM ai_activity_logs WHERE DATE(created_at) = DATE('now')")->fetchColumn();
+
+    // Hosting file status
+    $jsonFileSize = file_exists(SR_LOG_AI_ACTIVITY_JSON) ? filesize(SR_LOG_AI_ACTIVITY_JSON) : 0;
+    $txtFileSize = file_exists(SR_LOG_AI_ACTIVITY_TXT) ? filesize(SR_LOG_AI_ACTIVITY_TXT) : 0;
+
+    jsonResponse([
+        'success' => true,
+        'data' => $logs,
+        'stats' => [
+            'total_actions' => $totalCount,
+            'success_actions' => $successCount,
+            'error_actions' => $errorCount,
+            'today_actions' => $todayCount,
+            'json_log_bytes' => $jsonFileSize,
+            'txt_log_bytes' => $txtFileSize,
+            'json_log_path' => 'backend/logs/ai_activity_log.json',
+            'txt_log_path' => 'backend/logs/ai_activity_log.txt',
+        ]
+    ]);
+}
+
+// 31. Admin AI Record Activity Log: POST /api/v1/admin/ai-activity-logs
+if ($method === 'POST' && $uri === '/api/v1/admin/ai-activity-logs') {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $actionCode  = sanitizeInput($body['action_code'] ?? 'GENERAL_AI_TASK', 100);
+    $actionType  = sanitizeInput($body['action_type'] ?? 'autonomous_action', 60);
+    $description = sanitizeInput($body['description'] ?? 'AI automated action executed', 1000);
+    $status      = (!empty($body['status']) && in_array($body['status'], ['success', 'error', 'warning', 'info'], true)) ? (string)$body['status'] : 'success';
+    $parameters  = is_array($body['parameters'] ?? null) ? $body['parameters'] : null;
+    $changes     = is_array($body['changes'] ?? null) ? $body['changes'] : null;
+    $devNotes    = sanitizeInput($body['developer_notes'] ?? 'Action executed and logged to hosting records.', 1000);
+    $initiatedBy = sanitizeInput($body['initiated_by'] ?? ($user['name'] . ' via Salvage AI Copilot'), 150);
+
+    $logEntry = logAiActivity(
+        $pdo,
+        $actionCode,
+        $actionType,
+        $description,
+        $status,
+        $parameters,
+        $changes,
+        $devNotes,
+        $initiatedBy
+    );
+
+    jsonResponse([
+        'success' => true,
+        'data' => $logEntry,
+        'message' => "AI activity audit record [{$logEntry['receipt_code']}] successfully written to hosting log files.",
+        'files' => [
+            'json' => 'backend/logs/ai_activity_log.json',
+            'txt' => 'backend/logs/ai_activity_log.txt'
+        ]
+    ]);
+}
+
+// 32. Admin Server Error Logs: GET /api/v1/admin/server-error-logs
+if ($method === 'GET' && $uri === '/api/v1/admin/server-error-logs') {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    // Fetch from database
+    $dbErrors = $pdo->query("SELECT * FROM error_logs ORDER BY id DESC LIMIT 50")->fetchAll();
+
+    // Also read recent lines directly from hosting error.log file
+    $fileErrors = [];
+    if (file_exists(SR_LOG_ERROR)) {
+        $lines = @file(SR_LOG_ERROR, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines) {
+            $recent = array_slice($lines, -40);
+            foreach (array_reverse($recent) as $line) {
+                $decoded = json_decode($line, true);
+                if ($decoded) {
+                    $fileErrors[] = $decoded;
+                } else {
+                    $fileErrors[] = [
+                        'timestamp' => date('Y-m-d H:i:s'),
+                        'level' => 'RAW_LOG',
+                        'message' => $line
+                    ];
+                }
+            }
+        }
+    }
+
+    $errorFileSize = file_exists(SR_LOG_ERROR) ? filesize(SR_LOG_ERROR) : 0;
+    $fatalFileSize = file_exists(SR_LOG_FATAL) ? filesize(SR_LOG_FATAL) : 0;
+
+    jsonResponse([
+        'success' => true,
+        'db_errors' => $dbErrors,
+        'file_errors' => $fileErrors,
+        'stats' => [
+            'total_db_errors' => count($dbErrors),
+            'error_file_bytes' => $errorFileSize,
+            'fatal_file_bytes' => $fatalFileSize,
+            'hosting_error_path' => 'backend/logs/error.log'
+        ]
+    ]);
+}
+
+// 33. Admin AI Autonomous Auto-Fix Engine: POST /api/v1/admin/ai-execute-auto-fix
+if ($method === 'POST' && $uri === '/api/v1/admin/ai-execute-auto-fix') {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $fixType = $body['fix_type'] ?? 'repair_all';
+    $results = [];
+
+    if ($fixType === 'repair_auctions' || $fixType === 'repair_all') {
+        // Fix stuck auctions whose end time has passed but still marked live
+        $stuckAuctions = $pdo->query("SELECT id, title, current_highest_bid FROM auctions WHERE end_time IS NOT NULL AND end_time < datetime('now') AND status = 'live'")->fetchAll();
+        $fixedCount = 0;
+        foreach ($stuckAuctions as $auc) {
+            $upd = $pdo->prepare("UPDATE auctions SET status = 'ended', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $upd->execute([$auc['id']]);
+            $fixedCount++;
+        }
+        $results['stuck_auctions_resolved'] = $fixedCount;
+    }
+
+    if ($fixType === 'unblock_all_ips' || $fixType === 'repair_all') {
+        // Clear all rate limit bans
+        $deletedBans = $pdo->exec("DELETE FROM rate_limits WHERE action = 'auto_block' OR blocked_until IS NOT NULL");
+        $results['unblocked_ip_records'] = (int)$deletedBans;
+    }
+
+    if ($fixType === 'repair_categories' || $fixType === 'repair_all') {
+        // Assign any orphan auction/classified without a valid category_id to 1 (Industrial Scrap)
+        $c1 = $pdo->exec("UPDATE auctions SET category_id = 1 WHERE category_id NOT IN (SELECT id FROM categories)");
+        $c2 = $pdo->exec("UPDATE classifieds SET category_id = 1 WHERE category_id NOT IN (SELECT id FROM categories)");
+        $results['orphaned_categories_relinked'] = (int)$c1 + (int)$c2;
+    }
+
+    if ($fixType === 'verify_all_kyc' || $fixType === 'repair_all') {
+        $vCount = $pdo->exec("UPDATE users SET is_verified = 1 WHERE is_verified = 0");
+        $results['verified_users_count'] = (int)$vCount;
+    }
+
+    if ($fixType === 'clear_error_logs' || $fixType === 'repair_all') {
+        $pdo->exec("UPDATE error_logs SET status = 'resolved', updated_at = CURRENT_TIMESTAMP WHERE status = 'unresolved'");
+        $results['error_logs_marked_resolved'] = true;
+    }
+
+    // Write audit record to hosting files
+    $logEntry = logAiActivity(
+        $pdo,
+        'AUTONOMOUS_SELF_HEALING',
+        'error_fix',
+        "Executed AI self-healing routine '{$fixType}'",
+        'success',
+        ['fix_type' => $fixType, 'options' => $body['options'] ?? []],
+        $results,
+        'Autonomous error remediation successfully applied and recorded in hosting files.',
+        $user['name'] . ' via Salvage AI Copilot'
+    );
+
+    jsonResponse([
+        'success' => true,
+        'message' => "AI Self-Healing routine '{$fixType}' completed successfully.",
+        'results' => $results,
+        'receipt_code' => $logEntry['receipt_code'],
+        'hosting_log' => 'backend/logs/ai_activity_log.json'
+    ]);
+}
+
+// 34. Dynamic Features: GET /api/v1/admin/ai-custom-features
+if ($method === 'GET' && $uri === '/api/v1/admin/ai-custom-features') {
+    $features = $pdo->query("SELECT * FROM ai_custom_features ORDER BY id DESC")->fetchAll();
+    $formatted = array_map(function($f) {
+        $f['config'] = !empty($f['config_json']) ? json_decode($f['config_json'], true) : [];
+        $f['is_active'] = (bool)$f['is_active'];
+        return $f;
+    }, $features);
+
+    jsonResponse(['success' => true, 'data' => $formatted]);
+}
+
+// 35. Dynamic Features Save: POST /api/v1/admin/ai-custom-features
+if ($method === 'POST' && $uri === '/api/v1/admin/ai-custom-features') {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $key         = preg_replace('/[^a-z0-9_-]/', '', strtolower($body['feature_key'] ?? 'feat_' . time()));
+    $name        = sanitizeInput($body['feature_name'] ?? 'Custom Dynamic Function', 100);
+    $category    = sanitizeInput($body['category'] ?? 'general', 50);
+    $description = sanitizeInput($body['description'] ?? '', 500);
+    $configJson  = is_array($body['config'] ?? null) ? json_encode($body['config'], JSON_UNESCAPED_UNICODE) : ($body['config_json'] ?? '{}');
+    $codeSnippet = $body['code_snippet'] ?? null;
+    $isActive    = isset($body['is_active']) ? ((int)$body['is_active'] ? 1 : 0) : 1;
+
+    // Check if key exists
+    $existing = $pdo->prepare("SELECT id FROM ai_custom_features WHERE feature_key = ?");
+    $existing->execute([$key]);
+    $row = $existing->fetch();
+
+    if ($row) {
+        $upd = $pdo->prepare("UPDATE ai_custom_features SET feature_name = ?, category = ?, description = ?, config_json = ?, code_snippet = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE feature_key = ?");
+        $upd->execute([$name, $category, $description, $configJson, $codeSnippet, $isActive, $key]);
+    } else {
+        $ins = $pdo->prepare("INSERT INTO ai_custom_features (feature_key, feature_name, category, description, config_json, code_snippet, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $ins->execute([$key, $name, $category, $description, $configJson, $codeSnippet, $isActive]);
+    }
+
+    // Record audit in hosting log
+    $logEntry = logAiActivity(
+        $pdo,
+        'CUSTOM_FEATURE_MUTATION',
+        'feature_injection',
+        "Custom function/feature '{$name}' ({$key}) configured by AI Copilot",
+        'success',
+        ['feature_key' => $key, 'is_active' => $isActive],
+        ['name' => $name, 'category' => $category, 'config' => json_decode($configJson, true)],
+        'Custom website function saved to database and logged in hosting storage.',
+        $user['name'] . ' via Salvage AI Copilot'
+    );
+
+    jsonResponse([
+        'success' => true,
+        'message' => "Custom feature '{$name}' saved and logged to hosting.",
+        'receipt_code' => $logEntry['receipt_code'],
+        'feature_key' => $key
+    ]);
+}
+
+// 36. Dynamic Features Delete: DELETE /api/v1/admin/ai-custom-features
+if ($method === 'DELETE' && str_starts_with($uri, '/api/v1/admin/ai-custom-features')) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+
+    $key = $_GET['feature_key'] ?? $_GET['key'] ?? null;
+    $id = $_GET['id'] ?? null;
+
+    if ($key) {
+        $pdo->prepare("DELETE FROM ai_custom_features WHERE feature_key = ?")->execute([$key]);
+    } elseif ($id) {
+        $pdo->prepare("DELETE FROM ai_custom_features WHERE id = ?")->execute([$id]);
+    } else {
+        jsonResponse(['message' => 'feature_key or id required'], 422);
+    }
+
+    logAiActivity(
+        $pdo,
+        'CUSTOM_FEATURE_REMOVED',
+        'feature_removal',
+        "Feature key {$key} removed from website functions",
+        'success',
+        ['key' => $key, 'id' => $id],
+        null,
+        'Feature removed from database and logged to hosting.',
+        $user['name'] . ' via Salvage AI Copilot'
+    );
+
+    jsonResponse(['success' => true, 'message' => 'Feature successfully deleted.']);
+}
+
+// 37. Client Error Reporting: POST /api/v1/admin/report-client-error
+if ($method === 'POST' && $uri === '/api/v1/admin/report-client-error') {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $msg = sanitizeInput($body['message'] ?? 'Client Javascript Exception', 500);
+    $url = sanitizeInput($body['url'] ?? '', 200);
+    $stack = sanitizeInput($body['stack'] ?? '', 2000);
+
+    logServerError("Client JS Error: {$msg}", 'CLIENT_JS_ERROR', ['url' => $url, 'stack' => $stack]);
+    jsonResponse(['success' => true]);
+}
+
 // Fallback 404
 jsonResponse(['message' => 'Endpoint not found', 'code' => 'NOT_FOUND'], 404);
+

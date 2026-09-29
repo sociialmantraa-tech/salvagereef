@@ -67,7 +67,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download' && !empty($_GET['fi
 $availableLogs = [];
 foreach ($logDirs as $dir) {
     if (is_dir($dir)) {
-        $files = glob($dir . '/*.{log,txt}', GLOB_BRACE);
+        $files = glob($dir . '/*.{log,txt,json}', GLOB_BRACE);
         if ($files) {
             foreach ($files as $f) {
                 $bname = basename($f);

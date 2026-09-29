@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import api from '../services/api';
-import { compressAndSanitizeImage, CompressionResult } from '../utils/imageCompressor';
+import { compressAndSanitizeImage, processUploadFile, isPdfDocument, formatBytes, CompressionResult } from '../utils/imageCompressor';
 import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock, Phone, Mail, Building2, MapPin, FileText, ArrowRight, Send } from 'lucide-react';
 import { useCategoryLocationStore, STATE_CITIES_MAP, INDIAN_STATES } from '../store/useCategoryLocationStore';
 import SEOHead from '../components/SEOHead';
@@ -86,6 +86,7 @@ export default function PostListing() {
   const [selectedCat, setSelectedCat] = useState<string>('');
   const [customCat, setCustomCat] = useState<string>('');
   const [selectedState, setSelectedState] = useState<string>('Maharashtra');
+  const [customState, setCustomState] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('Mumbai');
   const [customCity, setCustomCity] = useState<string>('');
 
@@ -96,10 +97,10 @@ export default function PostListing() {
     setImageError(null);
     setCompressing(true);
     try {
-      const result = await compressAndSanitizeImage(file, 1200, 900, 0.82);
+      const result = await processUploadFile(file, 1200, 900, 0.82);
       setCompressedImage(result);
     } catch (err: any) {
-      setImageError(err.message || 'Image processing failed');
+      setImageError(err.message || 'File processing failed');
       setCompressedImage(null);
     } finally {
       setCompressing(false);
@@ -114,9 +115,14 @@ export default function PostListing() {
       const categoryObj = categories.find((c) => c.id.toString() === data.category_id);
       const categoryName = selectedCat === 'custom' ? customCat || 'Custom Category' : categoryObj?.name || 'General Scrap';
 
+      const resolvedState = selectedState === 'custom' ? (customState.trim() || 'Maharashtra') : data.location_state;
+      const resolvedCity = (selectedState === 'custom' || selectedCity === 'custom') ? (customCity.trim() || 'Mumbai') : data.location_city;
+
       const payload = {
         ...data,
         category_name: categoryName,
+        location_state: resolvedState,
+        location_city: resolvedCity,
         image_url: compressedImage ? compressedImage.dataUrl : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
         submitted_at: new Date().toISOString(),
         user_id: user?.id,
@@ -417,45 +423,80 @@ export default function PostListing() {
                     const newState = e.target.value;
                     setSelectedState(newState);
                     setValue('location_state', newState);
-                    const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
-                    setSelectedCity(firstCity);
-                    setValue('location_city', firstCity);
+                    if (newState === 'custom') {
+                      setSelectedCity('custom');
+                      setValue('location_city', 'custom');
+                    } else {
+                      const firstCity = STATE_CITIES_MAP[newState]?.[0] || 'Mumbai';
+                      setSelectedCity(firstCity);
+                      setValue('location_city', firstCity);
+                    }
                   }}
                   className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                 >
                   {INDIAN_STATES.map((st) => (
                     <option key={st} value={st}>{st}</option>
                   ))}
+                  <option value="custom">➕ Custom / Other State...</option>
                 </select>
+                {selectedState === 'custom' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Type custom state name..."
+                    value={customState}
+                    onChange={(e) => {
+                      setCustomState(e.target.value);
+                      setValue('location_state', e.target.value);
+                    }}
+                    className="w-full mt-2 p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none"
+                  />
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">City *</label>
-                <select
-                  value={selectedCity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedCity(val);
-                    setValue('location_city', val === 'custom' ? customCity || 'Mumbai' : val);
-                  }}
-                  className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
-                >
-                  {(STATE_CITIES_MAP[selectedState] || ['Mumbai']).map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                  <option value="custom">➕ Custom / Other City...</option>
-                </select>
-                {selectedCity === 'custom' && (
+                {selectedState === 'custom' ? (
                   <input
                     type="text"
-                    placeholder="Type custom city name..."
+                    required
+                    placeholder="Type city name..."
                     value={customCity}
                     onChange={(e) => {
                       setCustomCity(e.target.value);
                       setValue('location_city', e.target.value);
                     }}
-                    className="w-full mt-2 p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                    className="w-full p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900 focus:outline-none"
                   />
+                ) : (
+                  <>
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedCity(val);
+                        setValue('location_city', val === 'custom' ? customCity || 'Mumbai' : val);
+                      }}
+                      className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
+                    >
+                      {(STATE_CITIES_MAP[selectedState] || ['Mumbai']).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="custom">➕ Custom / Other City...</option>
+                    </select>
+                    {selectedCity === 'custom' && (
+                      <input
+                        type="text"
+                        placeholder="Type custom city name..."
+                        value={customCity}
+                        onChange={(e) => {
+                          setCustomCity(e.target.value);
+                          setValue('location_city', e.target.value);
+                        }}
+                        className="w-full mt-2 p-3 text-xs bg-white border-2 border-[#D48B1C] rounded-xl font-bold text-slate-900"
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -487,15 +528,15 @@ export default function PostListing() {
             <div className="bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-2 font-medium">
               <div className="flex items-center gap-1.5 text-slate-900">
                 <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span><strong>Resolution:</strong> Up to 1200 x 900 px</span>
+                <span><strong>Documents:</strong> PDF (Up to 25 MB)</span>
               </div>
               <div className="flex items-center gap-1.5 text-slate-900">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span><strong>Max Size:</strong> 10 MB (Auto WebP)</span>
+                <span><strong>Photos:</strong> WebP, JPG, PNG, GIF</span>
               </div>
               <div className="flex items-center gap-1.5 text-slate-900">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#D48B1C] shrink-0" />
-                <span><strong>Format:</strong> WebP, JPG, PNG, GIF</span>
+                <span><strong>Security:</strong> Header verified</span>
               </div>
             </div>
 
@@ -509,7 +550,7 @@ export default function PostListing() {
             <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center bg-white transition-all group">
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/*,application/pdf,.pdf"
                 onChange={handleImageFileChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               />
@@ -517,32 +558,46 @@ export default function PostListing() {
               {compressing ? (
                 <div className="space-y-2 py-4">
                   <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">Compressing photo to WebP format & checking security...</p>
+                  <p className="text-xs font-bold text-slate-700">Processing file & verifying binary header...</p>
                 </div>
               ) : compressedImage ? (
                 <div className="space-y-3">
-                  <div className="w-44 h-32 mx-auto rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md relative group">
-                    <img src={compressedImage.dataUrl} alt="Preview" className="w-full h-full object-cover" />
-                    <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
-                      <Check className="w-3.5 h-3.5" />
+                  {compressedImage.isPdf ? (
+                    <div className="w-56 mx-auto p-4 rounded-2xl border-2 border-red-500 bg-red-50 shadow-md flex flex-col items-center justify-center space-y-2 relative">
+                      <div className="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <div className="text-xs font-black text-slate-900 truncate max-w-[200px]" title={compressedImage.fileName}>
+                        {compressedImage.fileName}
+                      </div>
+                      <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="w-44 h-32 mx-auto rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md relative group">
+                      <img src={compressedImage.dataUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute top-1 right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="inline-flex flex-wrap items-center justify-center gap-3 bg-slate-900 text-white text-[11px] px-4 py-2 rounded-xl font-mono shadow">
                     <span>Name: {compressedImage.fileName}</span>
                     <span>&bull;</span>
-                    <span>Raw: <span className="text-red-300 font-bold">{compressedImage.originalSizeStr}</span></span>
+                    <span>Type: <span className="text-amber-300 font-bold">{compressedImage.isPdf ? 'PDF Document' : 'WebP Image'}</span></span>
                     <span>&bull;</span>
-                    <span>WebP: <span className="text-emerald-400 font-black">{compressedImage.compressedSizeStr}</span></span>
+                    <span>Size: <span className="text-emerald-400 font-black">{compressedImage.compressedSizeStr}</span></span>
                   </div>
 
-                  <p className="text-[10px] text-slate-400 block font-sans">Click or drag a new photo to replace.</p>
+                  <p className="text-[10px] text-slate-400 block font-sans">Click or drag a new image or PDF document to replace.</p>
                 </div>
               ) : (
                 <div className="space-y-2 py-4">
                   <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-emerald-600 mx-auto transition-colors" />
-                  <p className="text-xs font-bold text-slate-800">Click or Drag & Drop Product Photo Here</p>
-                  <p className="text-[10px] text-slate-400">Supports high-res JPG, PNG, WEBP & GIF. Auto-converted to low-storage WebP.</p>
+                  <p className="text-xs font-bold text-slate-800">Click or Drag & Drop Product Photo or PDF Document Here</p>
+                  <p className="text-[10px] text-slate-400">Supports PDF documents & high-res JPG, PNG, WEBP & GIF.</p>
                 </div>
               )}
             </div>

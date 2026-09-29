@@ -22,7 +22,7 @@ import {
   Globe,
 } from 'lucide-react';
 import SEOHead from '../components/SEOHead';
-import { compressAndSanitizeImage, formatBytes } from '../utils/imageCompressor';
+import { compressAndSanitizeImage, isPdfDocument, formatBytes } from '../utils/imageCompressor';
 
 export interface CountryConfig {
   code: string;
@@ -1267,10 +1267,17 @@ export default function Register() {
                     <div className="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-slate-50 text-center space-y-3 hover:border-[#D48B1C] transition-all relative flex flex-col justify-between">
                       <div className="space-y-2">
                         {formData.pan_file ? (
-                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group">
-                            <img src={formData.pan_file} alt="PAN Proof" className="w-full h-full object-cover" />
+                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group flex items-center justify-center">
+                            {isPdfDocument(formData.pan_file) ? (
+                              <div className="flex flex-col items-center justify-center p-2 text-center">
+                                <FileText className="w-7 h-7 text-red-600 mb-1" />
+                                <span className="text-[10px] font-black text-red-700 uppercase">PDF Document</span>
+                              </div>
+                            ) : (
+                              <img src={formData.pan_file} alt="PAN Proof" className="w-full h-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
-                              Change Image
+                              Change File
                             </div>
                           </div>
                         ) : (
@@ -1286,7 +1293,7 @@ export default function Register() {
 
                       <input
                         type="file"
-                        accept="image/*,.pdf"
+                        accept="image/*,application/pdf,.pdf"
                         onChange={(e) => handleFileUpload(e, 'pan_file')}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />
@@ -1308,10 +1315,17 @@ export default function Register() {
                     <div className="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-slate-50 text-center space-y-3 hover:border-[#D48B1C] transition-all relative flex flex-col justify-between">
                       <div className="space-y-2">
                         {formData.gst_file ? (
-                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group">
-                            <img src={formData.gst_file} alt="GST Proof" className="w-full h-full object-cover" />
+                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group flex items-center justify-center">
+                            {isPdfDocument(formData.gst_file) ? (
+                              <div className="flex flex-col items-center justify-center p-2 text-center">
+                                <FileText className="w-7 h-7 text-red-600 mb-1" />
+                                <span className="text-[10px] font-black text-red-700 uppercase">PDF Document</span>
+                              </div>
+                            ) : (
+                              <img src={formData.gst_file} alt="GST Proof" className="w-full h-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
-                              Change Image
+                              Change File
                             </div>
                           </div>
                         ) : (
@@ -1327,7 +1341,7 @@ export default function Register() {
 
                       <input
                         type="file"
-                        accept="image/*,.pdf"
+                        accept="image/*,application/pdf,.pdf"
                         onChange={(e) => handleFileUpload(e, 'gst_file')}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />
@@ -1349,10 +1363,17 @@ export default function Register() {
                     <div className="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-slate-50 text-center space-y-3 hover:border-[#D48B1C] transition-all relative flex flex-col justify-between">
                       <div className="space-y-2">
                         {formData.cheque_file ? (
-                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group">
-                            <img src={formData.cheque_file} alt="Cheque Proof" className="w-full h-full object-cover" />
+                          <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-white relative group flex items-center justify-center">
+                            {isPdfDocument(formData.cheque_file) ? (
+                              <div className="flex flex-col items-center justify-center p-2 text-center">
+                                <FileText className="w-7 h-7 text-red-600 mb-1" />
+                                <span className="text-[10px] font-black text-red-700 uppercase">PDF Document</span>
+                              </div>
+                            ) : (
+                              <img src={formData.cheque_file} alt="Cheque Proof" className="w-full h-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
-                              Change Image
+                              Change File
                             </div>
                           </div>
                         ) : (
@@ -1368,7 +1389,7 @@ export default function Register() {
 
                       <input
                         type="file"
-                        accept="image/*,.pdf"
+                        accept="image/*,application/pdf,.pdf"
                         onChange={(e) => handleFileUpload(e, 'cheque_file')}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />

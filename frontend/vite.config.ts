@@ -176,43 +176,60 @@ function devApiPlugin(): Plugin {
 
         // Handle GET /api/v1/auctions (dev persistence)
         const auctionsFilePath = path.resolve(__dirname, 'dev_auctions.json');
-        if (req.method === 'GET' && url.includes('/auctions') && !url.includes('/admin/')) {
+        if (req.method === 'GET' && url.includes('/auctions')) {
           if (fs.existsSync(auctionsFilePath)) {
             try {
               const data = fs.readFileSync(auctionsFilePath, 'utf-8');
               const parsed = JSON.parse(data);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: true, data: parsed }));
-                return;
+                // Check if requesting single auction (e.g. /auctions/999 or /auctions/slug)
+                const singleMatch = url.match(/\/auctions\/([^/?]+)/);
+                if (singleMatch && singleMatch[1] && singleMatch[1] !== 'all') {
+                  const param = singleMatch[1];
+                  const item = parsed.find((a: any) => String(a.id) === param || a.slug === param);
+                  if (item) {
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: true, auction: item, data: item }));
+                    return;
+                  }
+                } else if (!url.includes('/top-bidders') && !url.includes('/confirm-winner')) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: true, data: parsed }));
+                  return;
+                }
               }
             } catch (e) {}
           }
         }
 
-        // Handle POST /api/v1/admin/auctions (save edited auctions to dev database)
-        if (req.method === 'POST' && url.includes('/admin/auctions')) {
+        // Handle POST/PUT /api/v1/admin/auctions (save edited auctions to dev database)
+        if ((req.method === 'POST' || req.method === 'PUT') && (url.includes('/admin/auctions') || url.includes('/auctions'))) {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });
           req.on('end', () => {
             try {
-              let parsedData = JSON.parse(body || '[]');
+              let parsedData = JSON.parse(body || '{}');
               let currentList: any[] = [];
               if (fs.existsSync(auctionsFilePath)) {
                 try { currentList = JSON.parse(fs.readFileSync(auctionsFilePath, 'utf-8')); } catch (e) {}
               }
 
+              const matchId = url.match(/\/auctions\/(\d+)/)?.[1] || parsedData.id;
+              const targetId = matchId ? Number(matchId) : parsedData.id;
+
               let updatedList: any[] = [];
               if (Array.isArray(parsedData)) {
                 updatedList = parsedData;
-              } else if (parsedData && parsedData.id) {
-                const idx = currentList.findIndex((a: any) => a.id === parsedData.id);
+              } else if (targetId) {
+                const idx = currentList.findIndex((a: any) => Number(a.id) === Number(targetId) || String(a.id) === String(targetId));
                 if (idx >= 0) {
-                  currentList[idx] = { ...currentList[idx], ...parsedData };
+                  currentList[idx] = { ...currentList[idx], ...parsedData, id: currentList[idx].id };
                   updatedList = currentList;
                 } else {
                   updatedList = [parsedData, ...currentList];
                 }
+              } else {
+                updatedList = currentList;
               }
 
               fs.writeFileSync(auctionsFilePath, JSON.stringify(updatedList, null, 2), 'utf-8');

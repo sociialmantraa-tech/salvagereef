@@ -55,6 +55,7 @@ export interface Bid {
 
 export interface Auction {
   id: number;
+  lot_code?: string;
   title: string;
   slug: string;
   description: string;
