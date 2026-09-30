@@ -14,7 +14,7 @@ import SEOHead from '../components/SEOHead';
 
 export default function Home() {
   const navigate = useNavigate();
-  const { categories, locations } = useCategoryLocationStore();
+  const { categories, locations, fetchCategoriesAndLocations } = useCategoryLocationStore();
   const { content } = useContentStore();
   const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
   const [classifieds, setClassifieds] = useState<Classified[]>([]);
@@ -34,6 +34,7 @@ export default function Home() {
       const [aucRes, classRes] = await Promise.all([
         api.get('/auctions').catch(() => null),
         api.get('/classifieds').catch(() => null),
+        fetchCategoriesAndLocations().catch(() => {}),
       ]);
 
       if (aucRes?.data?.data && Array.isArray(aucRes.data.data)) {
@@ -74,6 +75,15 @@ export default function Home() {
           event.type === 'classified_deleted'
         ) {
           fetchData(true);
+        } else if (
+          event.type === 'location_created' ||
+          event.type === 'location_updated' ||
+          event.type === 'location_deleted' ||
+          event.type === 'category_created' ||
+          event.type === 'category_updated' ||
+          event.type === 'category_deleted'
+        ) {
+          fetchCategoriesAndLocations();
         }
       });
     });

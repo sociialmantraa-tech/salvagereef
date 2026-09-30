@@ -10,7 +10,7 @@ import { useCategoryLocationStore } from '../store/useCategoryLocationStore';
 import SEOHead from '../components/SEOHead';
 
 export default function Classifieds() {
-  const { categories, locations, setCategories } = useCategoryLocationStore();
+  const { categories, locations, fetchCategoriesAndLocations } = useCategoryLocationStore();
   const [classifieds, setClassifieds] = useState<Classified[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -28,18 +28,15 @@ export default function Classifieds() {
       if (location) params.append('location', location);
       if (search) params.append('search', search);
 
-      const [res, catRes] = await Promise.all([
+      const [res] = await Promise.all([
         api.get(`/classifieds?${params.toString()}`),
-        api.get('/categories'),
+        fetchCategoriesAndLocations().catch(() => {}),
       ]);
 
       if (res.data?.data && Array.isArray(res.data.data)) {
         setClassifieds(res.data.data);
       } else if (Array.isArray(res.data)) {
         setClassifieds(res.data);
-      }
-      if (catRes.data && Array.isArray(catRes.data)) {
-        setCategories(catRes.data);
       }
     } catch (err) {
       console.error('Error fetching classifieds:', err);
@@ -67,6 +64,15 @@ export default function Classifieds() {
           event.type === 'classified_deleted'
         ) {
           fetchClassifieds(true);
+        } else if (
+          event.type === 'location_created' ||
+          event.type === 'location_updated' ||
+          event.type === 'location_deleted' ||
+          event.type === 'category_created' ||
+          event.type === 'category_updated' ||
+          event.type === 'category_deleted'
+        ) {
+          fetchCategoriesAndLocations();
         }
       });
     });

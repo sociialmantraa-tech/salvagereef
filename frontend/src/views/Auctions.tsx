@@ -11,7 +11,7 @@ import SEOHead from '../components/SEOHead';
 
 export default function Auctions() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { categories, locations, setCategories } = useCategoryLocationStore();
+  const { categories, locations, fetchCategoriesAndLocations } = useCategoryLocationStore();
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -30,18 +30,15 @@ export default function Auctions() {
       if (location) params.append('location', location);
       if (search) params.append('search', search);
 
-      const [res, catRes] = await Promise.all([
+      const [res] = await Promise.all([
         api.get(`/auctions?${params.toString()}`),
-        api.get('/categories'),
+        fetchCategoriesAndLocations().catch(() => {}),
       ]);
 
       if (res.data?.data && Array.isArray(res.data.data)) {
         setAuctions(res.data.data);
       } else if (Array.isArray(res.data)) {
         setAuctions(res.data);
-      }
-      if (catRes.data && Array.isArray(catRes.data)) {
-        setCategories(catRes.data);
       }
     } catch (err) {
       console.error('Error fetching auctions:', err);
@@ -67,6 +64,15 @@ export default function Auctions() {
           event.type === 'winner_confirmed'
         ) {
           fetchAuctions();
+        } else if (
+          event.type === 'location_created' ||
+          event.type === 'location_updated' ||
+          event.type === 'location_deleted' ||
+          event.type === 'category_created' ||
+          event.type === 'category_updated' ||
+          event.type === 'category_deleted'
+        ) {
+          fetchCategoriesAndLocations();
         }
       });
     };

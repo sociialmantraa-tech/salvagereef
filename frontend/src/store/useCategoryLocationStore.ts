@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { Category } from '../types';
+import api from '../services/api';
+import { broadcastRealtimeEvent } from '../services/realtimeSync';
 
 export interface LocationItem {
   id: number;
@@ -159,12 +161,13 @@ export const DEFAULT_LOCATIONS: LocationItem[] = [
 interface CategoryLocationStore {
   categories: Category[];
   locations: LocationItem[];
-  addCategory: (name: string, slug?: string) => void;
-  updateCategory: (id: number, name: string, slug?: string) => void;
-  deleteCategory: (id: number) => void;
-  addLocation: (city: string, state?: string) => void;
-  updateLocation: (id: number, city: string, state?: string) => void;
-  deleteLocation: (id: number) => void;
+  fetchCategoriesAndLocations: () => Promise<void>;
+  addCategory: (name: string, slug?: string) => Promise<void>;
+  updateCategory: (id: number, name: string, slug?: string) => Promise<void>;
+  deleteCategory: (id: number) => Promise<void>;
+  addLocation: (city: string, state?: string) => Promise<void>;
+  updateLocation: (id: number, city: string, state?: string) => Promise<void>;
+  deleteLocation: (id: number) => Promise<void>;
   setCategories: (categories: Category[]) => void;
   setLocations: (locations: LocationItem[]) => void;
 }
@@ -197,70 +200,150 @@ const getStoredLocations = (): LocationItem[] => {
   }
 };
 
-export const useCategoryLocationStore = create<CategoryLocationStore>((set) => ({
+export const useCategoryLocationStore = create<CategoryLocationStore>((set, get) => ({
   categories: getStoredCategories(),
   locations: getStoredLocations(),
 
-  addCategory: (name, slug) =>
-    set((state) => {
-      const formattedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const newCat: Category = {
-        id: Date.now(),
-        name: name.trim(),
-        slug: formattedSlug,
-        auctions_count: 0,
-        classifieds_count: 0,
-      };
-      const updated = [...state.categories, newCat];
-      safeSetItem('sr_categories', JSON.stringify(updated));
-      return { categories: updated };
-    }),
+  fetchCategoriesAndLocations: async () => {
+    try {
+      const [catRes, locRes] = await Promise.all([
+        api.get('/categories').catch(() => null),
+        api.get('/locations').catch(() => null),
+      ]);
 
-  updateCategory: (id, name, slug) =>
-    set((state) => {
-      const formattedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const updated = state.categories.map((c) =>
-        c.id === id ? { ...c, name: name.trim(), slug: formattedSlug } : c
-      );
-      safeSetItem('sr_categories', JSON.stringify(updated));
-      return { categories: updated };
-    }),
+      if (catRes && catRes.data) {
+        const rawCats = Array.isArray(catRes.data)
+          ? catRes.data
+          : (catRes.data.data || catRes.data.categories || []);
+        if (Array.isArray(rawCats) && rawCats.length > 0) {
+          safeSetItem('sr_categories', JSON.stringify(rawCats));
+          set({ categories: rawCats });
+        }
+      }
 
-  deleteCategory: (id) =>
-    set((state) => {
-      const updated = state.categories.filter((c) => c.id !== id);
-      safeSetItem('sr_categories', JSON.stringify(updated));
-      return { categories: updated };
-    }),
+      if (locRes && locRes.data) {
+        const rawLocs = Array.isArray(locRes.data)
+          ? locRes.data
+          : (locRes.data.data || locRes.data.locations || []);
+        if (Array.isArray(rawLocs) && rawLocs.length > 0) {
+          const sortedLocs = [...rawLocs].sort((a, b) => (a.city || '').localeCompare(b.city || ''));
+          safeSetItem('sr_locations', JSON.stringify(sortedLocs));
+          set({ locations: sortedLocs });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not refresh categories and locations:', e);
+    }
+  },
 
-  addLocation: (city, stateName = 'Maharashtra') =>
-    set((state) => {
-      const newLoc: LocationItem = {
-        id: Date.now(),
-        city: city.trim(),
-        state: stateName.trim() || 'Maharashtra',
-        is_active: true,
-      };
-      const updated = [...state.locations, newLoc];
-      safeSetItem('sr_locations', JSON.stringify(updated));
-      return { locations: updated };
-    }),
+  addCategory: async (name, slug) => {
+    const formattedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const newCat: Category = {
+      id: Date.now(),
+      name: name.trim(),
+      slug: formattedSlug,
+      auctions_count: 0,
+      classifieds_count: 0,
+    };
+    const updated = [...get().categories, newCat];
+    safeSetItem('sr_categories', JSON.stringify(updated));
+    set({ categories: updated });
 
-  updateLocation: (id, city, stateName = 'Maharashtra') =>
-    set((state) => {
-      const updated = state.locations.map((loc) =>
-        loc.id === id ? { ...loc, city: city.trim(), state: stateName.trim() } : loc
-      );
-      safeSetItem('sr_locations', JSON.stringify(updated));
-      return { locations: updated };
-    }),
+    try {
+      await api.post('/categories', { name: name.trim(), slug: formattedSlug });
+      broadcastRealtimeEvent({ type: 'category_created', data: newCat, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend category sync fallback:', e);
+    }
+  },
 
-  deleteLocation: (id) =>
-    set((state) => {
-      const updated = state.locations.filter((loc) => loc.id !== id);
-      safeSetItem('sr_locations', JSON.stringify(updated));
-      return { locations: updated };
-    }),
+  updateCategory: async (id, name, slug) => {
+    const formattedSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const updated = get().categories.map((c) =>
+      c.id === id ? { ...c, name: name.trim(), slug: formattedSlug } : c
+    );
+    safeSetItem('sr_categories', JSON.stringify(updated));
+    set({ categories: updated });
+
+    try {
+      await api.put(`/categories/${id}`, { name: name.trim(), slug: formattedSlug });
+      broadcastRealtimeEvent({ type: 'category_updated', data: { id, name, slug: formattedSlug }, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend category sync fallback:', e);
+    }
+  },
+
+  deleteCategory: async (id) => {
+    const updated = get().categories.filter((c) => c.id !== id);
+    safeSetItem('sr_categories', JSON.stringify(updated));
+    set({ categories: updated });
+
+    try {
+      await api.delete(`/categories/${id}`);
+      broadcastRealtimeEvent({ type: 'category_deleted', data: { id }, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend category delete sync fallback:', e);
+    }
+  },
+
+  addLocation: async (city, stateName = 'Maharashtra') => {
+    const trimmedCity = city.trim();
+    const trimmedState = stateName.trim() || 'Maharashtra';
+    
+    // Check if location already exists
+    const exists = get().locations.some(
+      (l) => l.city.toLowerCase() === trimmedCity.toLowerCase() && l.state.toLowerCase() === trimmedState.toLowerCase()
+    );
+    if (exists) return;
+
+    const newLoc: LocationItem = {
+      id: Date.now(),
+      city: trimmedCity,
+      state: trimmedState,
+      is_active: true,
+    };
+    const updated = [...get().locations, newLoc].sort((a, b) => a.city.localeCompare(b.city));
+    safeSetItem('sr_locations', JSON.stringify(updated));
+    set({ locations: updated });
+
+    try {
+      await api.post('/locations', { city: trimmedCity, state: trimmedState });
+      broadcastRealtimeEvent({ type: 'location_created', data: newLoc, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend location sync fallback:', e);
+    }
+  },
+
+  updateLocation: async (id, city, stateName = 'Maharashtra') => {
+    const trimmedCity = city.trim();
+    const trimmedState = stateName.trim() || 'Maharashtra';
+    const updated = get().locations.map((loc) =>
+      loc.id === id ? { ...loc, city: trimmedCity, state: trimmedState } : loc
+    ).sort((a, b) => a.city.localeCompare(b.city));
+    
+    safeSetItem('sr_locations', JSON.stringify(updated));
+    set({ locations: updated });
+
+    try {
+      await api.put(`/locations/${id}`, { city: trimmedCity, state: trimmedState });
+      broadcastRealtimeEvent({ type: 'location_updated', data: { id, city: trimmedCity, state: trimmedState }, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend location update fallback:', e);
+    }
+  },
+
+  deleteLocation: async (id) => {
+    const updated = get().locations.filter((loc) => loc.id !== id);
+    safeSetItem('sr_locations', JSON.stringify(updated));
+    set({ locations: updated });
+
+    try {
+      await api.delete(`/locations/${id}`);
+      broadcastRealtimeEvent({ type: 'location_deleted', data: { id }, timestamp: Date.now() });
+    } catch (e) {
+      console.warn('Backend location delete fallback:', e);
+    }
+  },
 
   setCategories: (cats) => {
     safeSetItem('sr_categories', JSON.stringify(cats));
@@ -268,7 +351,9 @@ export const useCategoryLocationStore = create<CategoryLocationStore>((set) => (
   },
 
   setLocations: (locs) => {
-    safeSetItem('sr_locations', JSON.stringify(locs));
-    set({ locations: locs });
+    const sorted = [...locs].sort((a, b) => (a.city || '').localeCompare(b.city || ''));
+    safeSetItem('sr_locations', JSON.stringify(sorted));
+    set({ locations: sorted });
   },
 }));
+

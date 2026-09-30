@@ -124,11 +124,13 @@ export default function App() {
       await Promise.all([
         withTimeout(checkAuth(), 2000),
         withTimeout(checkSystemStatus(), 2500),
-        // Fetch DB content non-critically in background
+        // Fetch DB content, categories & locations non-critically in background
         (async () => {
           try {
             const { useContentStore } = await import('./store/useContentStore');
+            const { useCategoryLocationStore } = await import('./store/useCategoryLocationStore');
             useContentStore.getState().fetchContentFromApi().catch(() => {});
+            useCategoryLocationStore.getState().fetchCategoriesAndLocations().catch(() => {});
           } catch {}
         })(),
       ]);

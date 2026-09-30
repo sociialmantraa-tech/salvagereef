@@ -2615,42 +2615,109 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?bids/(\d+)$#', $uri, 
     ]);
 }
 
-// Locations API Endpoints
-// GET /api/v1/locations
-if ($method === 'GET' && $uri === '/api/v1/locations') {
-    $stmt = $pdo->query("SELECT * FROM locations ORDER BY id ASC");
-    jsonResponse(['data' => $stmt->fetchAll()]);
+// 8. Categories: GET /api/v1/categories
+if ($method === 'GET' && $uri === '/api/v1/categories') {
+    $stmt = $pdo->query("SELECT c.*, 
+        (SELECT COUNT(*) FROM auctions a WHERE a.category_id = c.id) as auctions_count,
+        (SELECT COUNT(*) FROM classifieds cl WHERE cl.category_id = c.id) as classifieds_count
+        FROM categories c ORDER BY c.id ASC");
+    $items = $stmt->fetchAll();
+    jsonResponse(['data' => $items, 'categories' => $items]);
 }
 
-// POST /api/v1/locations
-if ($method === 'POST' && $uri === '/api/v1/locations') {
-    $user = getAuthUser($pdo);
-    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+// 8b. Add Category: POST /api/v1/categories OR /api/v1/admin/categories
+if ($method === 'POST' && ($uri === '/api/v1/categories' || $uri === '/api/v1/admin/categories')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $name = trim($body['name'] ?? '');
+    if (empty($name)) jsonResponse(['message' => 'Category name is required'], 422);
 
-    $body = json_decode(file_get_contents('php://input'), true);
-    if (empty($body['city'])) jsonResponse(['message' => 'City name is required'], 422);
-
-    $state = !empty($body['state']) ? trim($body['state']) : 'Maharashtra';
-    $stmt = $pdo->prepare("INSERT INTO locations (city, state, is_active) VALUES (?, ?, 1)");
-    $stmt->execute([trim($body['city']), $state]);
-    $newId = $pdo->lastInsertId();
+    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $name));
+    $stmt = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
+    $stmt->execute([$name, $slug]);
+    $newId = (int)$pdo->lastInsertId();
 
     jsonResponse([
-        'message' => 'Location added successfully',
-        'data' => ['id' => (int)$newId, 'city' => trim($body['city']), 'state' => $state, 'is_active' => true]
+        'success' => true,
+        'message' => 'Category created successfully',
+        'data' => ['id' => $newId, 'name' => $name, 'slug' => $slug, 'auctions_count' => 0, 'classifieds_count' => 0]
     ]);
 }
 
-// DELETE /api/v1/locations/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/locations/(\d+)$#', $uri, $m)) {
-    $user = getAuthUser($pdo);
-    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
+// 8c. Edit Category: PUT /api/v1/categories/{id} OR POST /api/v1/admin/categories/{id}
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?categories/(\d+)$#', $uri, $m)) {
+    $catId = (int)$m[2];
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $name = trim($body['name'] ?? '');
+    if (!empty($name)) {
+        $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $name));
+        $pdo->prepare("UPDATE categories SET name = ?, slug = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$name, $slug, $catId]);
+    }
+    jsonResponse(['success' => true, 'message' => 'Category updated successfully', 'id' => $catId]);
+}
 
-    $locId = (int)$m[1];
+// 8d. Delete Category: DELETE /api/v1/categories/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?categories/(\d+)$#', $uri, $m)) {
+    $catId = (int)$m[2];
+    $pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$catId]);
+    jsonResponse(['success' => true, 'message' => 'Category deleted successfully', 'id' => $catId]);
+}
+
+// Locations API Endpoints
+// GET /api/v1/locations
+if ($method === 'GET' && ($uri === '/api/v1/locations' || $uri === '/api/v1/admin/locations')) {
+    $stmt = $pdo->query("SELECT * FROM locations ORDER BY city ASC, id ASC");
+    $items = $stmt->fetchAll();
+    jsonResponse(['data' => $items, 'locations' => $items]);
+}
+
+// POST /api/v1/locations OR /api/v1/admin/locations
+if ($method === 'POST' && ($uri === '/api/v1/locations' || $uri === '/api/v1/admin/locations')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    if (empty($body['city'])) jsonResponse(['message' => 'City name is required'], 422);
+
+    $city = trim($body['city']);
+    $state = !empty($body['state']) ? trim($body['state']) : 'Maharashtra';
+
+    // Check if city already exists
+    $stmtCheck = $pdo->prepare("SELECT id FROM locations WHERE LOWER(city) = LOWER(?) AND LOWER(state) = LOWER(?)");
+    $stmtCheck->execute([$city, $state]);
+    $existingId = $stmtCheck->fetchColumn();
+
+    if ($existingId) {
+        $pdo->prepare("UPDATE locations SET is_active = 1 WHERE id = ?")->execute([$existingId]);
+        $newId = (int)$existingId;
+    } else {
+        $stmt = $pdo->prepare("INSERT INTO locations (city, state, is_active) VALUES (?, ?, 1)");
+        $stmt->execute([$city, $state]);
+        $newId = (int)$pdo->lastInsertId();
+    }
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Location saved successfully',
+        'data' => ['id' => $newId, 'city' => $city, 'state' => $state, 'is_active' => true]
+    ]);
+}
+
+// PUT /api/v1/locations/{id}
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?locations/(\d+)$#', $uri, $m)) {
+    $locId = (int)$m[2];
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $city = trim($body['city'] ?? '');
+    $state = trim($body['state'] ?? 'Maharashtra');
+    if (!empty($city)) {
+        $pdo->prepare("UPDATE locations SET city = ?, state = ? WHERE id = ?")->execute([$city, $state, $locId]);
+    }
+    jsonResponse(['success' => true, 'message' => 'Location updated successfully', 'id' => $locId]);
+}
+
+// DELETE /api/v1/locations/{id}
+if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?locations/(\d+)$#', $uri, $m)) {
+    $locId = (int)$m[2];
     $stmt = $pdo->prepare("DELETE FROM locations WHERE id = ?");
     $stmt->execute([$locId]);
 
-    jsonResponse(['message' => 'Location deleted successfully']);
+    jsonResponse(['success' => true, 'message' => 'Location deleted successfully', 'id' => $locId]);
 }
 
 // 12. Express Interest: POST /api/v1/auctions/{id}/interest
