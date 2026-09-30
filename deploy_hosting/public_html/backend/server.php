@@ -975,103 +975,6 @@ function srSendEmailNotification(string $toEmail, string $toName, string $subjec
     return $sent;
 }
 
-/**
- * Generates high-converting, professional HTML email template for new high bids.
- */
-function srGenerateNewBidEmailHtml($auction, $bidAmount, $recipientUser = null): string {
-    $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
-    $title = htmlspecialchars($auction['title'] ?? 'Industrial Salvage Lot');
-    $categoryName = htmlspecialchars($auction['category_name'] ?? 'Industrial Scrap & Machinery');
-    $quantity = htmlspecialchars(($auction['quantity'] ?? '1') . ' ' . ($auction['unit'] ?? 'MT'));
-    $location = htmlspecialchars(($auction['location_city'] ?? 'Mumbai') . ', ' . ($auction['location_state'] ?? 'Maharashtra'));
-    $startingPrice = number_format((float)($auction['starting_price'] ?? 0), 2);
-    $emdAmount = number_format((float)($auction['emd_amount'] ?? 50000), 2);
-    $formattedBid = number_format((float)$bidAmount, 2);
-    $endTimeStr = !empty($auction['end_time']) ? date('d M Y, h:i A', strtotime($auction['end_time'])) . ' IST' : 'Closing Soon';
-    $lotUrl = "http://localhost:3000/auctions/" . urlencode($auction['slug'] ?? $auction['id']);
-    $recipientName = htmlspecialchars($recipientUser['name'] ?? 'Registered Bidder');
-
-    return <<<HTML
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>New High Bid on {$lotCode}</title>
-<style>
-  body { margin: 0; padding: 0; background-color: #070f1a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-  .wrapper { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b; }
-  .header { background: linear-gradient(135deg, #0B192C 0%, #162a45 100%); padding: 32px 24px; text-align: center; }
-  .brand { color: #ffffff; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 0; }
-  .brand-sub { color: #D48B1C; font-size: 11px; font-weight: 700; letter-spacing: 2px; margin-top: 4px; }
-  .hero-badge { display: inline-block; background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 50px; text-transform: uppercase; margin-top: 16px; }
-  .content { padding: 32px 24px; }
-  .greeting { font-size: 15px; color: #334155; line-height: 1.6; margin-bottom: 20px; }
-  .bid-card { background: linear-gradient(135deg, #0B192C 0%, #1a3152 100%); border-radius: 14px; padding: 24px; text-align: center; color: #ffffff; margin-bottom: 24px; }
-  .bid-label { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-  .bid-amount { font-size: 34px; font-weight: 900; color: #34d399; margin: 8px 0; }
-  .bid-sub { font-size: 12px; color: #cbd5e1; font-weight: 500; }
-  .table-box { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
-  .table-row { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-  .table-row:last-child { border-bottom: none; }
-  .t-label { color: #64748b; font-weight: 600; }
-  .t-val { color: #0f172a; font-weight: 700; text-align: right; }
-  .anti-snip { background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #92400e; margin-bottom: 24px; }
-  .btn-wrap { text-align: center; margin: 28px 0; }
-  .btn { display: inline-block; background-color: #D48B1C; color: #ffffff; font-weight: 800; font-size: 14px; text-decoration: none; padding: 16px 36px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(212,139,28,0.4); }
-  .footer { background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.6; }
-</style>
-</head>
-<body>
-  <div style="padding: 24px 12px; background-color: #070f1a;">
-    <div class="wrapper">
-      <div class="header">
-        <h1 class="brand">SALVAGEREEF</h1>
-        <div class="brand-sub">B2B INDUSTRIAL SALVAGE & FORWARD AUCTIONS</div>
-        <div class="hero-badge">⚡ Live Bidding Update | Ref: {$lotCode}</div>
-      </div>
-      <div class="content">
-        <p class="greeting">Dear <strong>{$recipientName}</strong>,</p>
-        <p class="greeting">A new high bid of <strong>₹{$formattedBid}</strong> has just been placed on auction lot <strong>{$title}</strong> ({$lotCode}). If you wish to compete for this lot, please submit your counter-bid before the scheduled close.</p>
-        
-        <div class="bid-card">
-          <div class="bid-label">Current Leading Bid</div>
-          <div class="bid-amount">₹{$formattedBid}</div>
-          <div class="bid-sub">✓ Verified Active Bidder on SalvageReef</div>
-        </div>
-
-        <div class="table-box">
-          <div class="table-row"><span class="t-label">Lot Reference Code</span><span class="t-val">{$lotCode}</span></div>
-          <div class="table-row"><span class="t-label">Material Category</span><span class="t-val">{$categoryName}</span></div>
-          <div class="table-row"><span class="t-label">Total Quantity</span><span class="t-val">{$quantity}</span></div>
-          <div class="table-row"><span class="t-label">Inspection Location</span><span class="t-val">{$location}</span></div>
-          <div class="table-row"><span class="t-label">Starting Reserve</span><span class="t-val">₹{$startingPrice}</span></div>
-          <div class="table-row"><span class="t-label">EMD Deposit</span><span class="t-val">₹{$emdAmount}</span></div>
-          <div class="table-row"><span class="t-label">Closing Schedule</span><span class="t-val">{$endTimeStr}</span></div>
-        </div>
-
-        <div class="anti-snip">
-          <strong>⚡ Dynamic Anti-Sniping Rule:</strong> Bids placed in the final 2 minutes will automatically extend the closing time by <strong>+2:00 minutes</strong>.
-        </div>
-
-        <div class="btn-wrap">
-          <a href="{$lotUrl}" class="btn">🔨 View Live Lot & Submit Counter Bid</a>
-        </div>
-      </div>
-      <div class="footer">
-        <p><strong>SalvageReef Operations Desk</strong><br>
-        Phone / WhatsApp: +91 7304481166 | Email: desk@salvagereef.com<br>
-        Mumbai, Maharashtra, India | www.salvagereef.com</p>
-        <p style="margin-top: 12px; font-size: 10px; color: #94a3b8;">
-          You received this email because you are a registered buyer / verified bidder on SalvageReef.
-        </p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-HTML;
-}
 
 /**
  * Generates high-converting HTML announcement email for newly launched auction lots.
@@ -1155,24 +1058,6 @@ function srGenerateNewAuctionEmailHtml($auction, $recipientUser = null): string 
 HTML;
 }
 
-/**
- * Broadcasts new bid notification email to all registered users asynchronously.
- */
-function srBroadcastNewBidEmail(PDO $pdo, array $auction, float $bidAmount, array $bidderUser): void {
-    try {
-        $stmtUsers = $pdo->query("SELECT id, name, email, company_name FROM users WHERE (is_active IS NULL OR is_active = 1) AND email IS NOT NULL AND email != ''");
-        $users = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
-        $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
-        $subject = "🔥 New High Bid (₹" . number_format($bidAmount, 2) . ") Placed on " . ($auction['title'] ?? 'Auction Lot') . " [{$lotCode}]";
-
-        foreach ($users as $u) {
-            $html = srGenerateNewBidEmailHtml($auction, $bidAmount, $u);
-            srSendEmailNotification($u['email'], $u['name'] ?? '', $subject, $html);
-        }
-    } catch (Exception $e) {
-        srWriteLog(SR_LOG_ERROR, 'ERROR', "Failed to broadcast new bid emails: " . $e->getMessage());
-    }
-}
 
 /**
  * Broadcasts new auction lot notification email to all registered users.
