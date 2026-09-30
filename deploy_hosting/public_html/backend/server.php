@@ -1768,11 +1768,15 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
     $stmt->execute($params);
     $items = $stmt->fetchAll();
 
-    $stmtAllImgs = $pdo->query("SELECT auction_id, image_path, is_primary FROM auction_images ORDER BY id ASC");
-    $allImgs = $stmtAllImgs ? $stmtAllImgs->fetchAll() : [];
     $imgsByAuction = [];
-    foreach ($allImgs as $row) {
-        $imgsByAuction[$row['auction_id']][] = $row;
+    try {
+        $stmtAllImgs = $pdo->query("SELECT auction_id, image_path, is_primary FROM auction_images ORDER BY id ASC");
+        $allImgs = $stmtAllImgs ? $stmtAllImgs->fetchAll() : [];
+        foreach ($allImgs as $row) {
+            $imgsByAuction[$row['auction_id']][] = $row;
+        }
+    } catch (\Throwable $e) {
+        $imgsByAuction = [];
     }
 
     foreach ($items as &$item) {
@@ -1825,8 +1829,10 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
         if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
     }
     foreach ($imagesList as $imgItem) {
-        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-            ->execute([$newId, $imgItem['path'], $imgItem['primary']]);
+        try {
+            $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                ->execute([$newId, $imgItem['path'], $imgItem['primary']]);
+        } catch (\Throwable $e) {}
     }
 
     jsonResponse(['message' => 'Auction created successfully', 'id' => $newId, 'success' => true]);
@@ -1863,11 +1869,13 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
         if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
     }
     if (!empty($imagesList)) {
-        $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
-        foreach ($imagesList as $imgItem) {
-            $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
-        }
+        try {
+            $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+            foreach ($imagesList as $imgItem) {
+                $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                    ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
+            }
+        } catch (\Throwable $e) {}
     }
 
     jsonResponse(['message' => 'Auction updated successfully', 'id' => $auctionId, 'success' => true]);
@@ -1876,9 +1884,9 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
 // 9c. Delete Auction: DELETE /api/v1/auctions/{id} OR DELETE /api/v1/admin/auctions/{id}
 if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?auctions/(\d+)$#', $uri, $m)) {
     $auctionId = (int)$m[2];
-    $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
-    $pdo->prepare("DELETE FROM bids WHERE auction_id = ?")->execute([$auctionId]);
-    $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id = ?")->execute([$auctionId]);
+    try { $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+    try { $pdo->prepare("DELETE FROM bids WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
+    try { $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
     $pdo->prepare("DELETE FROM auctions WHERE id = ?")->execute([$auctionId]);
     jsonResponse(['message' => 'Auction deleted permanently from database', 'id' => $auctionId, 'success' => true]);
 }
@@ -1895,11 +1903,15 @@ if ($method === 'GET' && ($uri === '/api/v1/classifieds' || $uri === '/api/v1/ad
             ORDER BY cl.id DESC";
     $items = $pdo->query($sql)->fetchAll();
 
-    $stmtAllClImgs = $pdo->query("SELECT classified_id, image_path, is_primary FROM classified_images ORDER BY id ASC");
-    $allClImgs = $stmtAllClImgs ? $stmtAllClImgs->fetchAll() : [];
     $imgsByClassified = [];
-    foreach ($allClImgs as $row) {
-        $imgsByClassified[$row['classified_id']][] = $row;
+    try {
+        $stmtAllClImgs = $pdo->query("SELECT classified_id, image_path, is_primary FROM classified_images ORDER BY id ASC");
+        $allClImgs = $stmtAllClImgs ? $stmtAllClImgs->fetchAll() : [];
+        foreach ($allClImgs as $row) {
+            $imgsByClassified[$row['classified_id']][] = $row;
+        }
+    } catch (\Throwable $e) {
+        $imgsByClassified = [];
     }
 
     foreach ($items as &$item) {

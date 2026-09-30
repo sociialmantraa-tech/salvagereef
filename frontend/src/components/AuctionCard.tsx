@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Auction } from '../types';
 import { Calendar, Clock, FileText } from 'lucide-react';
 import { isPdfDocument } from '../utils/imageCompressor';
+import { useAuthStore } from '../store/useAuthStore';
+import AuthRequiredModal from './AuthRequiredModal';
 
 interface AuctionCardProps {
   auction: Auction;
@@ -11,6 +13,9 @@ interface AuctionCardProps {
 const FALLBACK_AUCTION_IMG = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
 
 export default function AuctionCard({ auction }: AuctionCardProps) {
+  const { isAuthenticated, user } = useAuthStore();
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+
   const isPrivate = auction.auction_type === 'private';
   const isGroup = auction.auction_type === 'group';
 
@@ -198,6 +203,10 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!isAuthenticated || !user) {
+                  setShowAuthModal(true);
+                  return;
+                }
                 try {
                   const { downloadAuctionPdf } = await import('../utils/pdfGenerator');
                   await downloadAuctionPdf(auction);
@@ -206,7 +215,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
                 }
               }}
               className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center justify-center"
-              title="Download Official PDF Dossier"
+              title="Download Official PDF Dossier (Login Required)"
             >
               <FileText className="w-3.5 h-3.5" />
             </button>
@@ -222,6 +231,13 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           )}
         </div>
       </div>
+
+      {/* Auth Gate Modal for Unauthenticated Guests */}
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        type="pdf"
+      />
     </div>
   );
 }

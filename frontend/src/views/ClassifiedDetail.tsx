@@ -5,11 +5,16 @@ import { Phone, Mail, User, ShieldCheck, ChevronRight, FileText, Download, Exter
 import { Classified } from '../types';
 import { INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { isPdfDocument } from '../utils/imageCompressor';
+import { useAuthStore } from '../store/useAuthStore';
+import AuthRequiredModal from '../components/AuthRequiredModal';
 
 import SEOHead from '../components/SEOHead';
 
 export default function ClassifiedDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const { isAuthenticated, user } = useAuthStore();
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalType, setAuthModalType] = useState<'pdf' | 'images' | 'document'>('pdf');
 
   const initialMatch = INITIAL_CLASSIFIEDS.find((c) => c.slug === slug || c.id.toString() === slug) || INITIAL_CLASSIFIEDS[0];
   const [classified, setClassified] = useState<Classified | null>(initialMatch);
@@ -115,21 +120,37 @@ export default function ClassifiedDetail() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <a
-                      href={currentImg}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => {
+                        if (!isAuthenticated || !user) {
+                          setAuthModalType('document');
+                          setShowAuthModal(true);
+                          return;
+                        }
+                        window.open(currentImg, '_blank');
+                      }}
                       className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
                     >
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
-                    </a>
-                    <a
-                      href={currentImg}
-                      download={`Classified-${classified.id}-Document.pdf`}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!isAuthenticated || !user) {
+                          setAuthModalType('pdf');
+                          setShowAuthModal(true);
+                          return;
+                        }
+                        const link = document.createElement('a');
+                        link.href = currentImg;
+                        link.download = `Classified-${classified.id}-Document.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
                       className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
                     >
                       <Download className="w-4 h-4" /> Download PDF
-                    </a>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -226,6 +247,13 @@ export default function ClassifiedDetail() {
           </div>
         </div>
       </div>
+
+      {/* Auth Gate Modal for Unauthenticated Guests */}
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        type={authModalType}
+      />
     </div>
   );
 }

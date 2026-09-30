@@ -12,6 +12,7 @@ import { downloadAllAuctionImages, downloadSingleImage } from '../utils/imageDow
 
 import SEOHead from '../components/SEOHead';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
+import AuthRequiredModal from '../components/AuthRequiredModal';
 
 export default function AuctionDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -25,6 +26,10 @@ export default function AuctionDetail() {
   const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
   const [downloadingImages, setDownloadingImages] = useState<boolean>(false);
   const [pdfSuccess, setPdfSuccess] = useState<boolean>(false);
+
+  // Auth Gate Modal State
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalType, setAuthModalType] = useState<'pdf' | 'images' | 'document' | 'general'>('pdf');
 
   const [interestMsg, setInterestMsg] = useState<string>('');
   const [submittingInterest, setSubmittingInterest] = useState<boolean>(false);
@@ -125,6 +130,11 @@ export default function AuctionDetail() {
 
   const handleDownloadPdf = async () => {
     if (!auction) return;
+    if (!isAuthenticated || !user) {
+      setAuthModalType('pdf');
+      setShowAuthModal(true);
+      return;
+    }
     setGeneratingPdf(true);
     setPdfSuccess(false);
     try {
@@ -141,6 +151,11 @@ export default function AuctionDetail() {
 
   const handleDownloadImages = async () => {
     if (!auction || !images.length) return;
+    if (!isAuthenticated || !user) {
+      setAuthModalType('images');
+      setShowAuthModal(true);
+      return;
+    }
     setDownloadingImages(true);
     try {
       const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
@@ -150,6 +165,26 @@ export default function AuctionDetail() {
     } finally {
       setDownloadingImages(false);
     }
+  };
+
+  const handleOpenAttachedPdf = (e: React.MouseEvent) => {
+    if (!isAuthenticated || !user) {
+      e.preventDefault();
+      setAuthModalType('document');
+      setShowAuthModal(true);
+      return;
+    }
+    window.open(images[activeImage], '_blank');
+  };
+
+  const handleDownloadSinglePhoto = (imgUrl: string, idx: number) => {
+    if (!isAuthenticated || !user) {
+      setAuthModalType('images');
+      setShowAuthModal(true);
+      return;
+    }
+    const lotCode = (auction as any).lot_code || `LOT-${auction?.id || 'SCRAP'}`;
+    downloadSingleImage(imgUrl, `${lotCode}_photo_${idx + 1}.jpg`);
   };
 
   return (
@@ -245,14 +280,12 @@ export default function AuctionDetail() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <a
-                      href={images[activeImage]}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={handleOpenAttachedPdf}
                       className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
                     >
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
-                    </a>
+                    </button>
                     <button
                       onClick={handleDownloadPdf}
                       disabled={generatingPdf}
@@ -272,10 +305,7 @@ export default function AuctionDetail() {
                   {/* Floating Action Controls on Image */}
                   <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => {
-                        const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
-                        downloadSingleImage(images[activeImage], `${lotCode}_photo_${activeImage + 1}.jpg`);
-                      }}
+                      onClick={() => handleDownloadSinglePhoto(images[activeImage], activeImage)}
                       className="p-2 bg-black/70 hover:bg-black text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
                       title="Download this photo"
                     >
@@ -611,6 +641,13 @@ export default function AuctionDetail() {
           )}
         </div>
       </div>
+
+      {/* Auth Gate Modal for Unauthenticated Guests */}
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        type={authModalType}
+      />
     </div>
   );
 }
