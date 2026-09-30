@@ -1,0 +1,50 @@
+[
+  {
+    "id": 901,
+    "auction_id": 999,
+    "auction_title": "EXP-999 | 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap",
+    "amount": 750000,
+    "user_id": 2,
+    "bidder_name": "Neelkanth Sharma",
+    "bidder_email": "bidder@salvagereef.com",
+    "bidder_company": "Metals & Alloys Co",
+    "status": "approved",
+    "created_at": "2026-09-30T10:00:00.000Z"
+  },
+  {
+    "id": 902,
+    "auction_id": 999,
+    "auction_title": "EXP-999 | 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap",
+    "amount": 720000,
+    "user_id": 1,
+    "bidder_name": "SalvageReef Verified Seller",
+    "bidder_email": "seller@salvagereef.com",
+    "bidder_company": "Apex Scrap Recyclers Ltd",
+    "status": "approved",
+    "created_at": "2026-09-30T09:55:00.000Z"
+  },
+  {
+    "id": 501,
+    "auction_id": 101,
+    "auction_title": "PL-101 | 50 MT Industrial Copper Cable Scrap - Grade A Clean Wire",
+    "amount": 4150000,
+    "user_id": 2,
+    "bidder_name": "Neelkanth Sharma",
+    "bidder_email": "bidder@salvagereef.com",
+    "bidder_company": "Metals & Alloys Co",
+    "status": "approved",
+    "created_at": "2026-09-30T09:00:00.000Z"
+  },
+  {
+    "id": 504,
+    "auction_id": 102,
+    "auction_title": "PL-102 | CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)",
+    "amount": 9200000,
+    "user_id": 4,
+    "bidder_name": "Rajesh Metals Scrap Trader",
+    "bidder_email": "rajesh@rajeshmetals.com",
+    "bidder_company": "Rajesh Industrial Scrap Traders",
+    "status": "approved",
+    "created_at": "2026-09-30T08:30:00.000Z"
+  }
+]

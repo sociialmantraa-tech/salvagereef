@@ -217,7 +217,7 @@ export default function AdminDashboard() {
   // FORGOT ADMIN PASSWORD VIA EMAIL OTP MODAL STATE (From Lock Screen)
   const [showAdminForgotPasswordModal, setShowAdminForgotPasswordModal] = useState<boolean>(false);
   const [forgotStep, setForgotStep] = useState<1 | 2>(1);
-  const [forgotEmail, setForgotEmail] = useState<string>('admin@salvagereef.com');
+  const [forgotEmail, setForgotEmail] = useState<string>('');
   const [forgotOtp, setForgotOtp] = useState<string>('');
   const [forgotNewPassword, setForgotNewPassword] = useState<string>('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState<string>('');
@@ -2730,7 +2730,7 @@ export default function AdminDashboard() {
                       required
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="admin@salvagereef.com"
+                      placeholder="Enter registered admin email"
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-xs"
                     />
                   </div>
@@ -2756,7 +2756,7 @@ export default function AdminDashboard() {
                       maxLength={6}
                       value={forgotOtp}
                       onChange={(e) => setForgotOtp(e.target.value)}
-                      placeholder="Enter 6-digit OTP (123456)"
+                      placeholder="Enter 6-digit OTP"
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-center tracking-widest text-base text-slate-900"
                     />
                   </div>
@@ -4376,7 +4376,7 @@ export default function AdminDashboard() {
                             type="email"
                             value={classifiedSellerEmail}
                             onChange={(e) => setClassifiedSellerEmail(e.target.value)}
-                            placeholder="e.g. admin@salvagereef.com"
+                            placeholder="Enter contact email"
                             className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
                           />
                         </div>

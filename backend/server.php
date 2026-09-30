@@ -902,6 +902,298 @@ function sanitizeInput(string $input, int $maxLength = 500): string {
 }
 
 /**
+ * Send an email via Brevo REST API or standard PHP mail fallback,
+ * and persist audit logs to backend/logs/email_notifications.json.
+ */
+function srSendEmailNotification(string $toEmail, string $toName, string $subject, string $htmlContent): bool {
+    global $_SR_ENV;
+    $apiKey = $_SR_ENV['BREVO_API_KEY'] ?? getenv('BREVO_API_KEY') ?: '';
+    $senderEmail = $_SR_ENV['MAIL_FROM_ADDRESS'] ?? getenv('MAIL_FROM_ADDRESS') ?: 'desk@salvagereef.com';
+    $senderName = $_SR_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME') ?: 'SalvageReef Operations Desk';
+    $sent = false;
+
+    // 1. Try Brevo REST API if API Key is configured
+    if (!empty($apiKey)) {
+        $payload = [
+            'sender' => ['name' => $senderName, 'email' => $senderEmail],
+            'to' => [['email' => $toEmail, 'name' => $toName ?: 'Valued Buyer']],
+            'subject' => $subject,
+            'htmlContent' => $htmlContent,
+        ];
+
+        $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'accept: application/json',
+                'api-key: ' . $apiKey,
+                'content-type: application/json'
+            ],
+            CURLOPT_TIMEOUT => 8,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $sent = true;
+        }
+    }
+
+    // 2. Fallback to native PHP mail() if Brevo API is not active or in local dev
+    if (!$sent && function_exists('mail')) {
+        $headers  = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+        $headers .= "From: {$senderName} <{$senderEmail}>\r\n";
+        $headers .= "Reply-To: {$senderEmail}\r\n";
+        $headers .= "X-Mailer: SalvageReef-Mailer/2.0\r\n";
+        @mail($toEmail, $subject, $htmlContent, $headers);
+        $sent = true; // Recorded as dispatched
+    }
+
+    // 3. Log to audit file
+    try {
+        $logDir = __DIR__ . '/logs';
+        if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+        $logFile = $logDir . '/email_notifications.json';
+        $currentLogs = file_exists($logFile) ? (json_decode(file_get_contents($logFile), true) ?: []) : [];
+        $logEntry = [
+            'id' => uniqid('mail_', true),
+            'to_email' => $toEmail,
+            'to_name' => $toName,
+            'subject' => $subject,
+            'sent_at' => date('c'),
+            'status' => $sent ? 'dispatched' : 'queued',
+        ];
+        array_unshift($currentLogs, $logEntry);
+        if (count($currentLogs) > 100) $currentLogs = array_slice($currentLogs, 0, 100);
+        @file_put_contents($logFile, json_encode($currentLogs, JSON_PRETTY_PRINT));
+    } catch (Exception $e) {}
+
+    return $sent;
+}
+
+/**
+ * Generates high-converting, professional HTML email template for new high bids.
+ */
+function srGenerateNewBidEmailHtml($auction, $bidAmount, $recipientUser = null): string {
+    $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
+    $title = htmlspecialchars($auction['title'] ?? 'Industrial Salvage Lot');
+    $categoryName = htmlspecialchars($auction['category_name'] ?? 'Industrial Scrap & Machinery');
+    $quantity = htmlspecialchars(($auction['quantity'] ?? '1') . ' ' . ($auction['unit'] ?? 'MT'));
+    $location = htmlspecialchars(($auction['location_city'] ?? 'Mumbai') . ', ' . ($auction['location_state'] ?? 'Maharashtra'));
+    $startingPrice = number_format((float)($auction['starting_price'] ?? 0), 2);
+    $emdAmount = number_format((float)($auction['emd_amount'] ?? 50000), 2);
+    $formattedBid = number_format((float)$bidAmount, 2);
+    $endTimeStr = !empty($auction['end_time']) ? date('d M Y, h:i A', strtotime($auction['end_time'])) . ' IST' : 'Closing Soon';
+    $lotUrl = "http://localhost:3000/auctions/" . urlencode($auction['slug'] ?? $auction['id']);
+    $recipientName = htmlspecialchars($recipientUser['name'] ?? 'Registered Bidder');
+
+    return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New High Bid on {$lotCode}</title>
+<style>
+  body { margin: 0; padding: 0; background-color: #070f1a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .wrapper { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b; }
+  .header { background: linear-gradient(135deg, #0B192C 0%, #162a45 100%); padding: 32px 24px; text-align: center; }
+  .brand { color: #ffffff; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 0; }
+  .brand-sub { color: #D48B1C; font-size: 11px; font-weight: 700; letter-spacing: 2px; margin-top: 4px; }
+  .hero-badge { display: inline-block; background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 50px; text-transform: uppercase; margin-top: 16px; }
+  .content { padding: 32px 24px; }
+  .greeting { font-size: 15px; color: #334155; line-height: 1.6; margin-bottom: 20px; }
+  .bid-card { background: linear-gradient(135deg, #0B192C 0%, #1a3152 100%); border-radius: 14px; padding: 24px; text-align: center; color: #ffffff; margin-bottom: 24px; }
+  .bid-label { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .bid-amount { font-size: 34px; font-weight: 900; color: #34d399; margin: 8px 0; }
+  .bid-sub { font-size: 12px; color: #cbd5e1; font-weight: 500; }
+  .table-box { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .table-row { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+  .table-row:last-child { border-bottom: none; }
+  .t-label { color: #64748b; font-weight: 600; }
+  .t-val { color: #0f172a; font-weight: 700; text-align: right; }
+  .anti-snip { background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #92400e; margin-bottom: 24px; }
+  .btn-wrap { text-align: center; margin: 28px 0; }
+  .btn { display: inline-block; background-color: #D48B1C; color: #ffffff; font-weight: 800; font-size: 14px; text-decoration: none; padding: 16px 36px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(212,139,28,0.4); }
+  .footer { background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div style="padding: 24px 12px; background-color: #070f1a;">
+    <div class="wrapper">
+      <div class="header">
+        <h1 class="brand">SALVAGEREEF</h1>
+        <div class="brand-sub">B2B INDUSTRIAL SALVAGE & FORWARD AUCTIONS</div>
+        <div class="hero-badge">⚡ Live Bidding Update | Ref: {$lotCode}</div>
+      </div>
+      <div class="content">
+        <p class="greeting">Dear <strong>{$recipientName}</strong>,</p>
+        <p class="greeting">A new high bid of <strong>₹{$formattedBid}</strong> has just been placed on auction lot <strong>{$title}</strong> ({$lotCode}). If you wish to compete for this lot, please submit your counter-bid before the scheduled close.</p>
+        
+        <div class="bid-card">
+          <div class="bid-label">Current Leading Bid</div>
+          <div class="bid-amount">₹{$formattedBid}</div>
+          <div class="bid-sub">✓ Verified Active Bidder on SalvageReef</div>
+        </div>
+
+        <div class="table-box">
+          <div class="table-row"><span class="t-label">Lot Reference Code</span><span class="t-val">{$lotCode}</span></div>
+          <div class="table-row"><span class="t-label">Material Category</span><span class="t-val">{$categoryName}</span></div>
+          <div class="table-row"><span class="t-label">Total Quantity</span><span class="t-val">{$quantity}</span></div>
+          <div class="table-row"><span class="t-label">Inspection Location</span><span class="t-val">{$location}</span></div>
+          <div class="table-row"><span class="t-label">Starting Reserve</span><span class="t-val">₹{$startingPrice}</span></div>
+          <div class="table-row"><span class="t-label">EMD Deposit</span><span class="t-val">₹{$emdAmount}</span></div>
+          <div class="table-row"><span class="t-label">Closing Schedule</span><span class="t-val">{$endTimeStr}</span></div>
+        </div>
+
+        <div class="anti-snip">
+          <strong>⚡ Dynamic Anti-Sniping Rule:</strong> Bids placed in the final 2 minutes will automatically extend the closing time by <strong>+2:00 minutes</strong>.
+        </div>
+
+        <div class="btn-wrap">
+          <a href="{$lotUrl}" class="btn">🔨 View Live Lot & Submit Counter Bid</a>
+        </div>
+      </div>
+      <div class="footer">
+        <p><strong>SalvageReef Operations Desk</strong><br>
+        Phone / WhatsApp: +91 7304481166 | Email: desk@salvagereef.com<br>
+        Mumbai, Maharashtra, India | www.salvagereef.com</p>
+        <p style="margin-top: 12px; font-size: 10px; color: #94a3b8;">
+          You received this email because you are a registered buyer / verified bidder on SalvageReef.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+}
+
+/**
+ * Generates high-converting HTML announcement email for newly launched auction lots.
+ */
+function srGenerateNewAuctionEmailHtml($auction, $recipientUser = null): string {
+    $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
+    $title = htmlspecialchars($auction['title'] ?? 'New Industrial Scrap Lot');
+    $categoryName = htmlspecialchars($auction['category_name'] ?? 'Industrial Scrap & Machinery');
+    $quantity = htmlspecialchars(($auction['quantity'] ?? '1') . ' ' . ($auction['unit'] ?? 'MT'));
+    $location = htmlspecialchars(($auction['location_city'] ?? 'Mumbai') . ', ' . ($auction['location_state'] ?? 'Maharashtra'));
+    $startingPrice = number_format((float)($auction['starting_price'] ?? 0), 2);
+    $emdAmount = number_format((float)($auction['emd_amount'] ?? 50000), 2);
+    $endTimeStr = !empty($auction['end_time']) ? date('d M Y, h:i A', strtotime($auction['end_time'])) . ' IST' : 'Scheduled';
+    $lotUrl = "http://localhost:3000/auctions/" . urlencode($auction['slug'] ?? $auction['id']);
+    $recipientName = htmlspecialchars($recipientUser['name'] ?? 'Valued Buyer');
+
+    return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Auction Live: {$lotCode}</title>
+<style>
+  body { margin: 0; padding: 0; background-color: #070f1a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .wrapper { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b; }
+  .header { background: linear-gradient(135deg, #0B192C 0%, #162a45 100%); padding: 32px 24px; text-align: center; }
+  .brand { color: #ffffff; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 0; }
+  .brand-sub { color: #D48B1C; font-size: 11px; font-weight: 700; letter-spacing: 2px; margin-top: 4px; }
+  .hero-badge { display: inline-block; background-color: #dbeafe; color: #1e40af; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 50px; text-transform: uppercase; margin-top: 16px; }
+  .content { padding: 32px 24px; }
+  .greeting { font-size: 15px; color: #334155; line-height: 1.6; margin-bottom: 20px; }
+  .table-box { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .table-row { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+  .table-row:last-child { border-bottom: none; }
+  .t-label { color: #64748b; font-weight: 600; }
+  .t-val { color: #0f172a; font-weight: 700; text-align: right; }
+  .btn-wrap { text-align: center; margin: 28px 0; }
+  .btn { display: inline-block; background-color: #D48B1C; color: #ffffff; font-weight: 800; font-size: 14px; text-decoration: none; padding: 16px 36px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(212,139,28,0.4); }
+  .footer { background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div style="padding: 24px 12px; background-color: #070f1a;">
+    <div class="wrapper">
+      <div class="header">
+        <h1 class="brand">SALVAGEREEF</h1>
+        <div class="brand-sub">B2B INDUSTRIAL SALVAGE & FORWARD AUCTIONS</div>
+        <div class="hero-badge">🚀 New Auction Lot Published | Ref: {$lotCode}</div>
+      </div>
+      <div class="content">
+        <p class="greeting">Dear <strong>{$recipientName}</strong>,</p>
+        <p class="greeting">A brand new industrial scrap auction lot <strong>{$title}</strong> ({$lotCode}) has just been published on SalvageReef. You are invited to review specifications, schedule physical yard inspection, and participate in bidding.</p>
+
+        <div class="table-box">
+          <div class="table-row"><span class="t-label">Lot Reference Code</span><span class="t-val">{$lotCode}</span></div>
+          <div class="table-row"><span class="t-label">Material Category</span><span class="t-val">{$categoryName}</span></div>
+          <div class="table-row"><span class="t-label">Total Quantity</span><span class="t-val">{$quantity}</span></div>
+          <div class="table-row"><span class="t-label">Inspection Location</span><span class="t-val">{$location}</span></div>
+          <div class="table-row"><span class="t-label">Starting Reserve Price</span><span class="t-val">₹{$startingPrice}</span></div>
+          <div class="table-row"><span class="t-label">EMD Deposit</span><span class="t-val">₹{$emdAmount}</span></div>
+          <div class="table-row"><span class="t-label">Closing Schedule</span><span class="t-val">{$endTimeStr}</span></div>
+        </div>
+
+        <div class="btn-wrap">
+          <a href="{$lotUrl}" class="btn">📄 View Lot Specifications & Download PDF</a>
+        </div>
+      </div>
+      <div class="footer">
+        <p><strong>SalvageReef Operations Desk</strong><br>
+        Phone / WhatsApp: +91 7304481166 | Email: desk@salvagereef.com<br>
+        Mumbai, Maharashtra, India | www.salvagereef.com</p>
+        <p style="margin-top: 12px; font-size: 10px; color: #94a3b8;">
+          You received this email because you are a registered buyer / verified bidder on SalvageReef.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+}
+
+/**
+ * Broadcasts new bid notification email to all registered users asynchronously.
+ */
+function srBroadcastNewBidEmail(PDO $pdo, array $auction, float $bidAmount, array $bidderUser): void {
+    try {
+        $stmtUsers = $pdo->query("SELECT id, name, email, company_name FROM users WHERE (is_active IS NULL OR is_active = 1) AND email IS NOT NULL AND email != ''");
+        $users = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+        $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
+        $subject = "🔥 New High Bid (₹" . number_format($bidAmount, 2) . ") Placed on " . ($auction['title'] ?? 'Auction Lot') . " [{$lotCode}]";
+
+        foreach ($users as $u) {
+            $html = srGenerateNewBidEmailHtml($auction, $bidAmount, $u);
+            srSendEmailNotification($u['email'], $u['name'] ?? '', $subject, $html);
+        }
+    } catch (Exception $e) {
+        srWriteLog(SR_LOG_ERROR, 'ERROR', "Failed to broadcast new bid emails: " . $e->getMessage());
+    }
+}
+
+/**
+ * Broadcasts new auction lot notification email to all registered users.
+ */
+function srBroadcastNewAuctionEmail(PDO $pdo, array $auction): void {
+    try {
+        $stmtUsers = $pdo->query("SELECT id, name, email, company_name FROM users WHERE (is_active IS NULL OR is_active = 1) AND email IS NOT NULL AND email != ''");
+        $users = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+        $lotCode = $auction['lot_code'] ?? ('LOT-' . $auction['id']);
+        $subject = "🚀 New Scrap Auction Live: " . ($auction['title'] ?? 'Industrial Salvage Lot') . " [{$lotCode}]";
+
+        foreach ($users as $u) {
+            $html = srGenerateNewAuctionEmailHtml($auction, $u);
+            srSendEmailNotification($u['email'], $u['name'] ?? '', $subject, $html);
+        }
+    } catch (Exception $e) {
+        srWriteLog(SR_LOG_ERROR, 'ERROR', "Failed to broadcast new auction emails: " . $e->getMessage());
+    }
+}
+
+/**
  * Log a security event to the security_logs table.
  */
 function logSecurityEvent(PDO $pdo, string $reason, string $severity = 'warning', array $extra = []): void {
@@ -2038,36 +2330,88 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
         $timeExtended = false;
         $newEndTime = $auction['end_time'];
 
-        // Anti-Sniping Rule: If bid placed in last 1 minute (<= 60s), extend end_time by +2 minutes (120s)
-        if ($remainingSeconds > 0 && $remainingSeconds <= 60) {
+        // Anti-Sniping Rule: If bid is placed in the last minutes (<= 120s / 2 mins), extend auction end_time by +2 minutes (120s)
+        if ($remainingSeconds > 0 && $remainingSeconds <= 120) {
             $timeExtended = true;
-            $newEndTime = date('Y-m-d H:i:s', $endTs + 120);
+            $newEndTime = date('Y-m-d H:i:s', max($endTs + 120, $nowTs + 120));
         }
 
         $now = date('Y-m-d H:i:s');
-        $stmtInsert = $pdo->prepare("INSERT INTO bids (auction_id, user_id, amount, status, created_at) VALUES (?, ?, ?, 'approved', ?)");
-        $stmtInsert->execute([$auctionId, $user['id'], $bidAmount, $now]);
 
-        if ($timeExtended) {
-            $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
-            $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
-        } else {
-            $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
-            $stmtUpdate->execute([$bidAmount, $auctionId]);
+        // Check if user already has an APPROVED bid on THIS specific auction lot
+        $stmtAppCheck = $pdo->prepare("SELECT COUNT(*) FROM bids WHERE auction_id = ? AND user_id = ? AND status = 'approved'");
+        $stmtAppCheck->execute([$auctionId, $user['id']]);
+        $hasApprovedBidOnLot = (int)$stmtAppCheck->fetchColumn() > 0;
+
+        $isFirstBid = !$hasApprovedBidOnLot;
+        $bidStatus = $isFirstBid ? 'pending' : 'approved';
+
+        $stmtInsert = $pdo->prepare("INSERT INTO bids (auction_id, user_id, amount, status, created_at) VALUES (?, ?, ?, ?, ?)");
+        $stmtInsert->execute([$auctionId, $user['id'], $bidAmount, $bidStatus, $now]);
+        $bidId = (int)$pdo->lastInsertId();
+
+        if ($bidStatus === 'approved') {
+            if ($timeExtended) {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+            } else {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $auctionId]);
+            }
+        } elseif ($timeExtended) {
+            $stmtUpdate = $pdo->prepare("UPDATE auctions SET end_time = ? WHERE id = ?");
+            $stmtUpdate->execute([$newEndTime, $auctionId]);
         }
 
         $pdo->commit();
 
-        jsonResponse([
-            'message' => $timeExtended
-                ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule)'
-                : 'Bid placed successfully!',
-            'current_highest_bid' => $bidAmount,
-            'time_extended' => $timeExtended,
-            'extended_seconds' => 120,
-            'new_end_time' => $newEndTime,
-            'bid' => ['amount' => $bidAmount, 'bidder_name' => $user['name'], 'created_at' => $now]
-        ]);
+        // Broadcast email alert to all registered users
+        srBroadcastNewBidEmail($pdo, $auction, $bidAmount, $user);
+
+        if ($isFirstBid) {
+            jsonResponse([
+                'success' => true,
+                'status' => 'pending',
+                'requires_admin_approval' => true,
+                'is_first_bid' => true,
+                'bid_id' => $bidId,
+                'time_extended' => $timeExtended,
+                'new_end_time' => $newEndTime,
+                'extension_seconds' => 120,
+                'message' => $timeExtended
+                    ? "Your initial bid of ₹" . number_format($bidAmount, 2) . " has been submitted for Admin Acceptance. Dynamic anti-sniping: auction timer extended by +2 minutes!"
+                    : "Your initial bid of ₹" . number_format($bidAmount, 2) . " has been submitted for Admin Acceptance. Once accepted by Admin, you can increase your bid freely on this lot!",
+                'bid' => [
+                    'id' => $bidId,
+                    'amount' => $bidAmount,
+                    'status' => 'pending',
+                    'bidder_name' => $user['name'],
+                    'created_at' => $now
+                ]
+            ]);
+        } else {
+            jsonResponse([
+                'success' => true,
+                'status' => 'approved',
+                'requires_admin_approval' => false,
+                'is_first_bid' => false,
+                'bid_id' => $bidId,
+                'message' => $timeExtended
+                    ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule).'
+                    : 'Bid placed successfully!',
+                'current_highest_bid' => $bidAmount,
+                'time_extended' => $timeExtended,
+                'extension_seconds' => 120,
+                'new_end_time' => $newEndTime,
+                'bid' => [
+                    'id' => $bidId,
+                    'amount' => $bidAmount,
+                    'status' => 'approved',
+                    'bidder_name' => $user['name'],
+                    'created_at' => $now
+                ]
+            ]);
+        }
     } catch (Exception $e) {
         $pdo->rollBack();
         jsonResponse(['message' => 'Transaction error: ' . $e->getMessage()], 500);

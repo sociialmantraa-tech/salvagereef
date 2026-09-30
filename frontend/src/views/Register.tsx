@@ -110,8 +110,8 @@ export default function Register() {
     pan_number: '',
     gst_number: '',
     registered_address: '',
-    state: 'Maharashtra',
-    city: 'Thane',
+    state: '',
+    city: '',
     pincode: '',
     spoc_name: '',
     phone: '',
@@ -761,7 +761,7 @@ export default function Register() {
                       value={formData.vendor_name}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder="e.g. Apex Salvage Corp"
+                      placeholder="Enter company / firm name"
                       className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all font-semibold ${
                         touched.vendor_name && errors.vendor_name
                           ? 'border-red-500 bg-red-50/50'
@@ -811,7 +811,7 @@ export default function Register() {
                       value={formData.pan_number}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? 'ABCDE1234F' : 'e.g. TRN / EIN / Tax ID'}
+                      placeholder={formData.country === 'IN' ? 'Enter 10-digit PAN' : 'Enter Tax / National ID'}
                       className={`w-full p-3 bg-slate-50 border rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.pan_number && errors.pan_number
                           ? 'border-red-500 bg-red-50/50'
@@ -843,7 +843,7 @@ export default function Register() {
                       value={formData.gst_number}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? '27AAAAA0000A1Z5' : 'e.g. VAT / Reg License No.'}
+                      placeholder={formData.country === 'IN' ? 'Enter 15-digit GSTIN' : 'Enter VAT / License No.'}
                       className={`w-full p-3 bg-slate-50 border rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.gst_number && errors.gst_number
                           ? 'border-red-500 bg-red-50/50'
@@ -872,7 +872,7 @@ export default function Register() {
                       value={formData.state}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? 'Maharashtra' : 'e.g. Dubai / California / London'}
+                      placeholder={formData.country === 'IN' ? 'Enter state' : 'Enter state / province'}
                       className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.state && errors.state
                           ? 'border-red-500 bg-red-50/50'
@@ -899,7 +899,7 @@ export default function Register() {
                       value={formData.city}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? 'Thane / Mumbai' : 'City Name'}
+                      placeholder="Enter city"
                       className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.city && errors.city
                           ? 'border-red-500 bg-red-50/50'
@@ -928,7 +928,7 @@ export default function Register() {
                       value={formData.registered_address}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder="Street, Industrial Area, Sector"
+                      placeholder="Enter complete registered business address"
                       className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.registered_address && errors.registered_address
                           ? 'border-red-500 bg-red-50/50'
@@ -958,7 +958,7 @@ export default function Register() {
                       value={formData.pincode}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? '401101' : 'Postal / ZIP Code'}
+                      placeholder={formData.country === 'IN' ? 'Enter 6-digit pincode' : 'Enter postal / ZIP code'}
                       className={`w-full p-3 bg-slate-50 border rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.pincode && errors.pincode
                           ? 'border-red-500 bg-red-50/50'
@@ -994,7 +994,7 @@ export default function Register() {
                         value={formData.spoc_name}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="e.g. Arham Shah"
+                        placeholder="Enter contact person name"
                         className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all font-semibold ${
                           touched.spoc_name && errors.spoc_name
                             ? 'border-red-500 bg-red-50/50'
@@ -1035,13 +1035,7 @@ export default function Register() {
                           value={formData.phone}
                           onChange={handleChange}
                           onBlur={handleBlur}
-                          placeholder={
-                            formData.country === 'IN'
-                              ? '9876543210'
-                              : formData.country === 'AE'
-                              ? '501234567'
-                              : activeCountryConfig.phoneDigitsMsg
-                          }
+                          placeholder="Enter mobile number"
                           className={`w-full p-3 bg-transparent font-mono focus:outline-none transition-all ${
                             touched.phone && errors.phone
                               ? 'bg-red-50/50'
@@ -1069,7 +1063,7 @@ export default function Register() {
                         value={formData.email}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="vendor@domain.com"
+                        placeholder="Enter email address"
                         className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all font-semibold ${
                           touched.email && errors.email
                             ? 'border-red-500 bg-red-50/50'
@@ -1098,7 +1092,7 @@ export default function Register() {
                         value={formData.password}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="Min 6 characters"
+                        placeholder="Enter password (min 6 characters)"
                         className={`w-full p-3 pr-10 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                           touched.password && errors.password
                             ? 'border-red-500 bg-red-50/50'
@@ -1156,7 +1150,7 @@ export default function Register() {
                       value={formData.bank_name}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? 'e.g. HDFC Bank / ICICI Bank' : 'e.g. Emirates NBD / Chase / HSBC'}
+                      placeholder="Enter bank name"
                       className={`w-full p-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all font-semibold ${
                         touched.bank_name && errors.bank_name
                           ? 'border-red-500 bg-red-50/50'
@@ -1185,7 +1179,7 @@ export default function Register() {
                       value={formData.bank_account_number}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? '50100012345678' : 'IBAN or Account Number'}
+                      placeholder="Enter bank account number"
                       className={`w-full p-3 bg-slate-50 border rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.bank_account_number && errors.bank_account_number
                           ? 'border-red-500 bg-red-50/50'
@@ -1215,7 +1209,7 @@ export default function Register() {
                       value={formData.bank_ifsc_code}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder={formData.country === 'IN' ? 'HDFC0001234' : 'SWIFT / BIC Code'}
+                      placeholder={formData.country === 'IN' ? 'Enter 11-digit IFSC code' : 'Enter SWIFT / BIC Code'}
                       className={`w-full p-3 bg-slate-50 border rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#D48B1C] transition-all ${
                         touched.bank_ifsc_code && errors.bank_ifsc_code
                           ? 'border-red-500 bg-red-50/50'

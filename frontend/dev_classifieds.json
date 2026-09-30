@@ -1,0 +1,42 @@
+[
+  {
+    "id": 304,
+    "title": "Server Rack E-Waste Scrap Boards & Green Motherboards",
+    "slug": "server-rack-e-waste-scrap-boards-bulk-lot",
+    "description": "Bulk lot of telecom and server motherboard scrap for gold and precious metal recovery. Gold plated pins intact.",
+    "category_id": 4,
+    "price": 95000,
+    "quantity": 500,
+    "unit": "kg",
+    "location_city": "Mumbai",
+    "location_state": "Maharashtra",
+    "status": "available",
+    "created_by": 1,
+    "category": { "id": 4, "name": "E-Waste & Circuit Boards", "slug": "e-waste-circuit-boards" },
+    "creator": { "id": 1, "name": "Apex Recycling Desk", "email": "seller@salvagereef.com", "phone": "7304481166", "company_name": "Apex Recyclers" },
+    "primary_image": { "id": 304, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80" },
+    "images": [
+      { "id": 304, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+    ]
+  },
+  {
+    "id": 303,
+    "title": "Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy",
+    "slug": "used-50-hp-kirloskar-diesel-generator-set",
+    "description": "50 HP Silent DG set with Kirloskar engine and Stamford alternator. Self start battery kit included. 1,400 running hours on meter.",
+    "category_id": 1,
+    "price": 240000,
+    "quantity": 1,
+    "unit": "nos",
+    "location_city": "Pune",
+    "location_state": "Maharashtra",
+    "status": "available",
+    "created_by": 1,
+    "category": { "id": 1, "name": "Scrap Heavy Machinery", "slug": "scrap-heavy-machinery" },
+    "creator": { "id": 1, "name": "Suresh Traders", "email": "seller@salvagereef.com", "phone": "7304481166", "company_name": "Suresh Machinery Sales" },
+    "primary_image": { "id": 303, "image_path": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80" },
+    "images": [
+      { "id": 303, "image_path": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+    ]
+  }
+]

@@ -127,26 +127,82 @@ class AuctionController extends Controller
                 ], 422);
             }
 
+            // Dynamic Anti-Sniping Rule: If bid placed in final minutes (<= 120 seconds), extend end_time by +2 minutes (120s)
+            $now = Carbon::now();
+            $endTime = Carbon::parse($auction->end_time);
+            $remainingSeconds = $endTime->diffInSeconds($now, false) * -1;
+            $timeExtended = false;
+            $newEndTime = $auction->end_time;
+
+            if ($remainingSeconds > 0 && $remainingSeconds <= 120) {
+                $timeExtended = true;
+                $newEndTime = max($endTime->copy()->addMinutes(2), $now->copy()->addMinutes(2));
+                $auction->end_time = $newEndTime;
+            }
+
+            // Check if user already has an approved bid on this specific auction lot
+            $hasApprovedBid = Bid::where('auction_id', $auction->id)
+                ->where('user_id', $user->id)
+                ->where('status', 'approved')
+                ->exists();
+
+            $isFirstBid = !$hasApprovedBid;
+            $bidStatus = $isFirstBid ? 'pending' : 'approved';
+
             // Create bid
             $bid = Bid::create([
                 'auction_id' => $auction->id,
                 'user_id' => $user->id,
                 'amount' => $bidAmount,
+                'status' => $bidStatus,
                 'created_at' => Carbon::now(),
             ]);
 
-            // Update auction current_highest_bid
-            $auction->current_highest_bid = $bidAmount;
+            if ($bidStatus === 'approved') {
+                $auction->current_highest_bid = $bidAmount;
+            }
             $auction->save();
 
             // Broadcast BidPlaced event
             event(new BidPlaced($auction->id, $bidAmount, $user->name, $bid->created_at->toIso8601String()));
 
+            if ($isFirstBid) {
+                return response()->json([
+                    'success' => true,
+                    'status' => 'pending',
+                    'requires_admin_approval' => true,
+                    'is_first_bid' => true,
+                    'time_extended' => $timeExtended,
+                    'new_end_time' => $newEndTime,
+                    'extension_seconds' => 120,
+                    'message' => $timeExtended
+                        ? 'Your initial bid has been submitted for Admin Approval. Dynamic anti-sniping: auction timer extended by +2 minutes!'
+                        : 'Your initial bid has been submitted for Admin Approval. Once accepted, you can freely increase your bid on this lot!',
+                    'bid' => [
+                        'id' => $bid->id,
+                        'amount' => $bidAmount,
+                        'status' => 'pending',
+                        'bidder_name' => $user->name,
+                        'created_at' => $bid->created_at->toIso8601String(),
+                    ],
+                ]);
+            }
+
             return response()->json([
-                'message' => 'Bid placed successfully!',
+                'success' => true,
+                'status' => 'approved',
+                'requires_admin_approval' => false,
+                'is_first_bid' => false,
+                'time_extended' => $timeExtended,
+                'new_end_time' => $newEndTime,
+                'extension_seconds' => 120,
+                'message' => $timeExtended
+                    ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule).'
+                    : 'Bid placed successfully!',
                 'bid' => [
                     'id' => $bid->id,
                     'amount' => $bidAmount,
+                    'status' => 'approved',
                     'bidder_name' => $user->name,
                     'created_at' => $bid->created_at->toIso8601String(),
                 ],

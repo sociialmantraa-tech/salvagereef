@@ -251,7 +251,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-medium text-slate-900"
-                placeholder={loginMode === 'admin' ? 'Enter Admin Email or Login ID' : 'name@company.com'}
+                placeholder={loginMode === 'admin' ? 'Enter admin email' : 'Enter email address'}
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             </div>
@@ -381,7 +381,7 @@ export default function Login() {
                     required
                     value={forgotTarget}
                     onChange={(e) => setForgotTarget(e.target.value)}
-                    placeholder="Enter your registered email (e.g. name@company.com)"
+                    placeholder="Enter your registered email"
                     className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-900 text-xs"
                   />
                 </div>
@@ -402,7 +402,7 @@ export default function Login() {
                     type="text"
                     required
                     maxLength={6}
-                    placeholder="123456"
+                    placeholder="Enter 6-digit OTP"
                     value={forgotOtpInput}
                     onChange={(e) => setForgotOtpInput(e.target.value)}
                     className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-mono text-center text-lg font-bold text-slate-900 tracking-widest"

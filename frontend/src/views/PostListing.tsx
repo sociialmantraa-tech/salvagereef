@@ -271,7 +271,7 @@ export default function PostListing() {
                   <input
                     type="text"
                     {...register('seller_name')}
-                    placeholder="Full Name"
+                    placeholder="Enter full name"
                     className="w-full p-3 pl-9 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                   />
                   <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -285,7 +285,7 @@ export default function PostListing() {
                   <input
                     type="text"
                     {...register('seller_phone')}
-                    placeholder="98201XXXXX"
+                    placeholder="Enter mobile number"
                     className="w-full p-3 pl-9 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -301,7 +301,7 @@ export default function PostListing() {
                   <input
                     type="email"
                     {...register('seller_email')}
-                    placeholder="seller@company.com"
+                    placeholder="Enter email address"
                     className="w-full p-3 pl-9 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                   />
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -315,7 +315,7 @@ export default function PostListing() {
                   <input
                     type="text"
                     {...register('gst_number')}
-                    placeholder="e.g. 27AAAAA0000A1Z5"
+                    placeholder="Enter GSTIN (if applicable)"
                     className="w-full p-3 pl-9 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-mono font-bold uppercase"
                   />
                   <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -335,7 +335,7 @@ export default function PostListing() {
               <input
                 type="text"
                 {...register('title')}
-                placeholder="e.g. 15 MT Heavy Melting Steel Scrap & Electric Motors"
+                placeholder="Enter scrap / material title"
                 className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
               />
               {errors.title && <p className="text-red-500 text-[11px] mt-1">{errors.title.message}</p>}
@@ -381,7 +381,7 @@ export default function PostListing() {
                 <input
                   type="number"
                   {...register('price')}
-                  placeholder="175000"
+                  placeholder="Enter expected amount"
                   className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-extrabold text-slate-900"
                 />
                 {errors.price && <p className="text-red-500 text-[11px] mt-1">{errors.price.message}</p>}
@@ -395,7 +395,7 @@ export default function PostListing() {
                   type="number"
                   step="0.1"
                   {...register('quantity')}
-                  placeholder="10"
+                  placeholder="Enter quantity"
                   className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                 />
                 {errors.quantity && <p className="text-red-500 text-[11px] mt-1">{errors.quantity.message}</p>}
@@ -406,7 +406,7 @@ export default function PostListing() {
                 <input
                   type="text"
                   {...register('unit')}
-                  placeholder="MT, kg, Lot, Nos"
+                  placeholder="e.g. MT, kg, Nos"
                   className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C] font-bold"
                 />
                 {errors.unit && <p className="text-red-500 text-[11px] mt-1">{errors.unit.message}</p>}
@@ -443,7 +443,7 @@ export default function PostListing() {
                   <input
                     type="text"
                     required
-                    placeholder="Type custom state name..."
+                    placeholder="Enter state name"
                     value={customState}
                     onChange={(e) => {
                       setCustomState(e.target.value);
@@ -460,7 +460,7 @@ export default function PostListing() {
                   <input
                     type="text"
                     required
-                    placeholder="Type city name..."
+                    placeholder="Enter city name"
                     value={customCity}
                     onChange={(e) => {
                       setCustomCity(e.target.value);
@@ -487,7 +487,7 @@ export default function PostListing() {
                     {selectedCity === 'custom' && (
                       <input
                         type="text"
-                        placeholder="Type custom city name..."
+                        placeholder="Enter city name"
                         value={customCity}
                         onChange={(e) => {
                           setCustomCity(e.target.value);
@@ -506,7 +506,7 @@ export default function PostListing() {
               <input
                 type="text"
                 {...register('site_address')}
-                placeholder="Plot no, Industrial Area, Landmark, Road name"
+                placeholder="Enter address details"
                 className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D48B1C]"
               />
             </div>

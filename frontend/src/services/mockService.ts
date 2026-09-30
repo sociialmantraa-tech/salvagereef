@@ -464,84 +464,165 @@ export function handleMockApi(config: any): any {
 
     const currentUser = JSON.parse(localStorage.getItem('salvagereef_user') || 'null') || INITIAL_USERS[1];
 
+    const adminBids = getItem<any[]>('sr_admin_bids', [
+      { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+      { id: 102, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1420000, bidder_name: 'Western Heavy Recyclers', bidder_company: 'Western Recyclers', status: 'approved', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+      { id: 103, auction_id: 102, auction_title: '120 MT HMS 1&2 Heavy Melting Steel Scrap', amount: 4650000, bidder_name: 'Apex Steel Traders', bidder_company: 'Apex Steel Traders', status: 'approved', created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+    ]);
+
+    // Check if user already has an APPROVED bid on THIS specific auction lot
+    const hasApprovedBidOnThisAuction = adminBids.some(
+      (b: any) =>
+        Number(b.auction_id) === Number(auctionId) &&
+        (b.user_id === currentUser.id || b.bidder_name === currentUser.name || b.bidder_email === currentUser.email) &&
+        b.status === 'approved'
+    );
+
+    const isFirstBid = !hasApprovedBidOnThisAuction;
+    const bidStatus = isFirstBid ? 'pending' : 'approved';
+
+    const newBidObj = {
+      id: Date.now(),
+      auction_id: aucIndex !== -1 ? auctions[aucIndex].id : auctionId,
+      auction_title: aucIndex !== -1 ? auctions[aucIndex].title : `Auction Lot #${auctionId}`,
+      amount: amount,
+      status: bidStatus,
+      user_id: currentUser.id || 2,
+      bidder_name: currentUser.name || 'Registered Bidder',
+      bidder_email: currentUser.email || 'bidder@salvagereef.com',
+      bidder_company: currentUser.company_name || 'Metals & Scrap Trader',
+      created_at: new Date().toISOString(),
+    };
+
+    const updatedAdminBids = [newBidObj, ...adminBids.filter((b: any) => b.id !== newBidObj.id)];
+    setItem('sr_admin_bids', updatedAdminBids);
+
+    let timeExtended = false;
+    let newEndTime = aucIndex !== -1 ? auctions[aucIndex].end_time : undefined;
+
     if (aucIndex !== -1) {
-      auctions[aucIndex].current_highest_bid = amount;
-      if (!auctions[aucIndex].bids) auctions[aucIndex].bids = [];
+      if (bidStatus === 'approved') {
+        if (amount > (auctions[aucIndex].current_highest_bid || auctions[aucIndex].starting_price)) {
+          auctions[aucIndex].current_highest_bid = amount;
+        }
+        if (!auctions[aucIndex].bids) auctions[aucIndex].bids = [];
 
-      const newBid: Bid = {
-        id: Date.now(),
-        amount: amount,
-        bidder_name: currentUser.company_name || currentUser.name,
-        user: { name: currentUser.name },
-        created_at: new Date().toISOString(),
-      };
+        const newBid: Bid = {
+          id: newBidObj.id,
+          amount: amount,
+          bidder_name: currentUser.company_name || currentUser.name,
+          user: { name: currentUser.name },
+          created_at: newBidObj.created_at,
+        };
+        auctions[aucIndex].bids!.unshift(newBid);
 
-      auctions[aucIndex].bids!.unshift(newBid);
-      setItem('sr_auctions', auctions);
-      setItem('sr_admin_auctions', auctions);
-
-      // Save to user bids
-      const userBids = getMockUserBids();
-      userBids.unshift({
-        id: newBid.id || Date.now(),
-        auction_title: auctions[aucIndex].title,
-        auction_slug: auctions[aucIndex].slug,
-        created_at: newBid.created_at,
-        bid_amount: amount,
-        my_status: 'winning',
-      });
-      setItem('sr_user_bids', userBids);
-
-      // Save to admin bids for graph and stats update
-      const adminBids = getItem<any[]>('sr_admin_bids', [
-        { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
-        { id: 102, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1420000, bidder_name: 'Western Heavy Recyclers', bidder_company: 'Western Recyclers', status: 'approved', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
-        { id: 103, auction_id: 102, auction_title: '120 MT HMS 1&2 Heavy Melting Steel Scrap', amount: 4650000, bidder_name: 'Apex Steel Traders', bidder_company: 'Apex Steel Traders', status: 'approved', created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
-      ]);
-      const newAdminBid = {
-        id: newBid.id || Date.now(),
-        auction_id: auctions[aucIndex].id,
-        auction_title: auctions[aucIndex].title,
-        amount: amount,
-        status: 'pending',
-        bidder_name: currentUser.name || 'Registered Bidder',
-        bidder_email: currentUser.email || 'bidder@salvagereef.com',
-        bidder_company: currentUser.company_name || 'Metals & Scrap Trader',
-        created_at: new Date().toISOString(),
-      };
-      const updatedAdminBids = [newAdminBid, ...adminBids.filter((b: any) => b.id !== newAdminBid.id)];
-      // Anti-Sniping Rule: If bid placed in last 1 minute (<= 60s), extend auction end_time by +2 minutes (120s)
-      let timeExtended = false;
-      let newEndTime = auctions[aucIndex].end_time;
-      if (auctions[aucIndex].end_time) {
-        const endTs = new Date(auctions[aucIndex].end_time).getTime();
-        const nowTs = Date.now();
-        const remainingSeconds = (endTs - nowTs) / 1000;
-        if (remainingSeconds > 0 && remainingSeconds <= 60) {
-          timeExtended = true;
-          newEndTime = new Date(endTs + 120 * 1000).toISOString();
-          auctions[aucIndex].end_time = newEndTime;
+        // Anti-Sniping Rule
+        if (auctions[aucIndex].end_time) {
+          const endTs = new Date(auctions[aucIndex].end_time).getTime();
+          const nowTs = Date.now();
+          const remainingSeconds = (endTs - nowTs) / 1000;
+          if (remainingSeconds > 0 && remainingSeconds <= 60) {
+            timeExtended = true;
+            newEndTime = new Date(endTs + 120 * 1000).toISOString();
+            auctions[aucIndex].end_time = newEndTime;
+          }
         }
       }
 
       setItem('sr_auctions', auctions);
       setItem('sr_admin_auctions', auctions);
+    }
 
+    if (isFirstBid) {
       return {
-        message: timeExtended
-          ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule)'
-          : 'Bid placed successfully!',
-        current_highest_bid: amount,
-        time_extended: timeExtended,
-        extended_seconds: 120,
-        new_end_time: newEndTime,
+        success: true,
+        status: 'pending',
+        requires_admin_approval: true,
+        is_first_bid: true,
+        message: `Your initial bid of ₹${amount.toLocaleString('en-IN')} has been submitted for Admin Acceptance. Once accepted by Admin, you can freely increase your bid on this lot!`,
+        bid: newBidObj,
       };
     }
 
     return {
-      message: 'Bid placed successfully!',
+      success: true,
+      status: 'approved',
+      requires_admin_approval: false,
+      is_first_bid: false,
+      message: timeExtended
+        ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule)'
+        : 'Bid placed successfully!',
       current_highest_bid: amount,
+      time_extended: timeExtended,
+      extended_seconds: 120,
+      new_end_time: newEndTime,
+      bid: newBidObj,
     };
+  }
+
+  // 2b. POST /auth/register
+  if (cleanUrl.endsWith('/auth/register') && method === 'post') {
+    const users = getMockUsers();
+    const email = (bodyData.email || '').trim().toLowerCase();
+    const existing = users.find((u: any) => (u.email || '').toLowerCase() === email);
+    if (existing) {
+      return { success: false, message: 'This email is already registered. Please sign in.' };
+    }
+    const newUser = {
+      id: Date.now(),
+      name: bodyData.name || bodyData.spoc_name || 'Registered Bidder',
+      email: email,
+      login_id: 'SR-' + Math.floor(100000 + Math.random() * 900000),
+      phone: bodyData.phone || bodyData.mobile_number || '9820123456',
+      role: bodyData.role || 'bidder',
+      company_name: bodyData.company_name || bodyData.vendor_name || 'Enterprise Scrap Co',
+      entity_type: bodyData.entity_type || 'Proprietorship',
+      pan_number: bodyData.pan_number || '',
+      gst_number: bodyData.gst_number || '',
+      registered_address: bodyData.registered_address || '',
+      city: bodyData.city || 'Mumbai',
+      state: bodyData.state || 'Maharashtra',
+      pincode: bodyData.pincode || '',
+      password: bodyData.password,
+      is_verified: true,
+      is_active: true,
+      created_at: new Date().toISOString().split('T')[0],
+    };
+    users.unshift(newUser);
+    setItem('sr_users', users);
+    setItem('sr_admin_users', users);
+    return {
+      success: true,
+      message: 'Vendor registration completed successfully.',
+      user: newUser,
+      token: 'mock-jwt-token-' + newUser.id,
+    };
+  }
+
+  // 2c. POST /auth/login
+  if (cleanUrl.endsWith('/auth/login') && method === 'post') {
+    const users = getMockUsers();
+    const input = (bodyData.email || '').trim().toLowerCase();
+    const pass = (bodyData.password || '').trim();
+
+    if (
+      (input === 'admin@salvagereef.com' || input === 'sr-admin' || input === 'admin') &&
+      ['sociial123', 'admin123', 'sociialmantraa', 'admin@123'].includes(pass)
+    ) {
+      const master = users.find((u: any) => u.id === 3 || u.role === 'master_admin') || INITIAL_USERS[0];
+      return { success: true, message: 'Master Admin login successful', user: master, token: 'sr_master_admin_token' };
+    }
+
+    const matched = users.find(
+      (u: any) =>
+        ((u.email || '').toLowerCase() === input || (u.login_id || '').toLowerCase() === input) &&
+        (u.password === pass || !u.password)
+    );
+
+    if (matched) {
+      return { success: true, message: 'Login successful', user: matched, token: 'mock-jwt-token-' + matched.id };
+    }
+    return { success: false, message: 'Invalid email, Login ID, or password.' };
   }
 
   // 3. POST /auctions/:id/interest

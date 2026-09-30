@@ -3,10 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import LiveBiddingWidget from '../components/LiveBiddingWidget';
 import { useAuthStore } from '../store/useAuthStore';
-import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight, FileText, Download, ExternalLink, ClipboardCheck, Sparkles, Scale } from 'lucide-react';
+import { Lock, Building, Layers, ShieldCheck, CheckCircle2, Send, ChevronRight, FileText, Download, ExternalLink, ClipboardCheck, Sparkles, Scale, Image as ImageIcon, Loader2, Share2 } from 'lucide-react';
 import { Auction } from '../types';
 import { INITIAL_AUCTIONS } from '../services/mockService';
 import { isPdfDocument } from '../utils/imageCompressor';
+import { downloadAuctionPdf } from '../utils/pdfGenerator';
+import { downloadAllAuctionImages, downloadSingleImage } from '../utils/imageDownloader';
 
 import SEOHead from '../components/SEOHead';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
@@ -19,6 +21,10 @@ export default function AuctionDetail() {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeImage, setActiveImage] = useState<number>(0);
+
+  const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
+  const [downloadingImages, setDownloadingImages] = useState<boolean>(false);
+  const [pdfSuccess, setPdfSuccess] = useState<boolean>(false);
 
   const [interestMsg, setInterestMsg] = useState<string>('');
   const [submittingInterest, setSubmittingInterest] = useState<boolean>(false);
@@ -117,8 +123,37 @@ export default function AuctionDetail() {
     ? auction.images.map((img) => img.image_path)
     : ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
 
+  const handleDownloadPdf = async () => {
+    if (!auction) return;
+    setGeneratingPdf(true);
+    setPdfSuccess(false);
+    try {
+      await downloadAuctionPdf(auction);
+      setPdfSuccess(true);
+      setTimeout(() => setPdfSuccess(false), 4000);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      alert('Unable to generate PDF document at this moment. Please try again.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadImages = async () => {
+    if (!auction || !images.length) return;
+    setDownloadingImages(true);
+    try {
+      const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
+      await downloadAllAuctionImages(images, lotCode);
+    } catch (err) {
+      console.error('Failed to download images:', err);
+    } finally {
+      setDownloadingImages(false);
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <SEOHead
         title={`${auction.title} (Starting ₹${Number(auction.starting_price).toLocaleString('en-IN')})`}
         description={`Live Auction Lot #${auction.id}: ${auction.title} located in ${auction.location_city}, ${auction.location_state}. ${auction.description.substring(0, 140)}...`}
@@ -142,21 +177,57 @@ export default function AuctionDetail() {
           }
         }}
       />
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <Link to="/" className="hover:text-[#D48B1C]">Home</Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <Link to="/auctions" className="hover:text-[#D48B1C]">Auctions</Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-slate-900 font-semibold truncate max-w-xs">{auction.title}</span>
-      </nav>
+
+      {/* Top Breadcrumb & Document Actions Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <nav className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+          <Link to="/" className="hover:text-[#D48B1C]">Home</Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <Link to="/auctions" className="hover:text-[#D48B1C]">Auctions</Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <span className="text-slate-900 font-semibold truncate max-w-xs">{auction.title}</span>
+        </nav>
+
+        {/* Global Download Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+            title="Download complete printable lot catalog PDF with all prices, specs, and photos"
+          >
+            {generatingPdf ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : pdfSuccess ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+            ) : (
+              <FileText className="w-4 h-4" />
+            )}
+            <span>{generatingPdf ? 'Generating PDF...' : pdfSuccess ? 'PDF Downloaded!' : 'Download Lot PDF'}</span>
+          </button>
+
+          <button
+            onClick={handleDownloadImages}
+            disabled={downloadingImages}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-slate-100 font-bold text-xs rounded-xl border border-slate-700 shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+            title="Download all high-resolution images for this auction lot"
+          >
+            {downloadingImages ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-[#D48B1C]" />
+            )}
+            <span>{downloadingImages ? 'Downloading...' : `Download Images (${images.length})`}</span>
+          </button>
+        </div>
+      </div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-4">
-            <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
+            <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center group">
               {isPdfDocument(images[activeImage]) ? (
                 <div className="w-full h-full bg-[#0B192C] flex flex-col items-center justify-center p-6 text-center space-y-4">
                   <div className="w-20 h-20 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-xl border border-red-400">
@@ -182,21 +253,46 @@ export default function AuctionDetail() {
                     >
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
                     </a>
-                    <a
-                      href={images[activeImage]}
-                      download={`Auction-Lot-${auction.id}-Document.pdf`}
+                    <button
+                      onClick={handleDownloadPdf}
+                      disabled={generatingPdf}
                       className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
                     >
-                      <Download className="w-4 h-4" /> Download PDF
-                    </a>
+                      <Download className="w-4 h-4" /> Download Official PDF
+                    </button>
                   </div>
                 </div>
               ) : (
-                <img
-                  src={images[activeImage]}
-                  alt={auction.title}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={images[activeImage]}
+                    alt={auction.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Floating Action Controls on Image */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
+                        downloadSingleImage(images[activeImage], `${lotCode}_photo_${activeImage + 1}.jpg`);
+                      }}
+                      className="p-2 bg-black/70 hover:bg-black text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
+                      title="Download this photo"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Save Photo</span>
+                    </button>
+                    <button
+                      onClick={handleDownloadPdf}
+                      disabled={generatingPdf}
+                      className="p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
+                      title="Download Official PDF Dossier"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">PDF Dossier</span>
+                    </button>
+                  </div>
+                </>
               )}
               <div className="absolute top-4 left-4 flex gap-2">
                 <span className="bg-[#0B192C] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -349,6 +445,78 @@ export default function AuctionDetail() {
               </div>
             </div>
 
+            {/* OFFICIAL LOT DOCUMENTS & MEDIA CENTER */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-[#0B192C] text-white rounded-2xl p-5 space-y-4 border border-slate-700 shadow-md">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-white text-sm uppercase tracking-wider">
+                      Official Lot Documents & Media
+                    </h3>
+                    <p className="text-[11px] text-slate-300 font-medium">Download Specifications, Pricing & Photos</p>
+                  </div>
+                </div>
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
+                  Public Download
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Action 1: Download Complete PDF Dossier */}
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={generatingPdf}
+                  className="p-3.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white rounded-xl font-extrabold text-xs shadow-lg transition-all flex items-center justify-between group active:scale-95 disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-2.5 text-left">
+                    {generatingPdf ? (
+                      <Loader2 className="w-5 h-5 animate-spin shrink-0 text-white" />
+                    ) : pdfSuccess ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
+                    ) : (
+                      <FileText className="w-5 h-5 text-red-200 shrink-0 group-hover:scale-110 transition-transform" />
+                    )}
+                    <div>
+                      <span className="block text-white font-bold leading-tight">
+                        {generatingPdf ? 'Generating PDF...' : pdfSuccess ? 'PDF Downloaded!' : 'Download Lot PDF Dossier'}
+                      </span>
+                      <span className="text-[10px] text-red-200 font-normal">Full Specs, Pricing & Photos</span>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-white/80 shrink-0 ml-2" />
+                </button>
+
+                {/* Action 2: Download All High-Res Images */}
+                <button
+                  onClick={handleDownloadImages}
+                  disabled={downloadingImages}
+                  className="p-3.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl font-bold text-xs border border-slate-600 shadow transition-all flex items-center justify-between group active:scale-95 disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-2.5 text-left">
+                    {downloadingImages ? (
+                      <Loader2 className="w-5 h-5 animate-spin shrink-0 text-amber-400" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-[#D48B1C] shrink-0 group-hover:scale-110 transition-transform" />
+                    )}
+                    <div>
+                      <span className="block text-slate-100 font-bold leading-tight">
+                        {downloadingImages ? 'Downloading Photos...' : `Download All Photos (${images.length})`}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Original Resolution JPEGs</span>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-slate-300 shrink-0 ml-2" />
+                </button>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-700/60">
+                📄 The generated PDF is an official specification document containing complete commercial terms, reserve pricing, EMD requirements, physical yard location, and verified visual inspection photographs.
+              </p>
+            </div>
+
             {auction.is_group && auction.group_children && auction.group_children.length > 0 && (
               <div className="pt-4 border-t border-slate-200 space-y-3">
                 <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
@@ -413,7 +581,7 @@ export default function AuctionDetail() {
                       rows={3}
                       value={interestMsg}
                       onChange={(e) => setInterestMsg(e.target.value)}
-                      placeholder="e.g. Requesting access to place bulk scrap tender bid..."
+                      placeholder="Enter reason or message..."
                       className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     ></textarea>
                   </div>

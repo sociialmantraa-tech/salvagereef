@@ -204,7 +204,14 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
     try {
       const res = await api.post(`/auctions/${auction.id}/bid`, { amount: numAmount });
-      setSuccessMsg(res.data?.message || `✓ Your bid of ₹${numAmount.toLocaleString('en-IN')} is submitted! Pending Admin Review & Approval.`);
+      const isPending = res.data?.status === 'pending' || res.data?.requires_admin_approval;
+      
+      if (isPending) {
+        setSuccessMsg(`⏳ Your initial bid of ₹${numAmount.toLocaleString('en-IN')} is submitted for Admin Acceptance. Once accepted, you can freely raise bids on this lot!`);
+      } else {
+        setSuccessMsg(res.data?.message || `✓ Bid of ₹${numAmount.toLocaleString('en-IN')} placed successfully!`);
+      }
+
       if (res.data?.time_extended && res.data?.new_end_time) {
         setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
         try {
@@ -220,17 +227,18 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           end_time: res.data.new_end_time,
           current_highest_bid: numAmount,
         });
-        setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minute! Auction extended by +2 minutes.');
+        setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minutes! Auction extended by +2:00 minutes.');
       } else if (res.data?.new_end_time) {
         setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
       }
 
       const newBidObj = {
-        id: res.data?.bid_id || Date.now(),
+        id: res.data?.bid?.id || res.data?.bid_id || Date.now(),
         auction_id: auction.id,
         auction_title: auction.title,
         amount: numAmount,
-        status: 'pending',
+        status: isPending ? 'pending' : 'approved',
+        user_id: user?.id,
         bidder_name: user?.name || 'Registered Bidder',
         bidder_email: user?.email || 'bidder@salvagereef.com',
         bidder_company: user?.company_name || 'Metals & Scrap Trader',
@@ -238,7 +246,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       };
 
       // Add to local state
-      setBids((prev) => [newBidObj as any, ...prev]);
+      setBids((prev) => [newBidObj as any, ...prev.filter((b) => b.id !== newBidObj.id)]);
 
       // Save into sr_admin_bids so Admin console sees it immediately
       try {
@@ -258,6 +266,24 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       setSubmitting(false);
     }
   };
+
+  const isUserApprovedForLot = bids.some(
+    (b: any) =>
+      (b.user?.name === user?.name ||
+        b.bidder_name === user?.name ||
+        b.bidder_email === user?.email ||
+        Number(b.user_id) === Number(user?.id)) &&
+      b.status === 'approved'
+  );
+
+  const isUserPendingForLot = bids.some(
+    (b: any) =>
+      (b.user?.name === user?.name ||
+        b.bidder_name === user?.name ||
+        b.bidder_email === user?.email ||
+        Number(b.user_id) === Number(user?.id)) &&
+      b.status === 'pending'
+  );
 
   const isClosed = auction?.status === 'closed' || auction?.status === 'completed' || !!auction?.winner_confirmed || timeLeft.isClosed;
   const isUpcoming = auction?.status === 'upcoming';
@@ -390,6 +416,14 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             )}
           </span>
         </div>
+
+        {/* Dynamic Anti-Sniping Rule Badge */}
+        {isLive && (
+          <div className="mt-2 text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 font-medium">
+            <span className="text-amber-400 font-bold">⚡ Dynamic Anti-Sniping:</span>
+            <span>Bids placed in last 2 minutes extend auction time by +2:00 mins</span>
+          </div>
+        )}
       </div>
 
       {/* Notifications / Errors */}
@@ -465,6 +499,28 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         </div>
       ) : (
         <form onSubmit={handleOpenConfirmModal} className="space-y-4">
+          {/* BIDDER LOT AUTHORIZATION BADGE */}
+          {isUserApprovedForLot ? (
+            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold shadow-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>✓ Approved Bidder for this Lot — You can raise your bid directly!</span>
+            </div>
+          ) : isUserPendingForLot ? (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold shadow-sm">
+              <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+              <div>
+                <span className="block">⏳ Initial Bid Pending Admin Acceptance</span>
+                <p className="text-[11px] text-amber-700 font-normal mt-0.5">
+                  Your initial bid is awaiting Admin Approval. Once accepted, you can freely increase your bids on this lot without waiting!
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-semibold">
+              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>First bid on this lot requires 1-time Admin approval. Subsequent bids are instant!</span>
+            </div>
+          )}
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="text-xs font-bold text-slate-800">

@@ -185,14 +185,32 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           </div>
         </div>
 
-        {/* Buttons: View (top) & Show Interest (below View) */}
+        {/* Buttons: View, PDF Dossier & Show Interest */}
         <div className="flex flex-col items-stretch gap-1.5 shrink-0 min-w-[95px]">
-          <Link
-            to={`/auctions/${auction.slug}`}
-            className="bg-[#0096C7] hover:bg-[#0077B6] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center"
-          >
-            View
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              to={`/auctions/${auction.slug}`}
+              className="flex-1 bg-[#0096C7] hover:bg-[#0077B6] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center"
+            >
+              View
+            </Link>
+            <button
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  const { downloadAuctionPdf } = await import('../utils/pdfGenerator');
+                  await downloadAuctionPdf(auction);
+                } catch (err) {
+                  console.error('Failed to download PDF:', err);
+                }
+              }}
+              className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center justify-center"
+              title="Download Official PDF Dossier"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {isPrivate && (
             <Link
