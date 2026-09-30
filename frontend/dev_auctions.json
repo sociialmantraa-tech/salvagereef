@@ -1,32 +1,60 @@
 [
   {
     "id": 999,
-    "lot_code": "EXP-999",
-    "title": "EXP-999 | 2-Minute Express Demo Auction: 15 MT Industrial Copper Scrap",
-    "slug": "2-minute-express-demo-copper-scrap",
-    "description": "Special 2-minute express live auction demo with top 3 bidders (H1, H2, H3). Test winner selection desk in Admin Panel.",
-    "condition": "As is where is basis - Grade A commercial copper scrap, purity verified and ready for instant dispatch.",
+    "title": "⚡ 7-Day Live Demo Auction: Industrial Copper Armoured Cables & Heavy Melting Steel Scrap Lot",
+    "slug": "live-demo-auction-industrial-copper-cables",
+    "description": "Official 7-Day Demo Auction Lot for live system testing, PDF spec sheet generation, 2-minute dynamic anti-sniping validation, and multi-user bidding verification. Lot contains sorted commercial grade heavy melting steel (HMS 1 & 2) and high-conductivity copper armoured power cables.",
+    "condition": "Grade-A Commercial Industrial Salvage — As is where is basis",
     "category_id": 2,
+    "category_name": "Non-Ferrous Copper, Brass & Aluminium Scrap",
+    "category_slug": "non-ferrous-copper-brass",
     "auction_type": "public",
     "status": "live",
-    "quantity": 15,
+    "quantity": 45,
     "unit": "MT",
     "starting_price": 500000,
-    "emd_amount": 50000,
     "current_highest_bid": 750000,
     "bid_increment": 10000,
-    "start_time": "2026-09-30T09:00:00.000Z",
-    "end_time": "2026-10-07T18:00:00.000Z",
+    "emd_amount": 50000,
     "location_city": "Mumbai",
     "location_state": "Maharashtra",
-    "is_group": false,
+    "start_time": "2026-09-30 12:05:26",
+    "end_time": "2026-10-07 12:05:26",
+    "winner_confirmed": 0,
     "created_by": 1,
-    "category": { "id": 2, "name": "Non-Ferrous Copper & Brass", "slug": "non-ferrous-copper-brass" },
-    "creator": { "id": 1, "name": "SalvageReef Corporate Disposal", "email": "salvagereef@gmail.com", "phone": "7304481166", "role": "admin", "company_name": "SalvageReef Operations" },
+    "creator_name": "SalvageReef Verified Seller",
+    "creator_company": "Apex Scrap Recyclers Ltd",
+    "primary_image_url": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
     "images": [
-      { "id": 99, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+      {
+        "id": 1,
+        "auction_id": 999,
+        "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
+        "is_primary": 1
+      },
+      {
+        "id": 2,
+        "auction_id": 999,
+        "image_path": "https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80",
+        "is_primary": 0
+      },
+      {
+        "id": 3,
+        "auction_id": 999,
+        "image_path": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+        "is_primary": 0
+      }
     ],
-    "primary_image": { "id": 99, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+    "bids": [
+      {
+        "id": 901,
+        "amount": 750000,
+        "user": {
+          "name": "Neelkanth Sharma"
+        },
+        "created_at": "2026-09-30T12:05:26.057Z"
+      }
+    ]
   },
   {
     "id": 101,
@@ -50,12 +78,31 @@
     "location_state": "Maharashtra",
     "is_group": false,
     "created_by": 1,
-    "category": { "id": 2, "name": "Non-Ferrous Copper & Brass", "slug": "non-ferrous-copper-brass" },
-    "creator": { "id": 1, "name": "Apex Scrap Recyclers Ltd", "email": "seller@salvagereef.com", "phone": "7304481166", "role": "agent", "company_name": "Apex Metals" },
+    "category": {
+      "id": 2,
+      "name": "Non-Ferrous Copper & Brass",
+      "slug": "non-ferrous-copper-brass"
+    },
+    "creator": {
+      "id": 1,
+      "name": "Apex Scrap Recyclers Ltd",
+      "email": "seller@salvagereef.com",
+      "phone": "7304481166",
+      "role": "agent",
+      "company_name": "Apex Metals"
+    },
     "images": [
-      { "id": 1, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+      {
+        "id": 1,
+        "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
+        "is_primary": true
+      }
     ],
-    "primary_image": { "id": 1, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+    "primary_image": {
+      "id": 1,
+      "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
+      "is_primary": true
+    }
   },
   {
     "id": 102,
@@ -78,11 +125,30 @@
     "location_state": "Maharashtra",
     "is_group": false,
     "created_by": 1,
-    "category": { "id": 1, "name": "Scrap Heavy Machinery", "slug": "scrap-heavy-machinery" },
-    "creator": { "id": 1, "name": "Apex Scrap Recyclers Ltd", "email": "seller@salvagereef.com", "phone": "7304481166", "role": "agent", "company_name": "Apex Metals" },
+    "category": {
+      "id": 1,
+      "name": "Scrap Heavy Machinery",
+      "slug": "scrap-heavy-machinery"
+    },
+    "creator": {
+      "id": 1,
+      "name": "Apex Scrap Recyclers Ltd",
+      "email": "seller@salvagereef.com",
+      "phone": "7304481166",
+      "role": "agent",
+      "company_name": "Apex Metals"
+    },
     "images": [
-      { "id": 3, "image_path": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+      {
+        "id": 3,
+        "image_path": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80",
+        "is_primary": true
+      }
     ],
-    "primary_image": { "id": 3, "image_path": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+    "primary_image": {
+      "id": 3,
+      "image_path": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80",
+      "is_primary": true
+    }
   }
 ]
