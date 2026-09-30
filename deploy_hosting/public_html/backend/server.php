@@ -976,6 +976,7 @@ function srSendEmailNotification(string $toEmail, string $toName, string $subjec
 }
 
 
+
 /**
  * Generates high-converting HTML announcement email for newly launched auction lots.
  */
@@ -2250,8 +2251,6 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
 
         $pdo->commit();
 
-        // Broadcast beautiful email alert to all registered users asynchronously
-        srBroadcastNewBidEmail($pdo, $auction, $bidAmount, $user);
 
         if ($isFirstBid) {
             jsonResponse([
@@ -2301,57 +2300,6 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
         $pdo->rollBack();
         jsonResponse(['message' => 'Transaction error: ' . $e->getMessage()], 500);
     }
-}
-
-// 10b. Auction PDF Dossier Metadata / Download: GET /api/v1/auctions/{id}/pdf
-if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)/pdf$#', $uri, $m)) {
-    $param = $m[1];
-    $stmt = is_numeric($param)
-        ? $pdo->prepare("SELECT * FROM auctions WHERE id = ?")
-        : $pdo->prepare("SELECT * FROM auctions WHERE slug = ?");
-    $stmt->execute([$param]);
-    $auction = $stmt->fetch();
-    if (!$auction) jsonResponse(['message' => 'Auction lot not found'], 404);
-
-    $stmtImgs = $pdo->prepare("SELECT * FROM auction_images WHERE auction_id = ?");
-    $stmtImgs->execute([$auction['id']]);
-    $images = $stmtImgs->fetchAll();
-
-    jsonResponse([
-        'success' => true,
-        'auction' => $auction,
-        'dossier' => [
-            'lot_code' => $auction['lot_code'] ?? 'LOT-' . $auction['id'],
-            'title' => $auction['title'],
-            'starting_price' => (float)$auction['starting_price'],
-            'emd_amount' => (float)($auction['emd_amount'] ?? 50000),
-            'bid_increment' => (float)($auction['bid_increment'] ?? 1000),
-            'current_highest_bid' => (float)($auction['current_highest_bid'] ?? $auction['starting_price']),
-            'quantity' => $auction['quantity'] . ' ' . ($auction['unit'] ?? 'MT'),
-            'location' => ($auction['location_city'] ?? '') . ', ' . ($auction['location_state'] ?? ''),
-            'condition' => $auction['condition'] ?? 'As is where is basis',
-            'description' => $auction['description'],
-            'start_time' => $auction['start_time'],
-            'end_time' => $auction['end_time'],
-            'images' => $images,
-            'generated_at' => date('c'),
-        ]
-    ]);
-}
-
-// 10c. Admin Email Notifications Audit Logs: GET /api/v1/admin/email-logs
-if ($method === 'GET' && ($uri === '/api/v1/admin/email-logs' || $uri === '/admin/email-logs')) {
-    $user = getAuthUser($pdo);
-    if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
-
-    $logFile = __DIR__ . '/logs/email_notifications.json';
-    $logs = file_exists($logFile) ? (json_decode(file_get_contents($logFile), true) ?: []) : [];
-
-    jsonResponse([
-        'success' => true,
-        'logs' => $logs,
-        'total' => count($logs),
-    ]);
 }
 
 // 11a. Get Top 3 Bidders (H1, H2, H3): GET /api/v1/admin/auctions/{id}/top-bidders
