@@ -906,9 +906,16 @@ export default function AdminDashboard() {
   const [editCustomCity, setEditCustomCity] = useState('');
   const [rawServerLogs, setRawServerLogs] = useState<string>('');
 
-  // Image Upload State
-  const [compressedImage, setCompressedImage] = useState<CompressionResult | null>(null);
-  const [compressedImageFile, setCompressedImageFile] = useState<File | null>(null);
+  // Multi-File Upload State for Auction Lots & Classifieds
+  const [lotFiles, setLotFiles] = useState<Array<{
+    id: string;
+    file?: File;
+    dataUrl: string;
+    isPdf?: boolean;
+    fileName: string;
+    sizeStr: string;
+  }>>([]);
+  const [compressingLot, setCompressingLot] = useState<boolean>(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
 
   // Add Classified / Publish Type Form State
@@ -929,8 +936,14 @@ export default function AdminDashboard() {
   const [classifiedSellerPhone, setClassifiedSellerPhone] = useState('7304481166');
   const [classifiedSellerEmail, setClassifiedSellerEmail] = useState('admin@salvagereef.com');
   const [submittingClassified, setSubmittingClassified] = useState<boolean>(false);
-  const [classifiedCompressedImage, setClassifiedCompressedImage] = useState<CompressionResult | null>(null);
-  const [classifiedCompressedImageFile, setClassifiedCompressedImageFile] = useState<File | null>(null);
+  const [classifiedFiles, setClassifiedFiles] = useState<Array<{
+    id: string;
+    file?: File;
+    dataUrl: string;
+    isPdf?: boolean;
+    fileName: string;
+    sizeStr: string;
+  }>>([]);
   const [compressingClassified, setCompressingClassified] = useState<boolean>(false);
 
   // Page Content & Colors Form State
@@ -2012,27 +2025,39 @@ export default function AdminDashboard() {
       : productCity;
 
     try {
-      // ── Upload image to server first, get a real URL ──────────────────────
-      let finalImageUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+      // ── Upload all lot images / files to server, get real URLs ─────────────
+      const uploadedLotUrls: string[] = [];
 
-      if (compressedImageFile) {
-        try {
-          const formData = new FormData();
-          formData.append('file', compressedImageFile);
-          formData.append('type', 'auction');
-          const uploadRes = await uploadFile('/admin/upload', formData);
-          if (uploadRes?.url) {
-            finalImageUrl = uploadRes.url;
-          } else if (compressedImage?.dataUrl) {
-            finalImageUrl = compressedImage.dataUrl; // fallback to base64
+      for (const item of lotFiles) {
+        if (item.file) {
+          try {
+            const formData = new FormData();
+            formData.append('file', item.file);
+            formData.append('type', 'auction');
+            const uploadRes = await uploadFile('/admin/upload', formData);
+            if (uploadRes?.url) {
+              uploadedLotUrls.push(uploadRes.url);
+            } else if (item.dataUrl) {
+              uploadedLotUrls.push(item.dataUrl);
+            }
+          } catch {
+            uploadedLotUrls.push(item.dataUrl);
           }
-        } catch {
-          // If upload fails, fall back to base64 dataUrl
-          finalImageUrl = compressedImage?.dataUrl || finalImageUrl;
+        } else if (item.dataUrl) {
+          uploadedLotUrls.push(item.dataUrl);
         }
-      } else if (compressedImage?.dataUrl) {
-        finalImageUrl = compressedImage.dataUrl;
       }
+
+      if (uploadedLotUrls.length === 0) {
+        uploadedLotUrls.push('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80');
+      }
+
+      const finalImageUrl = uploadedLotUrls[0];
+      const finalImagesList = uploadedLotUrls.map((url, idx) => ({
+        id: Date.now() + idx,
+        image_path: url,
+        is_primary: idx === 0,
+      }));
 
       const finalLotCode = productLotCode.trim() || `LOT-${Math.floor(1000 + Math.random() * 9000)}`;
       const combinedTitle = `${finalLotCode} | ${productTitle.trim()}`;
@@ -2055,6 +2080,7 @@ export default function AdminDashboard() {
         location_city: resolvedCity,
         location_state: resolvedState,
         image_url: finalImageUrl,
+        images: uploadedLotUrls,
       };
 
       const newAuctionItem = {
@@ -2076,6 +2102,8 @@ export default function AdminDashboard() {
         start_time: productStartTime,
         end_time: productEndTime,
         image_url: finalImageUrl,
+        images: finalImagesList,
+        primary_image: finalImagesList[0],
       };
 
       setAuctionsPersisted((prev) => [newAuctionItem, ...prev]);
@@ -2086,7 +2114,7 @@ export default function AdminDashboard() {
         // Fallback — local state already updated
       }
 
-      showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" published successfully!`);
+      showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s) published successfully!`);
       setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`);
       setProductTitle('');
       setProductDescription('');
@@ -2095,7 +2123,7 @@ export default function AdminDashboard() {
       setCustomCategoryName('');
       setCustomProductState('');
       setCustomProductCity('');
-      setCompressedImage(null);
+      setLotFiles([]);
       setActiveTab('auctions');
     } finally {
       setSubmittingProduct(false);
@@ -2124,25 +2152,38 @@ export default function AdminDashboard() {
       : classifiedCity;
 
     try {
-      let finalImageUrl = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
+      const uploadedClassifiedUrls: string[] = [];
 
-      if (classifiedCompressedImageFile) {
-        try {
-          const formData = new FormData();
-          formData.append('file', classifiedCompressedImageFile);
-          formData.append('type', 'classified');
-          const uploadRes = await uploadFile('/admin/upload', formData);
-          if (uploadRes?.url) {
-            finalImageUrl = uploadRes.url;
-          } else if (classifiedCompressedImage?.dataUrl) {
-            finalImageUrl = classifiedCompressedImage.dataUrl;
+      for (const item of classifiedFiles) {
+        if (item.file) {
+          try {
+            const formData = new FormData();
+            formData.append('file', item.file);
+            formData.append('type', 'classified');
+            const uploadRes = await uploadFile('/admin/upload', formData);
+            if (uploadRes?.url) {
+              uploadedClassifiedUrls.push(uploadRes.url);
+            } else if (item.dataUrl) {
+              uploadedClassifiedUrls.push(item.dataUrl);
+            }
+          } catch {
+            uploadedClassifiedUrls.push(item.dataUrl);
           }
-        } catch {
-          finalImageUrl = classifiedCompressedImage?.dataUrl || finalImageUrl;
+        } else if (item.dataUrl) {
+          uploadedClassifiedUrls.push(item.dataUrl);
         }
-      } else if (classifiedCompressedImage?.dataUrl) {
-        finalImageUrl = classifiedCompressedImage.dataUrl;
       }
+
+      if (uploadedClassifiedUrls.length === 0) {
+        uploadedClassifiedUrls.push('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80');
+      }
+
+      const finalImageUrl = uploadedClassifiedUrls[0];
+      const finalImagesList = uploadedClassifiedUrls.map((url, idx) => ({
+        id: Date.now() + idx,
+        image_path: url,
+        is_primary: idx === 0,
+      }));
 
       const slugBase = classifiedTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
       const uniqueSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
@@ -2170,10 +2211,9 @@ export default function AdminDashboard() {
           phone: classifiedSellerPhone || authUser?.phone || '7304481166',
           company_name: 'SalvageReef Direct Desk',
         },
-        images: [
-          { id: newId, image_path: finalImageUrl, is_primary: true }
-        ],
-        primary_image: { id: newId, image_path: finalImageUrl, is_primary: true },
+        images: finalImagesList,
+        primary_image: finalImagesList[0],
+        image_url: finalImageUrl,
         created_at: new Date().toISOString(),
       };
 
@@ -2188,14 +2228,14 @@ export default function AdminDashboard() {
       broadcastRealtimeEvent('classified_created', newClassifiedItem);
 
       try {
-        await api.post('/admin/classifieds', newClassifiedItem);
+        await api.post('/admin/classifieds', { ...newClassifiedItem, images: uploadedClassifiedUrls });
       } catch {
         try {
-          await api.post('/classifieds/post-listing', newClassifiedItem);
+          await api.post('/classifieds/post-listing', { ...newClassifiedItem, images: uploadedClassifiedUrls });
         } catch {}
       }
 
-      showNotification(`✓ Classified listing "${classifiedTitle}" published live!`);
+      showNotification(`✓ Classified listing "${classifiedTitle}" with ${uploadedClassifiedUrls.length} image(s) published live!`);
       setClassifiedTitle('');
       setClassifiedDescription('');
       setClassifiedPrice('50000');
@@ -2203,8 +2243,7 @@ export default function AdminDashboard() {
       setCustomClassifiedCategory('');
       setCustomClassifiedState('');
       setCustomClassifiedCity('');
-      setClassifiedCompressedImage(null);
-      setClassifiedCompressedImageFile(null);
+      setClassifiedFiles([]);
       setShowAddClassifiedModal(false);
       setActiveTab('classifieds');
     } finally {
@@ -4121,76 +4160,138 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Product / Lot Image or PDF Upload Box */}
+                {/* Auction Lot Multi-Image / PDF Upload Box */}
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1">
-                    Auction Lot Photo or PDF Document Upload *
-                  </label>
-                  <div className="border-2 border-dashed border-slate-300 hover:border-[#D48B1C] bg-slate-50/80 rounded-2xl p-4 text-center transition-all">
-                    {compressedImage ? (
-                      <div className="relative inline-block group text-center">
-                        {compressedImage.isPdf ? (
-                          <div className="w-56 p-4 rounded-xl border border-red-200 bg-red-50/90 shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div className="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
-                              <FileText className="w-6 h-6" />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-slate-900 font-bold text-xs">
+                      Auction Lot Photos & PDF Specifications *
+                    </label>
+                    <span className="text-[11px] font-bold text-[#D48B1C] bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                      📸 Multiple Uploads Supported ({lotFiles.length} Selected)
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Thumbnail Grid */}
+                    {lotFiles.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-slate-100/80 rounded-2xl border border-slate-200">
+                        {lotFiles.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className={`relative group bg-white rounded-xl border-2 overflow-hidden shadow-xs flex flex-col transition-all ${
+                              idx === 0 ? 'border-[#D48B1C] ring-2 ring-amber-400/30' : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="relative h-24 bg-slate-900 flex items-center justify-center overflow-hidden">
+                              {item.isPdf ? (
+                                <div className="flex flex-col items-center justify-center p-2 text-center text-red-500">
+                                  <FileText className="w-8 h-8" />
+                                  <span className="text-[9px] font-bold text-slate-200 mt-1 truncate max-w-[90px]">PDF Doc</span>
+                                </div>
+                              ) : (
+                                <img
+                                  src={item.dataUrl}
+                                  alt={item.fileName}
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+
+                              {/* Primary Cover Badge */}
+                              {idx === 0 && (
+                                <div className="absolute top-1 left-1 bg-[#D48B1C] text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded shadow flex items-center gap-0.5">
+                                  ★ Primary
+                                </div>
+                              )}
+
+                              {/* Remove Button */}
+                              <button
+                                type="button"
+                                onClick={() => setLotFiles((prev) => prev.filter((f) => f.id !== item.id))}
+                                className="absolute top-1 right-1 bg-red-600/90 hover:bg-red-700 text-white p-1 rounded-full shadow transition-transform active:scale-90"
+                                title="Remove Image"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             </div>
-                            <div className="text-xs font-black text-slate-900 truncate max-w-[200px]" title={compressedImage.fileName}>
-                              {compressedImage.fileName}
+
+                            {/* Card Details & Actions */}
+                            <div className="p-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                              <span className="font-semibold text-slate-700 truncate max-w-[80px]" title={item.fileName}>
+                                {item.fileName}
+                              </span>
+                              {idx !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setLotFiles((prev) => {
+                                      const reordered = [...prev];
+                                      const [moved] = reordered.splice(idx, 1);
+                                      return [moved, ...reordered];
+                                    });
+                                  }}
+                                  className="text-[9px] text-amber-700 hover:text-amber-900 font-bold bg-amber-100/80 px-1 py-0.5 rounded hover:bg-amber-200"
+                                  title="Set as Main Cover Photo"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
                             </div>
-                            <span className="inline-block px-2 py-0.5 bg-red-100 text-red-800 font-mono text-[10px] font-bold rounded">
-                              PDF Document ({compressedImage.compressedSizeStr})
-                            </span>
                           </div>
-                        ) : (
-                          <img
-                            src={compressedImage.dataUrl}
-                            alt="Lot Preview"
-                            className="w-44 h-32 object-cover rounded-xl border border-slate-200 shadow-md"
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => { setCompressedImage(null); setCompressedImageFile(null); }}
-                          className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow transition-transform group-hover:scale-110"
-                          title="Remove File"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="block text-[10px] text-emerald-700 font-bold mt-1">
-                          ✓ {compressedImage.isPdf ? 'PDF Document Ready' : 'Image Compressed'} ({compressedImage.compressedSizeStr})
-                        </span>
+                        ))}
                       </div>
-                    ) : (
-                      <label className="cursor-pointer flex flex-col items-center justify-center space-y-1.5 p-3">
-                        <div className="w-12 h-12 bg-amber-100 text-[#D48B1C] rounded-2xl flex items-center justify-center shadow-inner">
-                          <UploadCloud className="w-6 h-6" />
-                        </div>
-                        <div className="text-xs font-bold text-slate-800">
-                          Click to upload or drag & drop lot image or PDF document
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-medium">
-                          PDF, PNG, JPG, WEBP or GIF (Auto-processed client-side for fast loading)
-                        </p>
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf,.pdf"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              try {
-                                const res = await processUploadFile(file);
-                                setCompressedImage(res);
-                                setCompressedImageFile(file); // store original for server upload
-                              } catch (err: any) {
-                                console.error('File upload error:', err);
-                                alert(err.message || 'File upload error');
-                              }
-                            }
-                          }}
-                        />
-                      </label>
                     )}
+
+                    {/* Dropzone Upload Button */}
+                    <label className="border-2 border-dashed border-slate-300 hover:border-[#D48B1C] bg-slate-50/90 hover:bg-amber-50/30 rounded-2xl p-4 text-center transition-all cursor-pointer flex flex-col items-center justify-center space-y-1.5">
+                      <div className="w-11 h-11 bg-amber-100 text-[#D48B1C] rounded-2xl flex items-center justify-center shadow-inner">
+                        {compressingLot ? <RefreshCw className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                      </div>
+                      <div className="text-xs font-bold text-slate-800">
+                        {compressingLot ? 'Processing & Optimizing Images...' : lotFiles.length > 0 ? '+ Click to Add More Lot Images or PDF Documents' : 'Click or Drag & Drop Multiple Lot Photos / PDF Documents'}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        Select multiple files (JPG, PNG, WebP, PDF). Auto-optimized client-side. First photo is displayed as primary cover.
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,application/pdf,.pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = e.target.files;
+                          if (!files || files.length === 0) return;
+                          setCompressingLot(true);
+                          try {
+                            const newItems: Array<{
+                              id: string;
+                              file: File;
+                              dataUrl: string;
+                              isPdf?: boolean;
+                              fileName: string;
+                              sizeStr: string;
+                            }> = [];
+
+                            for (const file of Array.from(files)) {
+                              const res = await processUploadFile(file);
+                              newItems.push({
+                                id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                file,
+                                dataUrl: res.dataUrl,
+                                isPdf: res.isPdf,
+                                fileName: res.fileName,
+                                sizeStr: res.compressedSizeStr,
+                              });
+                            }
+                            setLotFiles((prev) => [...prev, ...newItems]);
+                          } catch (err: any) {
+                            console.error('File upload error:', err);
+                            alert(err.message || 'Error processing files');
+                          } finally {
+                            setCompressingLot(false);
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -4396,75 +4497,137 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Photo / PDF Upload */}
+                    {/* Classified Multi-Image / PDF Upload */}
                     <div>
-                      <label className="block text-slate-900 font-bold mb-1">Classified Photo or PDF Catalog Upload *</label>
-                      <div className="mt-1">
-                        {classifiedCompressedImage ? (
-                          <div className="relative p-4 bg-purple-50 rounded-2xl border-2 border-dashed border-purple-300 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {classifiedCompressedImage.isPdf ? (
-                                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center font-black text-xs">
-                                  PDF
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-slate-900 font-bold text-xs">
+                          Classified Photos & PDF Specification Catalog *
+                        </label>
+                        <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                          📸 Multiple Uploads Supported ({classifiedFiles.length} Selected)
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {/* Thumbnail Grid */}
+                        {classifiedFiles.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-purple-50/50 rounded-2xl border border-purple-200">
+                            {classifiedFiles.map((item, idx) => (
+                              <div
+                                key={item.id}
+                                className={`relative group bg-white rounded-xl border-2 overflow-hidden shadow-xs flex flex-col transition-all ${
+                                  idx === 0 ? 'border-purple-600 ring-2 ring-purple-400/30' : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="relative h-24 bg-slate-900 flex items-center justify-center overflow-hidden">
+                                  {item.isPdf ? (
+                                    <div className="flex flex-col items-center justify-center p-2 text-center text-red-500">
+                                      <FileText className="w-8 h-8" />
+                                      <span className="text-[9px] font-bold text-slate-200 mt-1 truncate max-w-[90px]">PDF Doc</span>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={item.dataUrl}
+                                      alt={item.fileName}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+
+                                  {/* Primary Badge */}
+                                  {idx === 0 && (
+                                    <div className="absolute top-1 left-1 bg-purple-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow flex items-center gap-0.5">
+                                      ★ Main Photo
+                                    </div>
+                                  )}
+
+                                  {/* Remove Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setClassifiedFiles((prev) => prev.filter((f) => f.id !== item.id))}
+                                    className="absolute top-1 right-1 bg-red-600/90 hover:bg-red-700 text-white p-1 rounded-full shadow transition-transform active:scale-90"
+                                    title="Remove Image"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </div>
-                              ) : (
-                                <img
-                                  src={classifiedCompressedImage.dataUrl}
-                                  alt="Classified Preview"
-                                  className="w-12 h-12 rounded-xl object-cover border border-purple-200"
-                                />
-                              )}
-                              <div>
-                                <div className="text-xs font-black text-slate-900 truncate max-w-[220px]">
-                                  {classifiedCompressedImage.fileName}
-                                </div>
-                                <div className="text-[10px] text-purple-700 font-bold">
-                                  {classifiedCompressedImage.isPdf ? 'PDF Document' : 'Compressed WebP Image'} • {classifiedCompressedImage.compressedSizeStr}
+
+                                {/* Card Details & Actions */}
+                                <div className="p-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                  <span className="font-semibold text-slate-700 truncate max-w-[80px]" title={item.fileName}>
+                                    {item.fileName}
+                                  </span>
+                                  {idx !== 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setClassifiedFiles((prev) => {
+                                          const reordered = [...prev];
+                                          const [moved] = reordered.splice(idx, 1);
+                                          return [moved, ...reordered];
+                                        });
+                                      }}
+                                      className="text-[9px] text-purple-700 hover:text-purple-900 font-bold bg-purple-100 px-1 py-0.5 rounded hover:bg-purple-200"
+                                      title="Set as Main Cover Photo"
+                                    >
+                                      Make Main
+                                    </button>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClassifiedCompressedImage(null);
-                                setClassifiedCompressedImageFile(null);
-                              }}
-                              className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold"
-                            >
-                              Remove
-                            </button>
+                            ))}
                           </div>
-                        ) : (
-                          <label className="flex flex-col items-center justify-center p-6 bg-slate-50 hover:bg-purple-50/50 rounded-2xl border-2 border-dashed border-slate-300 hover:border-purple-400 cursor-pointer transition-all text-center">
-                            <UploadCloud className="w-8 h-8 text-purple-600 mb-1 animate-bounce" />
-                            <div className="text-xs font-extrabold text-slate-800">
-                              {compressingClassified ? 'Processing & Compressing...' : 'Click to upload Machinery Photo or PDF Document'}
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                              JPEG, PNG, WebP or PDF (Auto-compressed client-side for rapid loading)
-                            </p>
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf,.pdf"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setCompressingClassified(true);
-                                  try {
-                                    const res = await processUploadFile(file);
-                                    setClassifiedCompressedImage(res);
-                                    setClassifiedCompressedImageFile(file);
-                                  } catch (err: any) {
-                                    alert(err.message || 'File upload error');
-                                  } finally {
-                                    setCompressingClassified(false);
-                                  }
-                                }
-                              }}
-                            />
-                          </label>
                         )}
+
+                        {/* Dropzone Upload Button */}
+                        <label className="flex flex-col items-center justify-center p-5 bg-slate-50 hover:bg-purple-50/50 rounded-2xl border-2 border-dashed border-slate-300 hover:border-purple-400 cursor-pointer transition-all text-center">
+                          <div className="w-11 h-11 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center shadow-inner mb-1">
+                            {compressingClassified ? <RefreshCw className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                          </div>
+                          <div className="text-xs font-extrabold text-slate-800">
+                            {compressingClassified ? 'Processing & Compressing Images...' : classifiedFiles.length > 0 ? '+ Click to Add More Photos or PDF Documents' : 'Click or Drag & Drop Multiple Photos or PDF Catalog'}
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Select multiple files (JPG, PNG, WebP, PDF). Auto-compressed client-side. First image is used as main photo.
+                          </p>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*,application/pdf,.pdf"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const files = e.target.files;
+                              if (!files || files.length === 0) return;
+                              setCompressingClassified(true);
+                              try {
+                                const newItems: Array<{
+                                  id: string;
+                                  file: File;
+                                  dataUrl: string;
+                                  isPdf?: boolean;
+                                  fileName: string;
+                                  sizeStr: string;
+                                }> = [];
+
+                                for (const file of Array.from(files)) {
+                                  const res = await processUploadFile(file);
+                                  newItems.push({
+                                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                    file,
+                                    dataUrl: res.dataUrl,
+                                    isPdf: res.isPdf,
+                                    fileName: res.fileName,
+                                    sizeStr: res.compressedSizeStr,
+                                  });
+                                }
+                                setClassifiedFiles((prev) => [...prev, ...newItems]);
+                              } catch (err: any) {
+                                alert(err.message || 'File upload error');
+                              } finally {
+                                setCompressingClassified(false);
+                              }
+                            }}
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>

@@ -22,6 +22,7 @@ backend/bootstrap/cache/*.php
 *.log
 .DS_Store
 Thumbs.db
+deploy_hosting/_temp_safe_update/
 
 # IDE & Editors
 .vscode/

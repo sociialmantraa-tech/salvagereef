@@ -54,7 +54,14 @@ export default function ClassifiedDetail() {
     );
   }
 
-  const primaryImg = classified.primary_image?.image_path || classified.images?.[0]?.image_path || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
+  const images = classified.images && classified.images.length > 0
+    ? classified.images.map((img: any) => typeof img === 'string' ? img : img.image_path)
+    : classified.primary_image?.image_path
+    ? [classified.primary_image.image_path]
+    : [classified.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'];
+
+  const [activeImage, setActiveImage] = useState(0);
+  const currentImg = images[activeImage] || images[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -62,14 +69,14 @@ export default function ClassifiedDetail() {
         title={`${classified.title} (₹${Number(classified.price).toLocaleString('en-IN')})`}
         description={`Direct scrap classified listing #${classified.id}: ${classified.title} located in ${classified.location_city}, ${classified.location_state}. Price: ₹${Number(classified.price).toLocaleString('en-IN')}.`}
         keywords={`${classified.title}, ${classified.location_city} scrap sale, ${classified.category?.name || 'classified'}, buy industrial scrap`}
-        ogImage={primaryImg}
+        ogImage={currentImg}
         ogType="product"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'Product',
           name: classified.title,
           description: classified.description,
-          image: primaryImg,
+          image: currentImg,
           offers: {
             '@type': 'Offer',
             priceCurrency: 'INR',
@@ -89,9 +96,9 @@ export default function ClassifiedDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Images & Details */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm">
+          <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-4">
             <div className="h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
-              {isPdfDocument(primaryImg) ? (
+              {isPdfDocument(currentImg) ? (
                 <div className="w-full h-full bg-[#0B192C] flex flex-col items-center justify-center p-6 text-center space-y-4">
                   <div className="w-20 h-20 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-xl border border-red-400">
                     <FileText className="w-10 h-10" />
@@ -109,7 +116,7 @@ export default function ClassifiedDetail() {
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                     <a
-                      href={primaryImg}
+                      href={currentImg}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
@@ -117,7 +124,7 @@ export default function ClassifiedDetail() {
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
                     </a>
                     <a
-                      href={primaryImg}
+                      href={currentImg}
                       download={`Classified-${classified.id}-Document.pdf`}
                       className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
                     >
@@ -126,9 +133,34 @@ export default function ClassifiedDetail() {
                   </div>
                 </div>
               ) : (
-                <img src={primaryImg} alt={classified.title} className="w-full h-full object-cover" />
+                <img src={currentImg} alt={classified.title} className="w-full h-full object-cover" />
               )}
             </div>
+
+            {/* Multi-Image Thumbnail Selector */}
+            {images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-1 pt-1">
+                {images.map((img: string, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImage(idx)}
+                    className={`w-20 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
+                      activeImage === idx ? 'border-purple-600 scale-105 shadow-md' : 'border-slate-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    {isPdfDocument(img) ? (
+                      <div className="w-full h-full bg-red-950 text-red-400 flex flex-col items-center justify-center p-1">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-[9px] font-bold mt-0.5">PDF</span>
+                      </div>
+                    ) : (
+                      <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">

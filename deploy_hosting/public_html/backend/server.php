@@ -1768,8 +1768,16 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
     $stmt->execute($params);
     $items = $stmt->fetchAll();
 
+    $stmtAllImgs = $pdo->query("SELECT auction_id, image_path, is_primary FROM auction_images ORDER BY id ASC");
+    $allImgs = $stmtAllImgs ? $stmtAllImgs->fetchAll() : [];
+    $imgsByAuction = [];
+    foreach ($allImgs as $row) {
+        $imgsByAuction[$row['auction_id']][] = $row;
+    }
+
     foreach ($items as &$item) {
         $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
+        $item['images'] = $imgsByAuction[$item['id']] ?? (!empty($item['primary_image_url']) ? [['image_path' => $item['primary_image_url'], 'is_primary' => 1]] : []);
         $item['primary_image'] = ['image_path' => $item['primary_image_url']];
         $item['creator'] = ['id' => $item['created_by'], 'name' => $item['creator_name'], 'company_name' => $item['creator_company']];
     }
@@ -1805,9 +1813,20 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     $stmt->execute([$title, $slug . '-' . time(), $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy]);
     $newId = (int)$pdo->lastInsertId();
 
-    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
-    if (!empty($imgPath)) {
-        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$newId, $imgPath]);
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+        }
+    }
+    if (empty($imagesList)) {
+        $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+        if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
+    }
+    foreach ($imagesList as $imgItem) {
+        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+            ->execute([$newId, $imgItem['path'], $imgItem['primary']]);
     }
 
     jsonResponse(['message' => 'Auction created successfully', 'id' => $newId, 'success' => true]);
@@ -1832,10 +1851,23 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
         $pdo->prepare("UPDATE auctions SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
     }
 
-    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
-    if (!empty($imgPath)) {
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+        }
+    }
+    if (empty($imagesList)) {
+        $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+        if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
+    }
+    if (!empty($imagesList)) {
         $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
-        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$auctionId, $imgPath]);
+        foreach ($imagesList as $imgItem) {
+            $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
+        }
     }
 
     jsonResponse(['message' => 'Auction updated successfully', 'id' => $auctionId, 'success' => true]);
@@ -1862,8 +1894,17 @@ if ($method === 'GET' && ($uri === '/api/v1/classifieds' || $uri === '/api/v1/ad
             LEFT JOIN users u ON cl.created_by = u.id
             ORDER BY cl.id DESC";
     $items = $pdo->query($sql)->fetchAll();
+
+    $stmtAllClImgs = $pdo->query("SELECT classified_id, image_path, is_primary FROM classified_images ORDER BY id ASC");
+    $allClImgs = $stmtAllClImgs ? $stmtAllClImgs->fetchAll() : [];
+    $imgsByClassified = [];
+    foreach ($allClImgs as $row) {
+        $imgsByClassified[$row['classified_id']][] = $row;
+    }
+
     foreach ($items as &$item) {
         $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
+        $item['images'] = $imgsByClassified[$item['id']] ?? (!empty($item['primary_image_url']) ? [['image_path' => $item['primary_image_url'], 'is_primary' => 1]] : []);
         $item['primary_image'] = ['image_path' => $item['primary_image_url']];
         $item['creator'] = ['id' => $item['created_by'], 'name' => $item['creator_name'], 'company_name' => $item['creator_company'], 'phone' => $item['creator_phone']];
     }
@@ -1891,9 +1932,20 @@ if ($method === 'POST' && ($uri === '/api/v1/classifieds' || $uri === '/api/v1/a
     $stmt->execute([$title, $slug . '-' . time(), $description, $categoryId, $price, $quantity, $unit, $locationCity, $locationState, $status, $createdBy]);
     $newId = (int)$pdo->lastInsertId();
 
-    $imgPath = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
-    if (!empty($imgPath)) {
-        $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, 1)")->execute([$newId, $imgPath]);
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+        }
+    }
+    if (empty($imagesList)) {
+        $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+        if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
+    }
+    foreach ($imagesList as $imgItem) {
+        $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, ?)")
+            ->execute([$newId, $imgItem['path'], $imgItem['primary']]);
     }
 
     jsonResponse(['message' => 'Classified listing created successfully', 'id' => $newId, 'success' => true]);
@@ -3204,9 +3256,19 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
     ]);
 
     $id = $pdo->lastInsertId();
-    if (!empty($body['image_url'])) {
-        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")
-            ->execute([$id, $body['image_url']]);
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+        }
+    }
+    if (empty($imagesList) && !empty($body['image_url'])) {
+        $imagesList[] = ['path' => $body['image_url'], 'primary' => 1];
+    }
+    foreach ($imagesList as $imgItem) {
+        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+            ->execute([$id, $imgItem['path'], $imgItem['primary']]);
     }
 
     jsonResponse(['id' => (int)$id, 'slug' => $slug, 'title' => $body['title'], 'status' => $status], 201);
