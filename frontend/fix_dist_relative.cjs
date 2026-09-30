@@ -107,22 +107,71 @@ for (const f of errorLogFiles) {
   }
 }
 
-// 5. Automatically package ready-to-upload salvagereef_FULL_UPLOAD.zip using native tar
+// 5. Package both Fresh Install and Safe-Update (No Database Overwrite) ZIPs
 try {
   const fullZipPath = path.join(rootDir, 'salvagereef_FULL_UPLOAD.zip');
+  const safeUpdateZipPath = path.join(rootDir, 'salvagereef_UPDATE_SAFE_NO_DATABASE.zip');
   const scrabZipPath = path.join(rootDir, 'scrab_dist.zip');
   const frontendZipPath = path.join(__dirname, 'scrab_dist.zip');
-
   const deployZipPath = path.join(rootDir, 'deploy_hosting', 'salvagereef_FULL_UPLOAD.zip');
+  const deploySafeZipPath = path.join(rootDir, 'deploy_hosting', 'salvagereef_UPDATE_SAFE_NO_DATABASE.zip');
 
-  const tarCmd = `tar -a -c -f "${fullZipPath}" -C "${deployDir}" .`;
-  execSync(tarCmd, { stdio: 'inherit' });
+  // 5a. Build Full Upload ZIP (with database for fresh server setup)
+  const tarCmdFull = `tar -a -c -f "${fullZipPath}" -C "${deployDir}" .`;
+  execSync(tarCmdFull, { stdio: 'inherit' });
 
   fs.copyFileSync(fullZipPath, scrabZipPath);
   fs.copyFileSync(fullZipPath, frontendZipPath);
   fs.copyFileSync(fullZipPath, deployZipPath);
+  console.log('🚀 Generated salvagereef_FULL_UPLOAD.zip (For 1st-time fresh server installation)');
 
-  console.log('🚀 Successfully generated salvagereef_FULL_UPLOAD.zip for cPanel hosting!');
+  // 5b. Build Safe Update ZIP (EXCLUDES database.sqlite and uploads/ so live auctions & users are NEVER reset!)
+  const tempUpdateDir = path.join(rootDir, 'deploy_hosting', '_temp_safe_update');
+  if (fs.existsSync(tempUpdateDir)) {
+    fs.rmSync(tempUpdateDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(tempUpdateDir, { recursive: true });
+
+  // Copy everything except database.sqlite and user uploads
+  const copyRecursive = (src, dest) => {
+    const items = fs.readdirSync(src);
+    for (const item of items) {
+      const sPath = path.join(src, item);
+      const dPath = path.join(dest, item);
+      const stat = fs.statSync(sPath);
+
+      if (stat.isDirectory()) {
+        // Skip user uploads directory content in update zip to preserve all user uploaded photos
+        if (sPath.includes(path.join('public_html', 'uploads'))) {
+          fs.mkdirSync(dPath, { recursive: true });
+          continue;
+        }
+        // Skip database directory content to preserve live database
+        if (sPath.includes(path.join('public_html', 'backend', 'database'))) {
+          fs.mkdirSync(dPath, { recursive: true });
+          continue;
+        }
+        fs.mkdirSync(dPath, { recursive: true });
+        copyRecursive(sPath, dPath);
+      } else {
+        // Do NOT copy database.sqlite into update zip
+        if (item === 'database.sqlite') {
+          continue;
+        }
+        fs.copyFileSync(sPath, dPath);
+      }
+    }
+  };
+
+  copyRecursive(deployDir, tempUpdateDir);
+
+  const tarCmdSafe = `tar -a -c -f "${safeUpdateZipPath}" -C "${tempUpdateDir}" .`;
+  execSync(tarCmdSafe, { stdio: 'inherit' });
+  try {
+    fs.rmSync(tempUpdateDir, { recursive: true, force: true });
+  } catch {}
+
+  console.log('🛡️  SUCCESS! Generated salvagereef_UPDATE_SAFE_NO_DATABASE.zip (Extract this for future updates — Live auctions & Users are NEVER reset!)');
 } catch (e) {
   console.warn('Zip creation notice:', e.message);
 }

@@ -2803,18 +2803,25 @@ if ($method === 'PUT' && preg_match('#^/api/v1/admin/interests/(\d+)(?:/(approve
     ]);
 }
 
-// 12c. Admin Delete Interest: DELETE /api/v1/admin/interests/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/admin/interests/(\d+)$#', $uri, $m)) {
+// 12d. Admin Download Live Database Backup: GET /api/v1/admin/database/backup
+if ($method === 'GET' && ($uri === '/api/v1/admin/database/backup' || $uri === '/api/v1/admin/backup-db')) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Unauthorized admin access required'], 403);
 
-    $interestId = (int)$m[1];
-    $pdo->prepare("DELETE FROM enquiry_or_interests WHERE id = ?")->execute([$interestId]);
+    $dbFile = __DIR__ . '/database/database.sqlite';
+    if (!file_exists($dbFile)) {
+        jsonResponse(['message' => 'Database file not found'], 404);
+    }
 
-    jsonResponse([
-        'success' => true,
-        'message' => "Tender access request #{$interestId} deleted permanently from database."
-    ]);
+    $filename = 'salvagereef_backup_' . date('Y-m-d_His') . '.sqlite';
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . filesize($dbFile));
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($dbFile);
+    exit;
 }
 
 
