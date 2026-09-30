@@ -416,14 +416,6 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             )}
           </span>
         </div>
-
-        {/* Dynamic Anti-Sniping Rule Badge */}
-        {isLive && (
-          <div className="mt-2 text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 font-medium">
-            <span className="text-amber-400 font-bold">⚡ Dynamic Anti-Sniping:</span>
-            <span>Bids placed in last 2 minutes extend auction time by +2:00 mins</span>
-          </div>
-        )}
       </div>
 
       {/* Notifications / Errors */}
