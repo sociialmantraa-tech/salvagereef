@@ -154,7 +154,15 @@ export default function ClassifiedDetail() {
                   </div>
                 </div>
               ) : (
-                <img src={currentImg} alt={classified.title} className="w-full h-full object-cover" />
+                <img 
+                  src={currentImg} 
+                  alt={classified.title} 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                  }}
+                  className="w-full h-full object-cover" 
+                />
               )}
             </div>
 
@@ -176,7 +184,15 @@ export default function ClassifiedDetail() {
                         <span className="text-[9px] font-bold mt-0.5">PDF</span>
                       </div>
                     ) : (
-                      <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt={`Thumb ${idx + 1}`} 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                        }}
+                        className="w-full h-full object-cover" 
+                      />
                     )}
                   </button>
                 ))}

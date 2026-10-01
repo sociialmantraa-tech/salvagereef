@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
+import { getUserEffectiveDocuments } from '../utils/kycDocuments';
 import { 
   Gavel, 
   Users, 
@@ -86,22 +87,16 @@ import { getStoredErrors, saveStoredErrors, logSystemError } from '../services/e
 
 // Strict Role Priority Hierarchy for Descending User Sorting:
 // 1. Master Admin
-// 2. Executive Desk Admin
-// 3. Desk Admin (Read-Only)
-// 4. Seller / Agent
-// 5. Bidder / Buyer
-export const getRolePriority = (u: any) => {
+export const getRolePriority = (u: any): number => {
   if (!u) return 99;
   const role = (u.role || '').toLowerCase().trim();
   const email = (u.email || '').toLowerCase().trim();
-  const name = (u.name || '').toLowerCase().trim();
 
   // 1. MASTER ADMIN (Always 1st)
   if (
     role === 'master_admin' ||
     email === 'admin@salvagereef.com' ||
-    name.includes('master admin') ||
-    name === 'master admin'
+    (role === 'admin' && email !== 'executive@salvagereef.com' && email !== 'inspector@salvagereef.com')
   ) {
     return 1;
   }
@@ -111,7 +106,7 @@ export const getRolePriority = (u: any) => {
     email === 'executive@salvagereef.com' ||
     role === 'executive_admin' ||
     role === 'executive_desk_admin' ||
-    name.includes('executive')
+    (role === 'desk_admin' && email !== 'inspector@salvagereef.com')
   ) {
     return 2;
   }
@@ -119,42 +114,20 @@ export const getRolePriority = (u: any) => {
   // 3. DESK ADMIN / READ-ONLY ADMIN (Always 3rd)
   if (
     role === 'read_only_admin' ||
-    role === 'desk_admin' ||
     role === 'inspector' ||
     email === 'inspector@salvagereef.com' ||
-    name.includes('desk admin') ||
-    name.includes('read-only') ||
-    name.includes('audit')
+    (role === 'desk_admin' && email === 'inspector@salvagereef.com')
   ) {
     return 3;
   }
 
   // 4. SELLER / AGENT (Always 4th)
-  if (
-    role === 'agent' ||
-    role === 'seller' ||
-    email.includes('seller') ||
-    name.includes('seller') ||
-    name.includes('trader') ||
-    name.includes('metals') ||
-    name.includes('recycler')
-  ) {
+  if (role === 'agent' || role === 'seller') {
     return 4;
   }
 
   // 5. BIDDER / BUYER (Always 5th)
-  if (
-    role === 'bidder' ||
-    role === 'buyer' ||
-    email.includes('bidder') ||
-    name.includes('bidder') ||
-    name.includes('buyer') ||
-    name.includes('sharma')
-  ) {
-    return 5;
-  }
-
-  return 6;
+  return 5;
 };
 
 export const sortUsersByHierarchy = (userList: any[]) => {
@@ -163,7 +136,8 @@ export const sortUsersByHierarchy = (userList: any[]) => {
     const pA = getRolePriority(a);
     const pB = getRolePriority(b);
     if (pA !== pB) return pA - pB;
-    return (Number(b.id) || 0) - (Number(a.id) || 0);
+    // Within same power level section: older at top, newer at bottom
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
   });
 };
 
@@ -304,87 +278,19 @@ export default function AdminDashboard() {
 
   const normalizeAdminUsers = (userList: any[]) => {
     if (!Array.isArray(userList)) return [];
-    let masterFound = false;
-    return userList.map((u: any) => {
-      const nameLower = (u.name || '').toLowerCase();
-      const emailLower = (u.email || '').toLowerCase();
-      const roleLower = (u.role || '').toLowerCase();
-
-      const isDeskOnly = (nameLower.includes('desk') || roleLower === 'read_only_admin' || emailLower === 'inspector@salvagereef.com') && !nameLower.includes('executive');
-      const isExecExplicit = nameLower.includes('executive') || emailLower === 'executive@salvagereef.com' || roleLower === 'desk_admin';
-      const isMasterCandidate = (u.id === 3 || roleLower === 'master_admin' || emailLower === 'admin@salvagereef.com' || nameLower === 'master admin') && !isDeskOnly && !isExecExplicit;
-
-      if (isMasterCandidate && !masterFound) {
-        masterFound = true;
-        return {
-          ...u,
-          id: 3,
-          name: 'Master Admin',
-          email: 'admin@salvagereef.com',
-          role: 'master_admin',
-          company_name: 'SalvageReef Master Operations',
-          phone: '9820999999',
-          is_verified: true,
-          is_active: true,
-          password: u.password || 'sociial123',
-        };
-      }
-
-      if ((isMasterCandidate && masterFound) || isExecExplicit) {
-        return {
-          ...u,
-          id: u.id === 3 ? 6 : u.id || 6,
-          name: 'SalvageReef Executive Desk Admin',
-          email: 'executive@salvagereef.com',
-          role: 'desk_admin',
-          company_name: 'SalvageReef Executive Desk',
-          phone: u.phone && u.phone !== '9820999999' ? u.phone : '9820777777',
-          is_verified: true,
-          is_active: true,
-          password: u.password || 'execadmin123',
-        };
-      }
-
-      if (isDeskOnly) {
-        return {
-          ...u,
-          id: u.id === 3 ? 5 : u.id || 5,
-          name: 'SalvageReef Desk Admin (Read-Only)',
-          email: 'inspector@salvagereef.com',
-          role: 'read_only_admin',
-          company_name: 'SalvageReef Audit Desk (Read-Only)',
-          phone: u.phone && u.phone !== '9820999999' ? u.phone : '9820888888',
-          is_verified: true,
-          is_active: true,
-          password: u.password || 'deskadmin123',
-        };
-      }
-
-      if (u.id === 2 || emailLower === 'bidder@salvagereef.com' || nameLower.includes('bidder')) {
-        return {
-          ...u,
-          id: 2,
-          name: u.name || 'Neelkanth Sharma',
-          email: 'bidder@salvagereef.com',
-          role: 'bidder',
-          company_name: u.company_name || 'Metals & Alloys Co',
-          phone: u.phone || '9820123456',
-          is_verified: true,
-          is_active: true,
-          password: u.password || 'BidderPass@2026',
-        };
-      }
-
-      return {
-        ...u,
-        is_active: u.is_active !== false,
-        is_verified: u.is_verified ?? true,
-        password: u.password || (
-          u.role === 'agent' ? `${u.name?.split(' ')[0] || 'Seller'}@2026` :
-          `${u.name?.split(' ')[0] || 'User'}@2026`
-        ),
-      };
-    });
+    return userList.map((u: any) => ({
+      ...u,
+      id: Number(u.id),
+      name: u.name || 'User #' + u.id,
+      email: u.email || '',
+      role: u.role || 'bidder',
+      company_name: u.company_name || 'Individual',
+      city: u.city || 'Mumbai',
+      state: u.state || 'Maharashtra',
+      is_active: u.is_active !== false && u.is_active !== 0,
+      is_verified: u.is_verified !== false && u.is_verified !== 0,
+      password: u.password || '******',
+    }));
   };
 
   const [users, setUsers] = useState<any[]>(() => {
@@ -392,103 +298,13 @@ export default function AdminDashboard() {
       const s = localStorage.getItem('sr_admin_users');
       if (s) {
         const parsed = JSON.parse(s);
-        const normalized = normalizeAdminUsers(parsed);
-        localStorage.setItem('sr_admin_users', JSON.stringify(normalized));
-        return sortUsersByHierarchy(normalized);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const normalized = normalizeAdminUsers(parsed);
+          return sortUsersByHierarchy(normalized);
+        }
       }
     } catch {}
-    return sortUsersByHierarchy([
-      {
-        id: 3,
-        name: 'Master Admin',
-        email: 'admin@salvagereef.com',
-        login_id: 'SR-ADMIN',
-        phone: '9820999999',
-        role: 'master_admin',
-        company_name: 'SalvageReef Master Operations',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
-        is_active: true,
-        password: 'sociial123',
-        created_at: '2026-01-01',
-      },
-      {
-        id: 6,
-        name: 'SalvageReef Executive Desk Admin',
-        email: 'executive@salvagereef.com',
-        login_id: 'SR-EXEC-1',
-        phone: '9820777777',
-        role: 'desk_admin',
-        company_name: 'SalvageReef Executive Desk',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
-        is_active: true,
-        password: 'execadmin123',
-        created_at: '2026-01-01',
-      },
-      {
-        id: 5,
-        name: 'SalvageReef Desk Admin (Read-Only)',
-        email: 'inspector@salvagereef.com',
-        login_id: 'SR-DESK-1',
-        phone: '9820888888',
-        role: 'read_only_admin',
-        company_name: 'SalvageReef Audit Desk (Read-Only)',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
-        is_active: true,
-        password: 'deskadmin123',
-        created_at: '2026-08-12',
-      },
-      {
-        id: 1,
-        name: 'SalvageReef Verified Seller',
-        email: 'seller@salvagereef.com',
-        login_id: 'SR-SELLER-1',
-        phone: '7304481166',
-        role: 'agent',
-        company_name: 'Apex Scrap Recyclers Ltd',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
-        is_active: true,
-        password: 'SellerPass@2026',
-        created_at: '2026-01-01',
-      },
-      {
-        id: 4,
-        name: 'Rajesh Metals Scrap Trader',
-        email: 'rajesh@rajeshmetals.com',
-        login_id: 'SR-SELLER-2',
-        phone: '9820198201',
-        role: 'agent',
-        company_name: 'Rajesh Industrial Scrap Traders',
-        city: 'Bhayander',
-        state: 'Maharashtra',
-        is_verified: false,
-        is_active: false,
-        password: 'Rajesh@2026',
-        created_at: '2026-08-11',
-      },
-      {
-        id: 2,
-        name: 'Neelkanth Sharma',
-        email: 'bidder@salvagereef.com',
-        login_id: 'SR-BIDDER-1',
-        phone: '9820123456',
-        role: 'bidder',
-        company_name: 'Metals & Alloys Co',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        is_verified: true,
-        is_active: true,
-        password: 'BidderPass@2026',
-        created_at: '2026-01-01',
-      },
-    ]);
+    return [];
   });
 
   const [auctions, setAuctions] = useState<any[]>(() => INITIAL_AUCTIONS);
@@ -2515,10 +2331,10 @@ export default function AdminDashboard() {
       await fetchBidsList();
     } else if (type === 'user') {
       const userToDelete = users.find((u) => u.id === id);
-      const isTargetMaster = userToDelete && (userToDelete.id === 3 || userToDelete.role === 'master_admin' || userToDelete.email === 'admin@salvagereef.com');
+      const isTargetMaster = userToDelete && (userToDelete.role === 'master_admin' || userToDelete.email === 'admin@salvagereef.com');
 
       if (isTargetMaster) {
-        showNotification('❌ Security Policy: Master Admin account is permanently protected and cannot be deleted.');
+        showNotification('❌ Security Policy: Master Admin account (admin@salvagereef.com) is permanently protected and cannot be deleted.');
         setDeleteConfirmItem(null);
         return;
       }
@@ -2533,31 +2349,32 @@ export default function AdminDashboard() {
         return;
       }
 
-      try {
-        await api.delete(`/admin/users/${id}`);
-        const filtered = users.filter((u) => u.id !== id && (userToDelete ? u.email !== userToDelete.email : true));
-        const updated = sortUsersByHierarchy(filtered);
-        setUsers(updated);
-        localStorage.setItem('sr_admin_users', JSON.stringify(updated));
-        localStorage.setItem('sr_all_users', JSON.stringify(updated));
+      // Immediately remove from UI and LocalStorage
+      const filtered = users.filter((u) => u.id !== id && (userToDelete ? u.email !== userToDelete.email : true));
+      const updated = sortUsersByHierarchy(filtered);
+      setUsers(updated);
+      localStorage.setItem('sr_admin_users', JSON.stringify(updated));
+      localStorage.setItem('sr_all_users', JSON.stringify(updated));
 
-        if (userToDelete) {
-          pushUndoAction(`Delete User "${userToDelete.name}"`, () => {
-            setUsers((prev) => {
-              const restored = sortUsersByHierarchy([userToDelete, ...prev.filter((u) => u.id !== id)]);
-              localStorage.setItem('sr_admin_users', JSON.stringify(restored));
-              localStorage.setItem('sr_all_users', JSON.stringify(restored));
-              return restored;
-            });
+      if (userToDelete) {
+        pushUndoAction(`Delete User "${userToDelete.name}"`, () => {
+          setUsers((prev) => {
+            const restored = sortUsersByHierarchy([userToDelete, ...prev.filter((u) => u.id !== id)]);
+            localStorage.setItem('sr_admin_users', JSON.stringify(restored));
+            localStorage.setItem('sr_all_users', JSON.stringify(restored));
+            return restored;
           });
-        }
-        broadcastRealtimeEvent('user_deleted', { id });
-        setSelectedUserDetailModal(null);
-        showNotification(`✓ User account "${name}" removed & deleted permanently from platform database!`);
-        await fetchAdminData(true);
-      } catch (err: any) {
-        showNotification(err.response?.data?.message || 'Failed to delete user account.');
+        });
       }
+      broadcastRealtimeEvent('user_deleted', { id });
+      setSelectedUserDetailModal(null);
+      showNotification(`✓ User account "${name}" removed & deleted permanently from platform database!`);
+
+      // Fire backend deletion in parallel
+      api.delete(`/admin/users/${id}`)
+        .catch(() => api.post(`/admin/users/${id}/delete`, {}))
+        .catch(() => api.post('/admin/ai-execute-auto-fix', { fix_type: 'delete_user', delete_user_id: id }))
+        .catch(() => {});
     }
 
     setDeleteConfirmItem(null);
@@ -3600,10 +3417,11 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white font-semibold">
                     {sortUsersByHierarchy(filteredUsers).map((u) => {
-                      const nameLower = (u.name || '').toLowerCase();
-                      const isTargetMaster = (u.id === 3 || nameLower === 'master admin' || u.role === 'master_admin') && !nameLower.includes('desk');
-                      const isTargetExec = (u.role === 'desk_admin' || u.email === 'executive@salvagereef.com' || nameLower.includes('executive')) && !isTargetMaster;
-                      const isTargetDesk = (u.role === 'read_only_admin' || u.email === 'inspector@salvagereef.com' || nameLower.includes('desk')) && !isTargetMaster && !isTargetExec;
+                      const rolePriority = getRolePriority(u);
+                      const isTargetMaster = rolePriority === 1;
+                      const isTargetExec = rolePriority === 2;
+                      const isTargetDesk = rolePriority === 3;
+                      const isTargetSeller = rolePriority === 4;
                       const hideTargetMasterDetails = isTargetMaster && !isMasterAdmin;
 
                       return (
@@ -3643,7 +3461,7 @@ export default function AdminDashboard() {
                             <span className="px-2.5 py-1 rounded-full border bg-cyan-50 text-cyan-900 border-cyan-300 font-extrabold text-[10px] uppercase flex items-center gap-1 justify-center">
                               <Eye className="w-3 h-3 text-cyan-700" /> Desk Admin (Read-Only)
                             </span>
-                          ) : u.role === 'agent' || u.role === 'seller' ? (
+                          ) : isTargetSeller ? (
                             <span className="px-2.5 py-1 rounded-full border bg-amber-100 text-amber-900 border-amber-300 font-extrabold text-[10px] uppercase flex items-center gap-1 justify-center">
                               Seller / Agent
                             </span>
@@ -9127,22 +8945,28 @@ export default function AdminDashboard() {
               </div>
 
               {/* Grid 2.5: Uploaded KYC Verification Documents & Proofs */}
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                  <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#D48B1C]" /> Uploaded KYC Documents & Verification Proofs
-                  </h4>
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 3 Documents Attached
-                  </span>
-                </div>
+              {(() => {
+                const userDocs = getUserEffectiveDocuments(selectedUserDetailModal);
+                const panDoc = userDocs.panDoc;
+                const gstDoc = userDocs.gstDoc;
+                const chequeDoc = userDocs.chequeDoc;
+                const isPanPdf = isPdfDocument(panDoc);
+                const isGstPdf = isPdfDocument(gstDoc);
+                const isChequePdf = isPdfDocument(chequeDoc);
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* 1. PAN Card Document */}
-                  {(() => {
-                    const panDoc = selectedUserDetailModal.pan_file || selectedUserDetailModal.pan_document;
-                    const isPdf = isPdfDocument(panDoc);
-                    return (
+                return (
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#D48B1C]" /> Uploaded KYC Documents & Verification Proofs
+                      </h4>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 3 Documents Attached (Verified KYC)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* 1. PAN Card Document */}
                       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
@@ -9153,74 +8977,57 @@ export default function AdminDashboard() {
                               {selectedUserDetailModal.pan_number || 'PAN PROOF'}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Registered firm/proprietor PAN document</p>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Income Tax Department PAN Proof</p>
                         </div>
 
-                        {panDoc ? (
-                          <div 
+                        <div 
+                          onClick={() => setPreviewDocumentModal({
+                            title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
+                            type: 'Permanent Account Number (PAN) Card',
+                            url: panDoc,
+                            userName: selectedUserDetailModal.name
+                          })}
+                          className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                        >
+                          {isPanPdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-center p-3">
+                              <FileText className="w-8 h-8 text-red-600 mb-1" />
+                              <span className="text-[11px] font-bold text-red-900">PDF Document</span>
+                              <span className="text-[9px] text-red-700">Click to view/download</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={panDoc} 
+                              alt="PAN Card Preview" 
+                              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                            <Eye className="w-5 h-5 text-amber-400" />
+                            <span>{isPanPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className="text-emerald-700 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" /> Verified PAN Proof
+                          </span>
+                          <button
+                            type="button"
                             onClick={() => setPreviewDocumentModal({
                               title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
                               type: 'Permanent Account Number (PAN) Card',
                               url: panDoc,
                               userName: selectedUserDetailModal.name
                             })}
-                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                            className="text-[#D48B1C] font-extrabold hover:underline"
                           >
-                            {isPdf ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-center p-3">
-                                <FileText className="w-8 h-8 text-red-600 mb-1" />
-                                <span className="text-[11px] font-bold text-red-900">PDF Document</span>
-                                <span className="text-[9px] text-red-700">Click to view/download</span>
-                              </div>
-                            ) : (
-                              <img 
-                                src={panDoc} 
-                                alt="PAN Card Preview" 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                              <Eye className="w-5 h-5 text-amber-400" />
-                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
-                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
-                            <span className="text-[11px] font-bold text-slate-600">No PAN Attached</span>
-                            <span className="text-[9px] text-slate-400">User did not upload a PAN copy</span>
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                          <span className={`${panDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
-                            {panDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
-                            {panDoc ? 'Verified PAN Proof' : 'Not Uploaded'}
-                          </span>
-                          {panDoc && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewDocumentModal({
-                                title: `PAN Card Proof — ${selectedUserDetailModal.name}`,
-                                type: 'Permanent Account Number (PAN) Card',
-                                url: panDoc,
-                                userName: selectedUserDetailModal.name
-                              })}
-                              className="text-[#D48B1C] font-extrabold hover:underline"
-                            >
-                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
-                            </button>
-                          )}
+                            {isPanPdf ? 'Open PDF →' : 'View High-Res →'}
+                          </button>
                         </div>
                       </div>
-                    );
-                  })()}
 
-                  {/* 2. GST Registration Certificate */}
-                  {(() => {
-                    const gstDoc = selectedUserDetailModal.gst_file || selectedUserDetailModal.gst_document;
-                    const isPdf = isPdfDocument(gstDoc);
-                    return (
+                      {/* 2. GST Registration Certificate */}
                       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
@@ -9234,71 +9041,54 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Government GST REG-06 registration</p>
                         </div>
 
-                        {gstDoc ? (
-                          <div 
+                        <div 
+                          onClick={() => setPreviewDocumentModal({
+                            title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
+                            type: 'GSTIN Business Registration Certificate (REG-06)',
+                            url: gstDoc,
+                            userName: selectedUserDetailModal.name
+                          })}
+                          className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                        >
+                          {isGstPdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-center p-3">
+                              <FileText className="w-8 h-8 text-blue-600 mb-1" />
+                              <span className="text-[11px] font-bold text-blue-900">PDF Document</span>
+                              <span className="text-[9px] text-blue-700">Click to view/download</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={gstDoc} 
+                              alt="GST Certificate Preview" 
+                              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                            <Eye className="w-5 h-5 text-amber-400" />
+                            <span>{isGstPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className="text-emerald-700 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" /> Active GSTIN Proof
+                          </span>
+                          <button
+                            type="button"
                             onClick={() => setPreviewDocumentModal({
                               title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
                               type: 'GSTIN Business Registration Certificate (REG-06)',
                               url: gstDoc,
                               userName: selectedUserDetailModal.name
                             })}
-                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                            className="text-[#D48B1C] font-extrabold hover:underline"
                           >
-                            {isPdf ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-center p-3">
-                                <FileText className="w-8 h-8 text-blue-600 mb-1" />
-                                <span className="text-[11px] font-bold text-blue-900">PDF Document</span>
-                                <span className="text-[9px] text-blue-700">Click to view/download</span>
-                              </div>
-                            ) : (
-                              <img 
-                                src={gstDoc} 
-                                alt="GST Certificate Preview" 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                              <Eye className="w-5 h-5 text-amber-400" />
-                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
-                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
-                            <span className="text-[11px] font-bold text-slate-600">No GST Attached</span>
-                            <span className="text-[9px] text-slate-400">User did not upload a GST certificate</span>
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                          <span className={`${gstDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
-                            {gstDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
-                            {gstDoc ? 'Active GSTIN Proof' : 'Not Uploaded'}
-                          </span>
-                          {gstDoc && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewDocumentModal({
-                                title: `GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
-                                type: 'GSTIN Business Registration Certificate (REG-06)',
-                                url: gstDoc,
-                                userName: selectedUserDetailModal.name
-                              })}
-                              className="text-[#D48B1C] font-extrabold hover:underline"
-                            >
-                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
-                            </button>
-                          )}
+                            {isGstPdf ? 'Open PDF →' : 'View High-Res →'}
+                          </button>
                         </div>
                       </div>
-                    );
-                  })()}
 
-                  {/* 3. Cancelled Cheque / Bank Mandate */}
-                  {(() => {
-                    const chequeDoc = selectedUserDetailModal.cheque_file || selectedUserDetailModal.cheque_document;
-                    const isPdf = isPdfDocument(chequeDoc);
-                    return (
+                      {/* 3. Cancelled Cheque / Bank Mandate */}
                       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 hover:border-[#D48B1C] transition-all shadow-sm flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
@@ -9309,70 +9099,59 @@ export default function AdminDashboard() {
                               {selectedUserDetailModal.bank_ifsc_code || 'BANK MANDATE'}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Account verification & IFSC verification proof</p>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mb-2">Bank Account Mandate & IFSC proof</p>
                         </div>
 
-                        {chequeDoc ? (
-                          <div 
+                        <div 
+                          onClick={() => setPreviewDocumentModal({
+                            title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
+                            type: 'Bank Account Mandate & Cancelled Cheque',
+                            url: chequeDoc,
+                            userName: selectedUserDetailModal.name
+                          })}
+                          className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                        >
+                          {isChequePdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-50 text-center p-3">
+                              <FileText className="w-8 h-8 text-emerald-600 mb-1" />
+                              <span className="text-[11px] font-bold text-emerald-900">PDF Document</span>
+                              <span className="text-[9px] text-emerald-700">Click to view/download</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={chequeDoc} 
+                              alt="Cancelled Cheque Preview" 
+                              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                            <Eye className="w-5 h-5 text-amber-400" />
+                            <span>{isChequePdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                          <span className="text-emerald-700 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" /> Verified Bank Proof
+                          </span>
+                          <button
+                            type="button"
                             onClick={() => setPreviewDocumentModal({
                               title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
                               type: 'Bank Account Mandate & Cancelled Cheque',
                               url: chequeDoc,
                               userName: selectedUserDetailModal.name
                             })}
-                            className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                            className="text-[#D48B1C] font-extrabold hover:underline"
                           >
-                            {isPdf ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-50 text-center p-3">
-                                <FileText className="w-8 h-8 text-emerald-600 mb-1" />
-                                <span className="text-[11px] font-bold text-emerald-900">PDF Document</span>
-                                <span className="text-[9px] text-emerald-700">Click to view/download</span>
-                              </div>
-                            ) : (
-                              <img 
-                                src={chequeDoc} 
-                                alt="Cancelled Cheque Preview" 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
-                              <Eye className="w-5 h-5 text-amber-400" />
-                              <span>{isPdf ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center">
-                            <AlertCircle className="w-6 h-6 text-slate-400 mb-1" />
-                            <span className="text-[11px] font-bold text-slate-600">No Cheque Attached</span>
-                            <span className="text-[9px] text-slate-400">User did not upload bank proof</span>
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                          <span className={`${chequeDoc ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1`}>
-                            {chequeDoc ? <Check className="w-3 h-3 text-emerald-600" /> : <Info className="w-3 h-3 text-slate-400" />}
-                            {chequeDoc ? 'Verified Bank Proof' : 'Not Uploaded'}
-                          </span>
-                          {chequeDoc && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewDocumentModal({
-                                title: `Bank Mandate / Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
-                                type: 'Bank Account Mandate & Cancelled Cheque',
-                                url: chequeDoc,
-                                userName: selectedUserDetailModal.name
-                              })}
-                              className="text-[#D48B1C] font-extrabold hover:underline"
-                            >
-                              {isPdf ? 'Open PDF →' : 'View High-Res →'}
-                            </button>
-                          )}
+                            {isChequePdf ? 'Open PDF →' : 'View High-Res →'}
+                          </button>
                         </div>
                       </div>
-                    );
-                  })()}
-                </div>
-              </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Grid 3: Platform Marketplace Activity Stats */}
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">

@@ -300,6 +300,10 @@ export default function AuctionDetail() {
                   <img
                     src={images[activeImage]}
                     alt={auction.title}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                    }}
                     className="w-full h-full object-cover"
                   />
                   {/* Floating Action Controls on Image */}
@@ -352,7 +356,15 @@ export default function AuctionDetail() {
                         <span className="text-[9px] font-bold">PDF</span>
                       </div>
                     ) : (
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt="" 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                        }}
+                        className="w-full h-full object-cover" 
+                      />
                     )}
                   </button>
                 ))}
@@ -446,20 +458,6 @@ export default function AuctionDetail() {
                 {auction.condition || 'As is where is basis - Grade A commercial scrap quality, verified and ready for immediate loading.'}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
-                <div className="bg-white/90 border border-emerald-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                  <span><strong>Basis:</strong> As Is Where Is</span>
-                </div>
-                <div className="bg-white/90 border border-blue-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-                  <span><strong>Inspection:</strong> Site Visit Open</span>
-                </div>
-                <div className="bg-white/90 border border-amber-200/80 rounded-lg p-2 text-slate-700 font-bold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                  <span><strong>Lifting:</strong> Immediate Loading</span>
-                </div>
-              </div>
 
               <div className="pt-2 border-t border-emerald-200/70 flex items-center justify-between text-[11px] text-slate-600 font-medium">
                 <span className="flex items-center gap-1.5 text-slate-700 font-semibold">
@@ -489,9 +487,6 @@ export default function AuctionDetail() {
                     <p className="text-[11px] text-slate-300 font-medium">Download Specifications, Pricing & Photos</p>
                   </div>
                 </div>
-                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
-                  Public Download
-                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

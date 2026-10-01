@@ -128,6 +128,10 @@ export default function Home() {
           <img
             src={content.heroBannerUrl || "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80"}
             alt="Hero Banner"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80";
+            }}
             className="w-full h-full object-cover object-center opacity-70"
           />
           {/* Subtle gradient overlay */}

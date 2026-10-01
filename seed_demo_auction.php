@@ -48,7 +48,7 @@ foreach (['backend/database/database.sqlite', 'deploy_hosting/public_html/backen
 
     $pdo->exec("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES 
         (999, 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', 1),
-        (999, 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80', 0),
+        (999, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 0),
         (999, 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80', 0)
     ");
 
