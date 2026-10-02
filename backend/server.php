@@ -1580,7 +1580,8 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $allowedRoles = ['bidder', 'agent'];
     $role = in_array($body['role'] ?? 'bidder', $allowedRoles, true) ? $body['role'] : 'bidder';
 
-    $stmt = $pdo->prepare("INSERT INTO users (name, email, login_id, phone, password, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_email_verified, is_phone_verified, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, 1)");
+    // When a user manually registers, they require Admin approval (is_verified = 0)
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, login_id, phone, password, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_email_verified, is_phone_verified, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 1, 1)");
     $stmt->execute([
         $name, $email, $loginId, $phone ?: null, $passHash, $role,
         $companyName ?: null, $entityType, $panNumber ?: null, $gstNumber ?: null,
@@ -1596,13 +1597,20 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $stmtUser = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_email_verified, is_phone_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUser->execute([$userId]);
     $user = $stmtUser->fetch();
+    if ($user) {
+        $user['id'] = (int)$user['id'];
+        $user['is_verified'] = (int)($user['is_verified'] ?? 0);
+        $user['is_active'] = (int)($user['is_active'] ?? 1);
+    }
 
     jsonResponse([
-        'message'      => 'Vendor registration completed successfully.',
-        'user'         => $user,
-        'login_id'     => $loginId,
-        'token'        => $token,
-        'redirect_url' => '/dashboard',
+        'message'           => 'Vendor registration submitted successfully! Your account and KYC credentials are submitted for Admin review. Once approved by Admin, your account will be fully activated.',
+        'user'              => $user,
+        'login_id'          => $loginId,
+        'token'             => $token,
+        'is_verified'       => 0,
+        'requires_approval' => true,
+        'redirect_url'      => '/dashboard',
     ], 201);
 }
 
@@ -1755,6 +1763,11 @@ if ($method === 'POST' && $uri === '/api/v1/auth/google') {
         $stmtUser = $pdo->prepare("SELECT id, name, email, login_id, role, company_name, city, state, is_verified FROM users WHERE id = ?");
         $stmtUser->execute([$userId]);
         $newUser = $stmtUser->fetch();
+        if ($newUser) {
+            $newUser['id'] = (int)$newUser['id'];
+            $newUser['is_verified'] = (int)($newUser['is_verified'] ?? 1);
+            $newUser['is_active'] = (int)($newUser['is_active'] ?? 1);
+        }
 
         jsonResponse([
             'message' => 'Account created and authenticated via Google successfully.',
@@ -3537,7 +3550,13 @@ if ($method === 'GET' && $uri === '/api/v1/admin/users') {
             WHEN role IN ('agent', 'seller') THEN 4
             ELSE 5
         END ASC, id ASC");
-    $users = $stmt->fetchAll();
+    $rawUsers = $stmt->fetchAll();
+    $users = array_map(function($u) {
+        $u['id'] = (int)$u['id'];
+        $u['is_verified'] = (int)($u['is_verified'] ?? 0);
+        $u['is_active'] = (int)($u['is_active'] ?? 1);
+        return $u;
+    }, $rawUsers);
 
     jsonResponse([
         'data' => $users,
@@ -3644,16 +3663,28 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     jsonResponse(['success' => true, 'message' => 'User updated successfully']);
 }
 
-// 18c-4. Admin Toggle User Verification: PUT /api/v1/admin/users/{id}/verify
-if ($method === 'PUT' && preg_match('#^/api/v1/admin/users/(\d+)/verify$#', $uri, $m)) {
+// 18c-4. Admin User Verification: PUT/POST /api/v1/admin/users/{id}/verify
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/users/(\d+)/verify$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) {
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
     $targetId = (int)$m[1];
-    $pdo->prepare("UPDATE users SET is_verified = CASE WHEN is_verified = 1 THEN 0 ELSE 1 END, is_active = 1 WHERE id = ?")->execute([$targetId]);
-    jsonResponse(['success' => true, 'message' => 'User verification status updated']);
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    if (isset($body['is_verified'])) {
+        $val = $body['is_verified'] ? 1 : 0;
+        $pdo->prepare("UPDATE users SET is_verified = ?, is_active = 1 WHERE id = ?")->execute([$val, $targetId]);
+    } else {
+        $pdo->prepare("UPDATE users SET is_verified = CASE WHEN is_verified = 1 THEN 0 ELSE 1 END, is_active = 1 WHERE id = ?")->execute([$targetId]);
+    }
+
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, role, is_verified, is_active FROM users WHERE id = ?");
+    $stmtUpd->execute([$targetId]);
+    $updatedUser = $stmtUpd->fetch();
+
+    $statusMsg = ($updatedUser && $updatedUser['is_verified']) ? "User #{$targetId} verified and approved successfully." : "User #{$targetId} verification revoked.";
+    jsonResponse(['success' => true, 'message' => $statusMsg, 'user' => $updatedUser, 'is_verified' => $updatedUser ? (int)$updatedUser['is_verified'] : 1]);
 }
 
 // 18c-5. Admin Toggle User Active: PUT /api/v1/admin/users/{id}/toggle-active

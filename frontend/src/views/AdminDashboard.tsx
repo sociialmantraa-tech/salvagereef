@@ -288,7 +288,7 @@ export default function AdminDashboard() {
       city: u.city || 'Mumbai',
       state: u.state || 'Maharashtra',
       is_active: u.is_active !== false && u.is_active !== 0,
-      is_verified: u.is_verified !== false && u.is_verified !== 0,
+      is_verified: u.is_verified === true || u.is_verified === 1 || u.is_verified === '1',
       password: u.password || '******',
     }));
   };
@@ -2177,37 +2177,41 @@ export default function AdminDashboard() {
     }
   };
 
-  // Toggle Seller / Agent Approval
+  // Toggle User / Vendor / Bidder / Agent Approval
   const handleToggleUserApproval = (u: any) => {
     const isApprove = !u.is_verified || !u.is_active;
+    const roleLabel = u.role === 'agent' ? 'Seller' : u.role === 'bidder' ? 'Vendor / Bidder' : 'User';
     setConfirmActionModal({
-      title: isApprove ? 'Approve Seller Account?' : 'Revoke Seller Access?',
-      subtitle: `${u.name} • ${u.company_name || 'Seller'}`,
+      title: isApprove ? `Approve ${roleLabel} Account?` : `Revoke ${roleLabel} Access?`,
+      subtitle: `${u.name} • ${u.company_name || roleLabel}`,
       message: isApprove
-        ? `Approve seller registration for "${u.name}"? They will be granted full verified seller rights to publish salvage auction lots and listings.`
-        : `Revoke active seller privileges for "${u.name}"? Their published listings will be put on hold and creation access suspended.`,
+        ? `Approve registration for "${u.name}"? They will be granted full verified access to participate in auctions and tenders.`
+        : `Revoke active verification privileges for "${u.name}"?`,
       details: [
-        { label: 'Seller Name', value: u.name },
+        { label: 'User Name', value: u.name },
         { label: 'Login Email', value: u.email },
         { label: 'Contact Phone', value: u.phone || 'N/A' },
-        { label: 'Company / Firm', value: u.company_name || 'Individual Seller' },
+        { label: 'Company / Firm', value: u.company_name || 'Individual' },
         { label: 'Operating Location', value: `${u.city || 'Mumbai'}, ${u.state || 'Maharashtra'}` },
-        { label: 'Target Role', value: 'VERIFIED SELLER', highlight: true },
+        { label: 'Account Role', value: (u.role || 'bidder').toUpperCase(), highlight: true },
       ],
-      confirmText: isApprove ? 'Yes, Approve Seller' : 'Yes, Revoke Access',
+      confirmText: isApprove ? `Yes, Approve ${roleLabel}` : 'Yes, Revoke Access',
       confirmColor: isApprove ? 'emerald' : 'red',
       iconType: isApprove ? 'approve' : 'cross',
       onConfirm: async () => {
         try {
-          await api.put(`/admin/users/${u.id}/verify`);
+          await api.put(`/admin/users/${u.id}/verify`, { is_verified: isApprove });
+          setUsers((prev) =>
+            prev.map((user) => (user.id === u.id ? { ...user, is_verified: isApprove, is_active: true } : user))
+          );
           await fetchAdminData(true);
           showNotification(
             isApprove
-              ? `✓ Seller account for "${u.name}" APPROVED & ACTIVATED!`
-              : `Seller access for "${u.name}" revoked.`
+              ? `✓ Account for "${u.name}" APPROVED & VERIFIED!`
+              : `Verification for "${u.name}" revoked.`
           );
         } catch (err: any) {
-          showNotification(err.response?.data?.message || 'Failed to update seller status.');
+          showNotification(err.response?.data?.message || 'Failed to update user status.');
         }
       },
     });
@@ -3484,7 +3488,7 @@ export default function AdminDashboard() {
                             <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-emerald-300 flex items-center gap-1 w-fit">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active & Approved
                             </span>
-                          ) : u.role === 'agent' ? (
+                          ) : !u.is_verified ? (
                             <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-amber-300 animate-pulse flex items-center gap-1 w-fit">
                               <Clock className="w-3 h-3 text-amber-700" /> Pending Approval
                             </span>
@@ -3522,63 +3526,65 @@ export default function AdminDashboard() {
                         <td className="p-3 border-l border-slate-100">
                           <div className="grid grid-cols-3 gap-1.5 min-w-[210px]">
 
-                            {/* Slot 1 — Approve (pending) | Revoke (approved) | blank (non-agent) */}
-                            {u.role === 'agent' && (!u.is_verified || !u.is_active) ? (
+                            {/* Slot 1 — Approve (pending) | Revoke (approved non-admin) */}
+                            {!u.is_verified || !u.is_active ? (
                               <button
                                 onClick={() => handleToggleUserApproval(u)}
-                                className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow inline-flex items-center justify-center gap-1"
+                                className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow inline-flex items-center justify-center gap-1 transition-colors"
+                                title="Approve & Verify Account"
                               >
-                                <ShieldCheck className="w-3 h-3" /> Approve
+                                <ShieldCheck className="w-3.5 h-3.5" /> Approve
                               </button>
-                            ) : u.role === 'agent' && u.is_verified && u.is_active ? (
+                            ) : !isTargetMaster && u.role !== 'master_admin' ? (
                               <button
                                 onClick={() => handleToggleUserApproval(u)}
-                                className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px] border border-amber-300 inline-flex items-center justify-center gap-1"
+                                className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px] border border-amber-300 inline-flex items-center justify-center gap-1 transition-colors"
+                                title="Revoke Verification"
                               >
-                                <ShieldAlert className="w-3 h-3 text-amber-600" /> Revoke
+                                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Revoke
                               </button>
                             ) : (
-                              <span /> /* empty placeholder to hold the grid slot */
+                              <span />
                             )}
 
-                            {/* Slot 2 — Reject (pending agent only) | blank otherwise */}
-                            {u.role === 'agent' && (!u.is_verified || !u.is_active) ? (
+                            {/* Slot 2 — Reject (pending unverified users) | blank otherwise */}
+                            {!u.is_verified && !isTargetMaster ? (
                               <button
                                 onClick={() =>
                                   setConfirmActionModal({
-                                    title: 'Reject Seller Registration?',
-                                    subtitle: `${u.name} • ${u.company_name || 'Seller'}`,
-                                    message: `Decline seller application for "${u.name}"? They will not be verified to post scrap lots.`,
+                                    title: 'Reject Registration?',
+                                    subtitle: `${u.name} • ${u.company_name || 'Vendor'}`,
+                                    message: `Decline registration application for "${u.name}"?`,
                                     details: [
                                       { label: 'Applicant Name', value: u.name },
                                       { label: 'Login Email', value: u.email },
                                       { label: 'Contact Phone', value: u.phone || 'N/A' },
-                                      { label: 'Company / Firm', value: u.company_name || 'Individual Seller' },
+                                      { label: 'Company / Firm', value: u.company_name || 'Individual' },
                                       { label: 'Location', value: `${u.city || 'Mumbai'}, ${u.state || 'Maharashtra'}` },
                                     ],
                                     confirmText: 'Yes, Reject Application',
                                     confirmColor: 'red',
                                     iconType: 'cross',
-                                    onConfirm: () => {
-                                      setUsers((prev) => {
-                                        const updated = prev.map((user) =>
-                                          user.id === u.id
-                                            ? { ...user, is_verified: false, is_active: false }
-                                            : user
-                                        );
-                                        localStorage.setItem('sr_admin_users', JSON.stringify(updated));
-                                        return updated;
-                                      });
-                                      showNotification(`Seller registration for "${u.name}" rejected.`);
+                                    onConfirm: async () => {
+                                      try {
+                                        await api.put(`/admin/users/${u.id}`, { is_verified: false, is_active: false });
+                                      } catch {}
+                                      setUsers((prev) =>
+                                        prev.map((user) =>
+                                          user.id === u.id ? { ...user, is_verified: false, is_active: false } : user
+                                        )
+                                      );
+                                      showNotification(`Registration for "${u.name}" rejected.`);
                                     },
                                   })
                                 }
-                                className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-extrabold rounded-lg text-[11px] border border-red-300 inline-flex items-center justify-center gap-1"
+                                className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-extrabold rounded-lg text-[11px] border border-red-300 inline-flex items-center justify-center gap-1 transition-colors"
+                                title="Reject Application"
                               >
-                                <XCircle className="w-3 h-3 text-red-600" /> Reject
+                                <XCircle className="w-3.5 h-3.5 text-red-600" /> Reject
                               </button>
                             ) : (
-                              <span /> /* empty placeholder */
+                              <span />
                             )}
 
                             {/* Slot 3 — Delete with Master Admin & Self Protection */}

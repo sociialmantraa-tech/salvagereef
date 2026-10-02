@@ -100,18 +100,42 @@ async function runTestSuite() {
 
   assert(regRes.status === 201 || regRes.status === 200, 'Registration API returns HTTP 200/201', `Status: ${regRes.status}`);
   assert(regRes.data?.user?.email === testUserEmail, 'Registered user object has matching email', JSON.stringify(regRes.data));
+  assert(Number(regRes.data?.user?.is_verified) === 0, 'New manual registration is NOT auto-approved (is_verified = 0, requires Admin approval)', JSON.stringify(regRes.data?.user));
   userToken = regRes.data?.token || '';
   registeredUserId = regRes.data?.user?.id;
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 2: User in Admin Panel
+  // TEST CASE 2: User in Admin Panel & Admin Approval
   // ---------------------------------------------------------------------------
-  console.log('\n--- 2. ADMIN PANEL USER VISIBILITY ---');
+  console.log('\n--- 2. ADMIN PANEL USER VISIBILITY & APPROVAL ---');
   const adminUsersRes = await request('GET', '/admin/users', null, { Authorization: 'Bearer sr_master_admin_token' });
   assert(adminUsersRes.status === 200, 'Admin users list API returns HTTP 200', `Status: ${adminUsersRes.status}`);
   const usersList = adminUsersRes.data?.data || adminUsersRes.data || [];
-  const foundUserInAdmin = usersList.find((u) => u.email === testUserEmail || u.id === registeredUserId);
+  const foundUserInAdmin = usersList.find((u) => u.email === testUserEmail || Number(u.id) === Number(registeredUserId));
   assert(!!foundUserInAdmin, `Registered user "${testUserEmail}" is visible in Admin Panel Users list`, `Found: ${!!foundUserInAdmin}`);
+  assert(Number(foundUserInAdmin?.is_verified) === 0, 'User status in Admin Panel is unverified / pending approval');
+
+  // Admin approves the user account
+  const approveUserRes = await request('PUT', `/admin/users/${registeredUserId}/verify`, { is_verified: 1 }, { Authorization: 'Bearer sr_master_admin_token' });
+  assert(approveUserRes.status === 200, 'Admin approves user via PUT /admin/users/:id/verify', `Status: ${approveUserRes.status}`);
+
+  // Verify user is now verified
+  const adminUsersAfterRes = await request('GET', '/admin/users', null, { Authorization: 'Bearer sr_master_admin_token' });
+  const usersListAfter = adminUsersAfterRes.data?.data || adminUsersAfterRes.data || [];
+  const approvedUserInAdmin = usersListAfter.find((u) => Number(u.id) === Number(registeredUserId));
+  assert(Number(approvedUserInAdmin?.is_verified) === 1, 'User is now verified & approved in Admin Panel (is_verified = 1)');
+
+  // ---------------------------------------------------------------------------
+  // TEST CASE 2b: Google Sign-In/Sign-Up (Instant Access, No Approval Needed)
+  // ---------------------------------------------------------------------------
+  console.log('\n--- 2b. GOOGLE SIGN-UP (INSTANT ACCESS WITHOUT APPROVAL) ---');
+  const googleEmail = `google.user.${timestamp}@gmail.com`;
+  const googleRes = await request('POST', '/auth/google', {
+    email: googleEmail,
+    name: `Google User ${timestamp}`,
+  });
+  assert(googleRes.status === 200 || googleRes.status === 201, 'Google auth returns HTTP 200/201', `Status: ${googleRes.status}`);
+  assert(Number(googleRes.data?.user?.is_verified) === 1, 'Google sign-up user is INSTANTLY verified without requiring admin approval!');
 
   // ---------------------------------------------------------------------------
   // TEST CASE 3: Sign In with Registered Email & Password

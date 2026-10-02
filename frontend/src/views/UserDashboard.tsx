@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
-import { Gavel, Trophy, Eye, Tag, ArrowUpRight } from 'lucide-react';
+import { Gavel, Trophy, Eye, Tag, ArrowUpRight, Clock } from 'lucide-react';
 import { Classified } from '../types';
 
 export default function UserDashboard() {
@@ -45,7 +45,37 @@ export default function UserDashboard() {
   const { stats, recent_bids, my_listings } = dashboardData;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      {/* Pending Admin Approval Banner */}
+      {!user?.is_verified && (
+        <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 shadow-sm animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                Account Verification Pending Admin Approval
+                <span className="px-2.5 py-0.5 bg-amber-200/80 text-amber-900 font-extrabold text-[10px] rounded-full uppercase tracking-wider">
+                  Under Review
+                </span>
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-2xl">
+                Thank you for registering on SalvageReef! Your submitted profile details and KYC documents (PAN, GST, Bank Cheque) are currently being reviewed by our Admin Team. You will receive bidding and listing privileges as soon as your account is approved.
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://wa.me/917304481166?text=Hello%20SalvageReef%2C%20I%20registered%20my%20vendor%20account%20and%20would%20like%20to%20inquire%20about%20admin%20verification."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-all shrink-0 flex items-center gap-1.5"
+          >
+            Chat with Admin Desk
+          </a>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-[#0B192C] text-white p-6 sm:p-8 rounded-3xl border-b-4 border-[#D48B1C] shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

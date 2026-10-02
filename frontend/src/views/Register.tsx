@@ -549,13 +549,13 @@ export default function Register() {
         ...payload,
         ...(res.data?.user || {}),
         id: res.data?.user?.id || Date.now(),
-        is_verified: res.data?.user?.is_verified ?? true,
+        is_verified: res.data?.user?.is_verified ?? false,
         is_active: res.data?.user?.is_active ?? true,
         pan_file: formData.pan_file || res.data?.user?.pan_file || '',
         gst_file: formData.gst_file || res.data?.user?.gst_file || '',
         cheque_file: formData.cheque_file || res.data?.user?.cheque_file || '',
       };
-      const tokenToSave = res.data?.token || 'verified-user-token-' + Date.now();
+      const tokenToSave = res.data?.token || 'registered-user-token-' + Date.now();
 
       // Store in users lists so Admin Panel displays all uploaded KYC proofs
       try {
@@ -580,10 +580,6 @@ export default function Register() {
 
       useAuthStore.setState({ user: userToSave, token: tokenToSave, isAuthenticated: true });
       setRegistrationSuccess(true);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1200);
     } catch (err: any) {
       const backendMsg =
         err.response?.data?.message ||
@@ -701,12 +697,28 @@ export default function Register() {
         )}
 
         {registrationSuccess ? (
-          <div className="p-8 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-3xl text-center space-y-3 animate-bounce">
-            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-            <h3 className="font-extrabold text-lg">Vendor Registration Successful!</h3>
-            <p className="text-xs text-emerald-700 max-w-sm mx-auto">
-              Your business account has been verified and registered on SalvageReef. Redirecting to your Dashboard...
+          <div className="p-8 bg-gradient-to-br from-amber-50 to-orange-50/40 border border-amber-300 text-amber-950 rounded-3xl text-center space-y-4 shadow-xl animate-fade-in">
+            <div className="w-16 h-16 bg-amber-100 text-[#D48B1C] rounded-full flex items-center justify-center mx-auto shadow-inner ring-4 ring-amber-200">
+              <ShieldCheck className="w-9 h-9" />
+            </div>
+            <h3 className="font-black text-xl text-slate-900">Registration Submitted for Admin Approval!</h3>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              Your vendor registration and submitted KYC documents have been received. An administrator will review and verify your account. Once approved by Admin, your account will be fully activated for bidding.
             </p>
+            <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <Link
+                to="/dashboard"
+                className="px-6 py-3 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-2"
+              >
+                Go to My Dashboard <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/login"
+                className="px-6 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
+              >
+                Sign In
+              </Link>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleRegisterSubmit} className="space-y-6 text-xs font-medium">

@@ -198,7 +198,7 @@ function devApiPlugin(): Plugin {
               gst_file: savedGstUrl,
               cheque_file: savedChequeUrl,
               password: body.password,
-              is_verified: true,
+              is_verified: false,
               is_active: true,
               created_at: new Date().toISOString().split('T')[0],
             };
@@ -208,8 +208,10 @@ function devApiPlugin(): Plugin {
 
             return sendJson({
               success: true,
-              message: 'Vendor registration completed successfully.',
+              message: 'Vendor registration submitted successfully! Your account and KYC credentials are submitted for Admin review. Once approved by Admin, your account will be fully activated.',
               user: newUser,
+              is_verified: 0,
+              requires_approval: true,
               token: 'token_' + newUser.id,
             }, 201);
           });
@@ -258,6 +260,54 @@ function devApiPlugin(): Plugin {
             }
 
             return sendJson({ success: false, message: 'Invalid email, Login ID, or password.' }, 422);
+          });
+          return;
+        }
+
+        // 2b. AUTH: POST /api/v1/auth/google (Instant Verified Sign-up / Sign-in)
+        if (req.method === 'POST' && url.includes('/auth/google')) {
+          getBody().then((body) => {
+            const users = readJson(usersFilePath, []);
+            const email = (body.email || '').trim().toLowerCase();
+            let matched = users.find((u: any) => (u.email || '').toLowerCase() === email);
+
+            if (matched) {
+              return sendJson({
+                success: true,
+                message: 'Google authentication successful.',
+                user: matched,
+                token: 'token_' + matched.id,
+                is_existing_user: true,
+                redirect_url: matched.role === 'admin' ? '/admin' : '/dashboard',
+              });
+            }
+
+            const newUser = {
+              id: Date.now(),
+              name: body.name || 'Google Verified User',
+              email: email,
+              login_id: 'SR-' + Math.floor(100000 + Math.random() * 900000),
+              phone: '9820123456',
+              role: 'bidder',
+              company_name: 'Google SSO Account',
+              city: 'Mumbai',
+              state: 'Maharashtra',
+              is_verified: true,
+              is_active: true,
+              created_at: new Date().toISOString().split('T')[0],
+            };
+
+            users.unshift(newUser);
+            writeJson(usersFilePath, users);
+
+            return sendJson({
+              success: true,
+              message: 'Account created and authenticated via Google successfully.',
+              user: newUser,
+              token: 'token_' + newUser.id,
+              is_existing_user: false,
+              redirect_url: '/dashboard',
+            }, 201);
           });
           return;
         }
@@ -333,7 +383,8 @@ function devApiPlugin(): Plugin {
             const idx = users.findIndex((u: any) => u.id === userId);
             if (idx !== -1) {
               if (isVerify) {
-                users[idx].is_verified = !users[idx].is_verified;
+                users[idx].is_verified = typeof parsed.is_verified === 'boolean' ? parsed.is_verified : !users[idx].is_verified;
+                users[idx].is_active = true;
               } else if (isToggleActive) {
                 users[idx].is_active = !users[idx].is_active;
               } else if (isRole) {
