@@ -57,7 +57,10 @@
     "is_verified": true,
     "is_active": true,
     "password": "SellerPass@2026",
-    "created_at": "2026-01-01"
+    "created_at": "2026-01-01",
+    "pan_file": "/uploads/kyc/pan_card_user_1.svg",
+    "gst_file": "/uploads/kyc/gst_cert_user_1.svg",
+    "cheque_file": "/uploads/kyc/cheque_user_1.svg"
   },
   {
     "id": 2,
@@ -72,7 +75,10 @@
     "is_verified": true,
     "is_active": true,
     "password": "BidderPass@2026",
-    "created_at": "2026-01-01"
+    "created_at": "2026-01-01",
+    "pan_file": "/uploads/kyc/pan_card_user_2.svg",
+    "gst_file": "/uploads/kyc/gst_cert_user_2.svg",
+    "cheque_file": "/uploads/kyc/cheque_user_2.svg"
   },
   {
     "id": 4,

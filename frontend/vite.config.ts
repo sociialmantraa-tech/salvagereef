@@ -28,6 +28,51 @@ function devApiPlugin(): Plugin {
     fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
   };
 
+  const uploadsRootDir = path.resolve(__dirname, '../uploads');
+  const uploadsPublicDir = path.resolve(__dirname, 'public/uploads');
+
+  const saveUploadedBase64 = (base64Str: string, type = 'general', customName?: string): string => {
+    try {
+      if (!base64Str || typeof base64Str !== 'string') return '';
+      if (!base64Str.startsWith('data:') && !base64Str.startsWith('/uploads/')) {
+        return base64Str;
+      }
+      if (base64Str.startsWith('/uploads/')) return base64Str;
+
+      const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let ext = 'jpg';
+      let buffer: Buffer;
+
+      if (matches && matches.length === 3) {
+        const mime = matches[1].toLowerCase();
+        if (mime.includes('png')) ext = 'png';
+        else if (mime.includes('svg')) ext = 'svg';
+        else if (mime.includes('webp')) ext = 'webp';
+        else if (mime.includes('pdf')) ext = 'pdf';
+        else ext = 'jpg';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(base64Str.replace(/^data:[^;]+;base64,/, ''), 'base64');
+      }
+
+      const filename = customName || `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+      const targetDirs = [
+        path.join(uploadsRootDir, type),
+        path.join(uploadsPublicDir, type)
+      ];
+
+      targetDirs.forEach((dir) => {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, filename), buffer);
+      });
+
+      return `/uploads/${type}/${filename}`;
+    } catch (err) {
+      console.error('Error saving uploaded file in dev server:', err);
+      return '';
+    }
+  };
+
   return {
     name: 'dev-api-plugin',
     configureServer(server) {
@@ -36,6 +81,35 @@ function devApiPlugin(): Plugin {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
+
+        // 0. STATIC UPLOADS SERVING: GET /uploads/*
+        if (req.method === 'GET' && url.startsWith('/uploads/')) {
+          const cleanPath = url.split('?')[0].replace(/^\/uploads\//, '');
+          const candidatePaths = [
+            path.join(uploadsPublicDir, cleanPath),
+            path.join(uploadsRootDir, cleanPath),
+          ];
+
+          for (const targetPath of candidatePaths) {
+            if (fs.existsSync(targetPath) && fs.statSync(targetPath).isFile()) {
+              const ext = path.extname(targetPath).toLowerCase();
+              const mimeMap: Record<string, string> = {
+                '.svg': 'image/svg+xml; charset=utf-8',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.gif': 'image/gif',
+                '.pdf': 'application/pdf',
+              };
+              res.statusCode = 200;
+              res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+              res.setHeader('Cache-Control', 'public, max-age=86400');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              return res.end(fs.readFileSync(targetPath));
+            }
+          }
+        }
 
         const sendJson = (data: any, status = 200) => {
           res.statusCode = status;
@@ -57,6 +131,32 @@ function devApiPlugin(): Plugin {
           });
         };
 
+        // 0b. UNIVERSAL FILE UPLOAD: POST /api/v1/admin/upload OR POST /api/v1/upload
+        if (req.method === 'POST' && (url.includes('/admin/upload') || url.endsWith('/upload') || url.includes('/upload?'))) {
+          getBody().then((body) => {
+            const uploadType = body.type || 'general';
+            const fileData = body.file || body.dataUrl || body.data || '';
+            const filename = body.filename || body.name;
+
+            let fileUrl = '';
+            if (fileData) {
+              fileUrl = saveUploadedBase64(fileData, uploadType, filename);
+            }
+            if (!fileUrl) {
+              fileUrl = `/uploads/${uploadType}/doc_${Date.now()}.jpg`;
+            }
+
+            return sendJson({
+              success: true,
+              message: 'File uploaded successfully and saved to storage directory.',
+              url: fileUrl,
+              filename: path.basename(fileUrl),
+              type: uploadType,
+            }, 201);
+          });
+          return;
+        }
+
         // 1. AUTH: POST /api/v1/auth/register
         if (req.method === 'POST' && url.includes('/auth/register')) {
           getBody().then((body) => {
@@ -70,6 +170,10 @@ function devApiPlugin(): Plugin {
             if (existing) {
               return sendJson({ success: false, message: 'This email address is already registered. Please sign in.' }, 422);
             }
+
+            const savedPanUrl = body.pan_file ? (saveUploadedBase64(body.pan_file, 'kyc', `pan_card_${Date.now()}.jpg`) || body.pan_file) : '';
+            const savedGstUrl = body.gst_file ? (saveUploadedBase64(body.gst_file, 'kyc', `gst_cert_${Date.now()}.jpg`) || body.gst_file) : '';
+            const savedChequeUrl = body.cheque_file ? (saveUploadedBase64(body.cheque_file, 'kyc', `cheque_${Date.now()}.jpg`) || body.cheque_file) : '';
 
             const newUser = {
               id: Date.now(),
@@ -90,6 +194,9 @@ function devApiPlugin(): Plugin {
               bank_name: body.bank_name || '',
               bank_account_number: body.bank_account_number || '',
               bank_ifsc_code: body.bank_ifsc_code || '',
+              pan_file: savedPanUrl,
+              gst_file: savedGstUrl,
+              cheque_file: savedChequeUrl,
               password: body.password,
               is_verified: true,
               is_active: true,
@@ -197,6 +304,9 @@ function devApiPlugin(): Plugin {
                 company_name: body.company_name || 'Individual Buyer',
                 city: body.city || 'Mumbai',
                 state: body.state || 'Maharashtra',
+                pan_file: body.pan_file ? (saveUploadedBase64(body.pan_file, 'kyc', `pan_card_${Date.now()}.jpg`) || body.pan_file) : '',
+                gst_file: body.gst_file ? (saveUploadedBase64(body.gst_file, 'kyc', `gst_cert_${Date.now()}.jpg`) || body.gst_file) : '',
+                cheque_file: body.cheque_file ? (saveUploadedBase64(body.cheque_file, 'kyc', `cheque_${Date.now()}.jpg`) || body.cheque_file) : '',
                 password: body.password || 'seller123',
                 is_verified: body.is_verified !== false,
                 is_active: body.is_active !== false,
@@ -229,6 +339,15 @@ function devApiPlugin(): Plugin {
               } else if (isRole) {
                 users[idx].role = parsed.role || users[idx].role;
               } else {
+                if (parsed.pan_file && parsed.pan_file.startsWith('data:')) {
+                  parsed.pan_file = saveUploadedBase64(parsed.pan_file, 'kyc', `pan_card_${userId}_${Date.now()}.jpg`) || parsed.pan_file;
+                }
+                if (parsed.gst_file && parsed.gst_file.startsWith('data:')) {
+                  parsed.gst_file = saveUploadedBase64(parsed.gst_file, 'kyc', `gst_cert_${userId}_${Date.now()}.jpg`) || parsed.gst_file;
+                }
+                if (parsed.cheque_file && parsed.cheque_file.startsWith('data:')) {
+                  parsed.cheque_file = saveUploadedBase64(parsed.cheque_file, 'kyc', `cheque_${userId}_${Date.now()}.jpg`) || parsed.cheque_file;
+                }
                 users[idx] = { ...users[idx], ...parsed };
               }
               writeJson(usersFilePath, users);

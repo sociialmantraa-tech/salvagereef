@@ -358,6 +358,42 @@ if (!empty($_SERVER['PATH_INFO'])) {
 }
 if (empty($uri) || $uri === '') $uri = '/';
 
+// ─── STATIC UPLOADS SERVING ──────────────────────────────────────────────────
+if ($method === 'GET' && str_starts_with($uri, '/uploads/')) {
+    $relPath = ltrim(preg_replace('#^/uploads/#', '', $uri), '/');
+    if (!str_contains($relPath, '..')) {
+        $candidatePaths = [
+            dirname(__DIR__) . '/uploads/' . $relPath,
+            __DIR__ . '/uploads/' . $relPath,
+            dirname(__DIR__) . '/frontend/public/uploads/' . $relPath,
+        ];
+        foreach ($candidatePaths as $fPath) {
+            if (file_exists($fPath) && is_file($fPath)) {
+                $ext = strtolower(pathinfo($fPath, PATHINFO_EXTENSION));
+                $mimes = [
+                    'svg'  => 'image/svg+xml',
+                    'png'  => 'image/png',
+                    'jpg'  => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'webp' => 'image/webp',
+                    'gif'  => 'image/gif',
+                    'pdf'  => 'application/pdf',
+                ];
+                $mime = $mimes[$ext] ?? 'application/octet-stream';
+                while (ob_get_level()) { @ob_end_clean(); }
+                header('Content-Type: ' . $mime);
+                header('Content-Length: ' . filesize($fPath));
+                header('Cache-Control: public, max-age=86400');
+                readfile($fPath);
+                exit;
+            }
+        }
+    }
+    http_response_code(404);
+    echo "404 Not Found";
+    exit;
+}
+
 
 // ─── BOT / SCANNER USER-AGENT BLOCKING ───────────────────────────────────────
 $userAgent = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
@@ -919,6 +955,80 @@ function sanitizeInput(string $input, int $maxLength = 500): string {
 }
 
 /**
+ * Save base64 uploaded files to disk and return public URL path.
+ * If input is already a URL or path, returns cleaned path.
+ */
+function saveBase64Upload(?string $dataOrPath, string $folder = 'kyc', string $prefix = 'doc'): string {
+    if (empty($dataOrPath)) return '';
+    $trimmed = trim($dataOrPath);
+    if (empty($trimmed)) return '';
+
+    // If it's already a path or URL
+    if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://') || str_starts_with($trimmed, '/uploads/') || str_starts_with($trimmed, 'uploads/')) {
+        return str_starts_with($trimmed, '/') ? $trimmed : '/' . $trimmed;
+    }
+
+    // Check for data URI pattern
+    if (preg_match('#^data:([^;]+);base64,(.+)$#s', $trimmed, $matches)) {
+        $mime = strtolower(trim($matches[1]));
+        $base64 = $matches[2];
+        $binary = base64_decode($base64);
+        if ($binary === false || strlen($binary) === 0) return '';
+
+        $ext = 'jpg';
+        if (str_contains($mime, 'png')) $ext = 'png';
+        elseif (str_contains($mime, 'pdf')) $ext = 'pdf';
+        elseif (str_contains($mime, 'svg')) $ext = 'svg';
+        elseif (str_contains($mime, 'gif')) $ext = 'gif';
+        elseif (str_contains($mime, 'webp')) $ext = 'webp';
+
+        $rootUploadDir = dirname(__DIR__) . '/uploads/' . $folder;
+        if (!is_dir($rootUploadDir)) {
+            @mkdir($rootUploadDir, 0755, true);
+        }
+
+        $filename = $prefix . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        @file_put_contents($rootUploadDir . '/' . $filename, $binary);
+
+        // Also sync to frontend/public/uploads if available in dev
+        $feDir = dirname(__DIR__) . '/frontend/public/uploads/' . $folder;
+        if (is_dir(dirname(dirname(__DIR__) . '/frontend/public'))) {
+            if (!is_dir($feDir)) @mkdir($feDir, 0755, true);
+            @file_put_contents($feDir . '/' . $filename, $binary);
+        }
+
+        // Also sync to deploy_hosting if exists
+        $deployDir = dirname(__DIR__) . '/deploy_hosting/public_html/uploads/' . $folder;
+        if (is_dir(dirname($deployDir))) {
+            if (!is_dir($deployDir)) @mkdir($deployDir, 0755, true);
+            @file_put_contents($deployDir . '/' . $filename, $binary);
+        }
+
+        return '/uploads/' . $folder . '/' . $filename;
+    }
+
+    // Check if raw SVG markup was sent
+    if (str_starts_with($trimmed, '<svg') || str_contains($trimmed, '</svg>')) {
+        $rootUploadDir = dirname(__DIR__) . '/uploads/' . $folder;
+        if (!is_dir($rootUploadDir)) {
+            @mkdir($rootUploadDir, 0755, true);
+        }
+        $filename = $prefix . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.svg';
+        @file_put_contents($rootUploadDir . '/' . $filename, $trimmed);
+
+        $feDir = dirname(__DIR__) . '/frontend/public/uploads/' . $folder;
+        if (is_dir(dirname(dirname(__DIR__) . '/frontend/public'))) {
+            if (!is_dir($feDir)) @mkdir($feDir, 0755, true);
+            @file_put_contents($feDir . '/' . $filename, $trimmed);
+        }
+
+        return '/uploads/' . $folder . '/' . $filename;
+    }
+
+    return $trimmed;
+}
+
+/**
  * Send an email via Brevo REST API or standard PHP mail fallback,
  * and persist audit logs to backend/logs/email_notifications.json.
  */
@@ -1432,9 +1542,9 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $bankName          = sanitizeInput($body['bank_name'] ?? '', 100);
     $bankAccountNumber = sanitizeInput($body['bank_account_number'] ?? '', 50);
     $bankIfscCode      = strtoupper(trim(sanitizeInput($body['bank_ifsc_code'] ?? '', 20)));
-    $chequeFile        = trim($body['cheque_file'] ?? '');
-    $panFile           = trim($body['pan_file'] ?? '');
-    $gstFile           = trim($body['gst_file'] ?? '');
+    $chequeFile        = saveBase64Upload(trim($body['cheque_file'] ?? ''), 'kyc', 'cheque');
+    $panFile           = saveBase64Upload(trim($body['pan_file'] ?? ''), 'kyc', 'pan');
+    $gstFile           = saveBase64Upload(trim($body['gst_file'] ?? ''), 'kyc', 'gst');
     $password          = $body['password'] ?? '';
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -3386,6 +3496,9 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     $body = getJsonBody();
 
     $passHash = !empty($body['password']) ? password_hash(trim($body['password']), PASSWORD_DEFAULT) : null;
+    $chequeFile = isset($body['cheque_file']) ? saveBase64Upload($body['cheque_file'], 'kyc', 'cheque') : null;
+    $panFile    = isset($body['pan_file']) ? saveBase64Upload($body['pan_file'], 'kyc', 'pan') : null;
+    $gstFile    = isset($body['gst_file']) ? saveBase64Upload($body['gst_file'], 'kyc', 'gst') : null;
 
     $stmt = $pdo->prepare("UPDATE users SET 
         name = COALESCE(?, name), 
@@ -3396,6 +3509,9 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         state = COALESCE(?, state), 
         role = COALESCE(?, role), 
         password = COALESCE(?, password),
+        cheque_file = COALESCE(?, cheque_file),
+        pan_file = COALESCE(?, pan_file),
+        gst_file = COALESCE(?, gst_file),
         is_verified = COALESCE(?, is_verified), 
         is_active = COALESCE(?, is_active) 
     WHERE id = ?");
@@ -3408,6 +3524,9 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         $body['state'] ?? null,
         $body['role'] ?? null,
         $passHash,
+        $chequeFile,
+        $panFile,
+        $gstFile,
         isset($body['is_verified']) ? ($body['is_verified'] ? 1 : 0) : null,
         isset($body['is_active']) ? ($body['is_active'] ? 1 : 0) : null,
         $targetId
@@ -3742,14 +3861,18 @@ if ($method === 'GET' && $uri === '/api/v1/admin/analytics/overview') {
 }
 
 // =============================================================================
-// 18g. UNIVERSAL FILE UPLOAD ENDPOINT: POST /api/v1/admin/upload
+// 18g. UNIVERSAL FILE UPLOAD ENDPOINT: POST /api/v1/admin/upload and POST /api/v1/upload
 // =============================================================================
-// Supports upload types: auction | classified | hero | logo | footer-logo | general
+// Supports upload types: auction | classified | hero | logo | footer-logo | general | kyc | scrap
 // Returns: { url, filename, type, size }
 // =============================================================================
-if ($method === 'POST' && $uri === '/api/v1/admin/upload') {
+if ($method === 'POST' && ($uri === '/api/v1/admin/upload' || $uri === '/api/v1/upload')) {
     $user = getAuthUser($pdo);
-    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+    if ($uri === '/api/v1/admin/upload') {
+        if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
+    } else {
+        if (!$user) jsonResponse(['message' => 'Authentication required'], 401);
+    }
 
     if (empty($_FILES['file'])) {
         jsonResponse(['message' => 'No file uploaded. Please attach a file with field name "file".'], 422);
@@ -3757,7 +3880,7 @@ if ($method === 'POST' && $uri === '/api/v1/admin/upload') {
 
     $file        = $_FILES['file'];
     $uploadType  = strtolower(trim($_POST['type'] ?? 'general'));
-    $allowedTypes = ['auction', 'classified', 'hero', 'logo', 'footer-logo', 'general'];
+    $allowedTypes = ['auction', 'classified', 'hero', 'logo', 'footer-logo', 'general', 'kyc', 'scrap'];
     if (!in_array($uploadType, $allowedTypes, true)) {
         $uploadType = 'general';
     }
@@ -3787,10 +3910,10 @@ if ($method === 'POST' && $uri === '/api/v1/admin/upload') {
         jsonResponse(['message' => $errMessages[$file['error']] ?? 'Unknown upload error.'], 422);
     }
 
-    // Validate file size (max 5 MB)
-    $maxSize = 5 * 1024 * 1024; // 5 MB
+    // Validate file size (max 10 MB)
+    $maxSize = 10 * 1024 * 1024; // 10 MB
     if ($file['size'] > $maxSize) {
-        jsonResponse(['message' => 'File too large. Maximum allowed size is 5 MB.'], 422);
+        jsonResponse(['message' => 'File too large. Maximum allowed size is 10 MB.'], 422);
     }
 
     // Validate MIME type using finfo (server-side, not just extension)
@@ -3808,16 +3931,9 @@ if ($method === 'POST' && $uri === '/api/v1/admin/upload') {
     $ext = $allowedMimes[$mimeType];
 
     // ── Build upload directory path ───────────────────────────────────────────
-    // Uploads live at: /public_html/uploads/{type}/
-    // Access URL:       https://yourdomain.com/uploads/{type}/{filename}
-    $baseUploadDir = __DIR__ . '/../uploads'; // public_html/uploads/
-    // If this server.php is at public_html/backend/server.php, go up one level.
-    // Try both common locations:
-    if (!is_dir(dirname(__DIR__) . '/uploads') && !@mkdir(dirname(__DIR__) . '/uploads', 0755, true)) {
-        // Fallback: uploads inside backend folder
+    $baseUploadDir = dirname(__DIR__) . '/uploads';
+    if (!is_dir($baseUploadDir) && !@mkdir($baseUploadDir, 0755, true)) {
         $baseUploadDir = __DIR__ . '/uploads';
-    } else {
-        $baseUploadDir = dirname(__DIR__) . '/uploads';
     }
 
     $typeDir = $baseUploadDir . '/' . $uploadType;
@@ -3849,13 +3965,30 @@ if ($method === 'POST' && $uri === '/api/v1/admin/upload') {
         jsonResponse(['message' => 'Failed to save uploaded file. Please try again.'], 500);
     }
 
+    // Mirror to frontend/public/uploads if exists
+    $feDest = dirname(__DIR__) . '/frontend/public/uploads/' . $uploadType . '/' . $uniqueName;
+    if (is_dir(dirname(dirname(__DIR__) . '/frontend/public'))) {
+        $feDir = dirname($feDest);
+        if (!is_dir($feDir)) @mkdir($feDir, 0755, true);
+        @copy($destPath, $feDest);
+    }
+
+    // Mirror to deploy_hosting if exists
+    $deployDest = dirname(__DIR__) . '/deploy_hosting/public_html/uploads/' . $uploadType . '/' . $uniqueName;
+    if (is_dir(dirname(dirname($deployDest)))) {
+        $dpDir = dirname($deployDest);
+        if (!is_dir($dpDir)) @mkdir($dpDir, 0755, true);
+        @copy($destPath, $deployDest);
+    }
+
     // ── Determine public URL ──────────────────────────────────────────────────
     $protocol   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host       = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $publicUrl  = "{$protocol}://{$host}/uploads/{$uploadType}/{$uniqueName}";
 
     // Log upload event
-    logServerError("File uploaded: {$publicUrl} | type: {$uploadType} | size: {$file['size']} | user_id: {$user['id']}", 'UPLOAD_SUCCESS');
+    $userId = $user['id'] ?? 0;
+    logServerError("File uploaded: {$publicUrl} | type: {$uploadType} | size: {$file['size']} | user_id: {$userId}", 'UPLOAD_SUCCESS');
 
     jsonResponse([
         'success'  => true,

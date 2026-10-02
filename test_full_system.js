@@ -48,6 +48,11 @@ function request(method, path, data = null, headers = {}) {
 }
 
 async function runTestSuite() {
+  const { execSync } = require('child_process');
+  try {
+    execSync('C:\\\\xampp\\\\php\\\\php.exe backend/reset_test_auctions.php', { stdio: 'ignore' });
+  } catch (e) {}
+
   console.log('===============================================================');
   console.log('🚀 STARTING SALVAGEREEF COMPREHENSIVE AUTOMATED TEST SUITE');
   console.log('===============================================================\n');

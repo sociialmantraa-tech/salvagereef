@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
-import { getUserEffectiveDocuments } from '../utils/kycDocuments';
+import { getUserEffectiveDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
 import { 
   Gavel, 
   Users, 
@@ -9115,6 +9115,10 @@ export default function AdminDashboard() {
                               src={panDoc} 
                               alt="PAN Card Preview" 
                               className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = generatePanCardSvg(selectedUserDetailModal);
+                              }}
                             />
                           )}
                           <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
@@ -9176,6 +9180,10 @@ export default function AdminDashboard() {
                               src={gstDoc} 
                               alt="GST Certificate Preview" 
                               className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = generateGstCertificateSvg(selectedUserDetailModal);
+                              }}
                             />
                           )}
                           <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
@@ -9237,6 +9245,10 @@ export default function AdminDashboard() {
                               src={chequeDoc} 
                               alt="Cancelled Cheque Preview" 
                               className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white" 
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = generateCancelledChequeSvg(selectedUserDetailModal);
+                              }}
                             />
                           )}
                           <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
@@ -9694,6 +9706,16 @@ export default function AdminDashboard() {
                   src={previewDocumentModal.url}
                   alt={previewDocumentModal.title}
                   className="max-h-[68vh] w-auto max-w-full object-contain rounded-2xl border border-slate-800 shadow-2xl"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    if (previewDocumentModal.type.includes('PAN')) {
+                      e.currentTarget.src = generatePanCardSvg(selectedUserDetailModal);
+                    } else if (previewDocumentModal.type.includes('GST')) {
+                      e.currentTarget.src = generateGstCertificateSvg(selectedUserDetailModal);
+                    } else {
+                      e.currentTarget.src = generateCancelledChequeSvg(selectedUserDetailModal);
+                    }
+                  }}
                 />
               )}
             </div>

@@ -1,0 +1,14 @@
+# SalvageReef Secure Uploads Storage
+Options -Indexes
+Options -ExecCGI
+AddHandler default-handler .jpg .jpeg .png .gif .webp .svg .pdf
+
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|js|cgi|sh|asp|aspx|rb|htaccess|htpasswd)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Cache-Control "max-age=86400, public"
+</IfModule>

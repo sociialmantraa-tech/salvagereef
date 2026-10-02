@@ -241,10 +241,33 @@ export function generateCancelledChequeSvg(user: any): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
 }
 
+function resolveDocUrl(doc: any, fallbackGenerator: () => string): string {
+  if (!doc) return fallbackGenerator();
+  const str = String(doc).trim();
+  if (!str || str === 'null' || str === 'undefined') return fallbackGenerator();
+
+  // If a raw SVG string was saved, wrap it into a data URI so <img> tags render it
+  if (str.startsWith('<svg') || str.startsWith('<?xml')) {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(str)}`;
+  }
+
+  // If already a Data URL, blob, or absolute URL
+  if (str.startsWith('data:') || str.startsWith('blob:') || str.startsWith('http://') || str.startsWith('https://')) {
+    return str;
+  }
+
+  // Ensure leading slash for relative uploads path
+  if (str.startsWith('uploads/') || str.startsWith('/uploads/')) {
+    return str.startsWith('/') ? str : `/${str}`;
+  }
+
+  return str.startsWith('/') ? str : `/${str}`;
+}
+
 export function getUserEffectiveDocuments(user: any) {
-  const panDoc = user?.pan_file || user?.pan_document || generatePanCardSvg(user);
-  const gstDoc = user?.gst_file || user?.gst_document || generateGstCertificateSvg(user);
-  const chequeDoc = user?.cheque_file || user?.cheque_document || generateCancelledChequeSvg(user);
+  const panDoc = resolveDocUrl(user?.pan_file || user?.pan_document, () => generatePanCardSvg(user));
+  const gstDoc = resolveDocUrl(user?.gst_file || user?.gst_document, () => generateGstCertificateSvg(user));
+  const chequeDoc = resolveDocUrl(user?.cheque_file || user?.cheque_document, () => generateCancelledChequeSvg(user));
 
   return {
     panDoc,
