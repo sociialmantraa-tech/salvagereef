@@ -4,12 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "package": "vite build && node fix_dist_relative.cjs",
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "package": "node ./node_modules/vite/bin/vite.js build && node fix_dist_relative.cjs",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
