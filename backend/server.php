@@ -2427,13 +2427,65 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
         $stmtInsert->execute([$auctionId, $user['id'], $bidAmount, $bidStatus, $now]);
         $bidId = (int)$pdo->lastInsertId();
 
+        $autoClosed = false;
+        $approvedCount = 0;
+
         if ($bidStatus === 'approved') {
-            if ($timeExtended) {
-                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
-                $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+            // Count total approved bids on this lot
+            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM bids WHERE auction_id = ? AND status = 'approved'");
+            $stmtCount->execute([$auctionId]);
+            $approvedCount = (int)$stmtCount->fetchColumn();
+
+            // RULE: After 5 continuous/consecutive approved bids, automatically close the auction lot
+            if ($approvedCount >= 5) {
+                $autoClosed = true;
+
+                // Determine top bidders (H1, H2, H3)
+                $stmtTop = $pdo->prepare("
+                    SELECT b.id, b.amount, b.user_id, u.name as bidder_name, u.email as bidder_email, u.company_name
+                    FROM bids b
+                    JOIN users u ON b.user_id = u.id
+                    WHERE b.auction_id = ? AND b.status = 'approved'
+                    ORDER BY b.amount DESC, b.id ASC
+                    LIMIT 3
+                ");
+                $stmtTop->execute([$auctionId]);
+                $topBids = $stmtTop->fetchAll();
+                $h1 = $topBids[0] ?? null;
+                $h2 = $topBids[1] ?? null;
+                $h3 = $topBids[2] ?? null;
+
+                $stmtClose = $pdo->prepare("
+                    UPDATE auctions SET 
+                        status = 'closed',
+                        winner_confirmed = 1,
+                        winner_user_id = ?,
+                        winner_h1_user_id = ?,
+                        winner_h2_user_id = ?,
+                        winner_h3_user_id = ?,
+                        awarded_winner_type = 'H1',
+                        awarded_winner_id = ?,
+                        current_highest_bid = ?,
+                        end_time = datetime('now')
+                    WHERE id = ?
+                ");
+                $stmtClose->execute([
+                    $h1 ? $h1['user_id'] : null,
+                    $h1 ? $h1['user_id'] : null,
+                    $h2 ? $h2['user_id'] : null,
+                    $h3 ? $h3['user_id'] : null,
+                    $h1 ? $h1['user_id'] : null,
+                    $bidAmount,
+                    $auctionId
+                ]);
             } else {
-                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
-                $stmtUpdate->execute([$bidAmount, $auctionId]);
+                if ($timeExtended) {
+                    $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
+                    $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+                } else {
+                    $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
+                    $stmtUpdate->execute([$bidAmount, $auctionId]);
+                }
             }
         } elseif ($timeExtended) {
             $stmtUpdate = $pdo->prepare("UPDATE auctions SET end_time = ? WHERE id = ?");
@@ -2465,19 +2517,28 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
                 ]
             ]);
         } else {
+            $msg = $autoClosed
+                ? "Bid of ₹" . number_format($bidAmount, 2) . " placed successfully! 5 consecutive bidding rounds completed — this auction has now officially closed, and H1 Highest Bidder is selected."
+                : ($timeExtended
+                    ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule).'
+                    : 'Bid placed successfully!');
+
             jsonResponse([
                 'success' => true,
                 'status' => 'approved',
                 'requires_admin_approval' => false,
                 'is_first_bid' => false,
                 'bid_id' => $bidId,
-                'message' => $timeExtended
-                    ? 'Bid placed successfully! Bidding time extended by +2 minutes (Anti-Sniping Rule).'
-                    : 'Bid placed successfully!',
+                'auction_closed' => $autoClosed,
+                'is_closed' => $autoClosed,
+                'new_status' => $autoClosed ? 'closed' : 'live',
+                'auction_status' => $autoClosed ? 'closed' : 'live',
+                'total_approved_bids' => $approvedCount,
+                'message' => $msg,
                 'current_highest_bid' => $bidAmount,
-                'time_extended' => $timeExtended,
-                'extension_seconds' => 120,
-                'new_end_time' => $newEndTime,
+                'time_extended' => $autoClosed ? false : $timeExtended,
+                'extension_seconds' => $autoClosed ? 0 : 120,
+                'new_end_time' => $autoClosed ? date('Y-m-d H:i:s') : $newEndTime,
                 'bid' => [
                     'id' => $bidId,
                     'amount' => $bidAmount,
@@ -2763,6 +2824,54 @@ if ($method === 'PUT' && preg_match('#^/api/v1/(admin/)?bids/(\d+)/status$#', $u
             $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?")->execute([$newHighest, $aucId]);
         } else {
             $pdo->prepare("UPDATE auctions SET current_highest_bid = starting_price WHERE id = ?")->execute([$aucId]);
+        }
+
+        // Check if approving this bid brings total approved bids to 5
+        if ($newStatus === 'approved') {
+            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM bids WHERE auction_id = ? AND status = 'approved'");
+            $stmtCount->execute([$aucId]);
+            $approvedCount = (int)$stmtCount->fetchColumn();
+
+            if ($approvedCount >= 5) {
+                // Determine top bidders (H1, H2, H3)
+                $stmtTop = $pdo->prepare("
+                    SELECT b.id, b.amount, b.user_id, u.name as bidder_name, u.email as bidder_email, u.company_name
+                    FROM bids b
+                    JOIN users u ON b.user_id = u.id
+                    WHERE b.auction_id = ? AND b.status = 'approved'
+                    ORDER BY b.amount DESC, b.id ASC
+                    LIMIT 3
+                ");
+                $stmtTop->execute([$aucId]);
+                $topBids = $stmtTop->fetchAll();
+                $h1 = $topBids[0] ?? null;
+                $h2 = $topBids[1] ?? null;
+                $h3 = $topBids[2] ?? null;
+
+                $stmtClose = $pdo->prepare("
+                    UPDATE auctions SET 
+                        status = 'closed',
+                        winner_confirmed = 1,
+                        winner_user_id = ?,
+                        winner_h1_user_id = ?,
+                        winner_h2_user_id = ?,
+                        winner_h3_user_id = ?,
+                        awarded_winner_type = 'H1',
+                        awarded_winner_id = ?,
+                        current_highest_bid = ?,
+                        end_time = datetime('now')
+                    WHERE id = ?
+                ");
+                $stmtClose->execute([
+                    $h1 ? $h1['user_id'] : null,
+                    $h1 ? $h1['user_id'] : null,
+                    $h2 ? $h2['user_id'] : null,
+                    $h3 ? $h3['user_id'] : null,
+                    $h1 ? $h1['user_id'] : null,
+                    $newHighest ?: 0,
+                    $aucId
+                ]);
+            }
         }
     }
 

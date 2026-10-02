@@ -167,9 +167,43 @@ async function runTestSuite() {
   assert(secondLotBidRes.data?.status === 'pending' || secondLotBidRes.data?.requires_admin_approval === true, 'First bid on second lot #101 correctly requires Admin Acceptance anew!', JSON.stringify(secondLotBidRes.data));
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 8: Admin Panel All Options & Endpoints Test
+  // TEST CASE 8: Continuous Bidding Auto-Closes Auction & Awards H1 on 5th Bid
   // ---------------------------------------------------------------------------
-  console.log('\n--- 8. COMPLETE ADMIN PANEL ENDPOINTS VERIFICATION ---');
+  console.log('\n--- 8. CONTINUOUS BIDDING ROUNDS (5TH BID AUTO-CLOSURE) ---');
+  // Auction #999 currently has 2 approved bids (760,000 and 800,000).
+  // Placing 3rd continuous bid:
+  const bid3Res = await request('POST', '/auctions/999/bid', { amount: 820000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid3Res.status === 200, '3rd bid placed successfully (Round 3/5)', `Status: ${bid3Res.status}`);
+  assert(!bid3Res.data?.auction_closed, 'Auction remains active after 3rd bid');
+
+  // Placing 4th continuous bid:
+  const bid4Res = await request('POST', '/auctions/999/bid', { amount: 840000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid4Res.status === 200, '4th bid placed successfully (Round 4/5)', `Status: ${bid4Res.status}`);
+  assert(!bid4Res.data?.auction_closed, 'Auction remains active after 4th bid');
+
+  // Placing 5th continuous bid:
+  const bid5Res = await request('POST', '/auctions/999/bid', { amount: 860000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid5Res.status === 200, '5th continuous bid placed successfully (Round 5/5)', `Status: ${bid5Res.status}`);
+  assert(bid5Res.data?.auction_closed === true || bid5Res.data?.is_closed === true, '5th continuous bid triggers AUTOMATIC AUCTION CLOSURE', JSON.stringify(bid5Res.data));
+  assert(bid5Res.data?.new_status === 'closed', 'Response reports new status as "closed"');
+
+  // Verify Auction #999 is persisted as closed with H1 winner in Database
+  const closedAucRes = await request('GET', '/auctions/999');
+  assert(closedAucRes.status === 200, 'Fetch closed auction #999 returns HTTP 200');
+  const closedAuc = closedAucRes.data?.auction || closedAucRes.data;
+  assert(closedAuc?.status === 'closed', 'Auction status in central database is now "closed"');
+  assert(Number(closedAuc?.winner_confirmed) === 1, 'Auction winner_confirmed is set to 1');
+  assert(closedAuc?.awarded_winner_type === 'H1', 'Awarded winner type is "H1"');
+  assert(Number(closedAuc?.winner_user_id) === Number(registeredUserId), `Winner user ID matches H1 bidder ID (${registeredUserId})`);
+
+  // Attempting another bid on closed auction must be rejected
+  const bid6Res = await request('POST', '/auctions/999/bid', { amount: 880000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid6Res.status === 400 || bid6Res.status === 422, 'Submitting bid on auto-closed auction is cleanly rejected (HTTP 400/422)', `Status: ${bid6Res.status}`);
+
+  // ---------------------------------------------------------------------------
+  // TEST CASE 9: Admin Panel All Options & Endpoints Test
+  // ---------------------------------------------------------------------------
+  console.log('\n--- 9. COMPLETE ADMIN PANEL ENDPOINTS VERIFICATION ---');
 
   // 8a. Dashboard Stats
   const statsRes = await request('GET', '/admin/dashboard/stats', null, { Authorization: 'Bearer sr_master_admin_token' });

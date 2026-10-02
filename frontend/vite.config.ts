@@ -424,10 +424,47 @@ function devApiPlugin(): Plugin {
             let timeExtended = false;
             let newEndTime = auction?.end_time;
 
+            let autoClosed = false;
+            let approvedBidsCount = 0;
+
             if (bidStatus === 'approved' && aucIdx !== -1) {
-              if (amount > (auctions[aucIdx].current_highest_bid || auctions[aucIdx].starting_price)) {
+              const approvedBids = bids.filter((b: any) => Number(b.auction_id) === Number(auctionId) && b.status === 'approved');
+              approvedBidsCount = approvedBids.length;
+
+              if (approvedBidsCount >= 5) {
+                autoClosed = true;
+                approvedBids.sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
+                const h1 = approvedBids[0];
+                const h2 = approvedBids[1];
+                const h3 = approvedBids[2];
+
+                auctions[aucIdx].status = 'closed';
+                auctions[aucIdx].winner_confirmed = true;
+                auctions[aucIdx].winner_user_id = h1 ? h1.user_id : null;
+                auctions[aucIdx].winner_h1_user_id = h1 ? h1.user_id : null;
+                auctions[aucIdx].winner_h2_user_id = h2 ? h2.user_id : null;
+                auctions[aucIdx].winner_h3_user_id = h3 ? h3.user_id : null;
+                auctions[aucIdx].awarded_winner_type = 'H1';
+                auctions[aucIdx].awarded_winner_id = h1 ? h1.user_id : null;
                 auctions[aucIdx].current_highest_bid = amount;
+                auctions[aucIdx].end_time = new Date().toISOString();
+                newEndTime = auctions[aucIdx].end_time;
+              } else {
+                if (amount > (auctions[aucIdx].current_highest_bid || auctions[aucIdx].starting_price)) {
+                  auctions[aucIdx].current_highest_bid = amount;
+                }
+                if (auctions[aucIdx].end_time) {
+                  const endTs = new Date(auctions[aucIdx].end_time).getTime();
+                  const nowTs = Date.now();
+                  const remainingSecs = (endTs - nowTs) / 1000;
+                  if (remainingSecs > 0 && remainingSecs <= 120) {
+                    timeExtended = true;
+                    newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
+                    auctions[aucIdx].end_time = newEndTime;
+                  }
+                }
               }
+
               if (!auctions[aucIdx].bids) auctions[aucIdx].bids = [];
               auctions[aucIdx].bids.unshift({
                 id: newBid.id,
@@ -436,16 +473,6 @@ function devApiPlugin(): Plugin {
                 created_at: newBid.created_at,
               });
 
-              if (auctions[aucIdx].end_time) {
-                const endTs = new Date(auctions[aucIdx].end_time).getTime();
-                const nowTs = Date.now();
-                const remainingSecs = (endTs - nowTs) / 1000;
-                if (remainingSecs > 0 && remainingSecs <= 120) {
-                  timeExtended = true;
-                  newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
-                  auctions[aucIdx].end_time = newEndTime;
-                }
-              }
               writeJson(auctionsFilePath, auctions);
             } else if (aucIdx !== -1 && auctions[aucIdx].end_time) {
               const endTs = new Date(auctions[aucIdx].end_time).getTime();
@@ -496,18 +523,27 @@ function devApiPlugin(): Plugin {
                 bid: newBid,
               });
             } else {
+              const msg = autoClosed
+                ? `Bid of ₹${amount.toLocaleString('en-IN')} placed! 5 consecutive bidding rounds completed — this auction has now officially closed, and H1 Highest Bidder is selected.`
+                : (timeExtended
+                    ? `Bid of ₹${amount.toLocaleString('en-IN')} placed! Auction extended by +2 mins (Anti-Sniping Rule). Email alerts sent to all registered buyers.`
+                    : `Bid of ₹${amount.toLocaleString('en-IN')} placed successfully! Email alerts sent to all registered buyers.`);
+
               return sendJson({
                 success: true,
                 status: 'approved',
                 requires_admin_approval: false,
                 is_first_bid: false,
-                message: timeExtended
-                  ? `Bid of ₹${amount.toLocaleString('en-IN')} placed! Auction extended by +2 mins (Anti-Sniping Rule). Email alerts sent to all registered buyers.`
-                  : `Bid of ₹${amount.toLocaleString('en-IN')} placed successfully! Email alerts sent to all registered buyers.`,
+                auction_closed: autoClosed,
+                is_closed: autoClosed,
+                new_status: autoClosed ? 'closed' : 'live',
+                auction_status: autoClosed ? 'closed' : 'live',
+                total_approved_bids: approvedBidsCount,
+                message: msg,
                 current_highest_bid: amount,
-                time_extended: timeExtended,
-                extension_seconds: 120,
-                new_end_time: newEndTime,
+                time_extended: autoClosed ? false : timeExtended,
+                extension_seconds: autoClosed ? 0 : 120,
+                new_end_time: autoClosed ? new Date().toISOString() : newEndTime,
                 email_notifications_dispatched: validUsers.length,
                 bid: newBid,
               });
@@ -600,6 +636,26 @@ function devApiPlugin(): Plugin {
                     { id: bids[bIdx].id, amount: bidAmt, user: { name: bids[bIdx].bidder_name }, created_at: bids[bIdx].created_at },
                     ...auctions[aIdx].bids.filter((ob: any) => ob.id !== bids[bIdx].id),
                   ];
+
+                  // Check if approved bids reach 5
+                  const approvedBids = bids.filter((b: any) => Number(b.auction_id) === Number(aucId) && b.status === 'approved');
+                  if (approvedBids.length >= 5) {
+                    approvedBids.sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
+                    const h1 = approvedBids[0];
+                    const h2 = approvedBids[1];
+                    const h3 = approvedBids[2];
+
+                    auctions[aIdx].status = 'closed';
+                    auctions[aIdx].winner_confirmed = true;
+                    auctions[aIdx].winner_user_id = h1 ? h1.user_id : null;
+                    auctions[aIdx].winner_h1_user_id = h1 ? h1.user_id : null;
+                    auctions[aIdx].winner_h2_user_id = h2 ? h2.user_id : null;
+                    auctions[aIdx].winner_h3_user_id = h3 ? h3.user_id : null;
+                    auctions[aIdx].awarded_winner_type = 'H1';
+                    auctions[aIdx].awarded_winner_id = h1 ? h1.user_id : null;
+                    auctions[aIdx].end_time = new Date().toISOString();
+                  }
+
                   writeJson(auctionsFilePath, auctions);
                 }
               }

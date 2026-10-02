@@ -159,8 +159,19 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             setHighlightPulse(true);
             setTimeout(() => setHighlightPulse(false), 1500);
           }
-          if (fresh.status !== auction.status) {
-            setAuction((prev) => ({ ...prev, status: fresh.status }));
+          if (fresh.bids) {
+            setBids(fresh.bids);
+          }
+          if (fresh.status !== auction.status || fresh.winner_confirmed !== auction.winner_confirmed) {
+            setAuction((prev) => ({
+              ...prev,
+              status: fresh.status,
+              winner_confirmed: fresh.winner_confirmed,
+              awarded_winner_type: fresh.awarded_winner_type,
+            }));
+            if (fresh.status === 'closed') {
+              setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isClosed: true });
+            }
           }
         }
       } catch (e) {}
@@ -212,7 +223,43 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         setSuccessMsg(res.data?.message || `✓ Bid of ₹${numAmount.toLocaleString('en-IN')} placed successfully!`);
       }
 
-      if (res.data?.time_extended && res.data?.new_end_time) {
+      if (res.data?.auction_closed || res.data?.is_closed) {
+        setAuction((prev) => ({
+          ...prev,
+          status: 'closed',
+          winner_confirmed: true,
+          awarded_winner_type: 'H1',
+          current_highest_bid: numAmount,
+          end_time: res.data.new_end_time || new Date().toISOString(),
+        }));
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isClosed: true });
+        try {
+          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+          const updatedStored = currentStored.map((a: any) =>
+            a.id === auction.id
+              ? {
+                  ...a,
+                  status: 'closed',
+                  winner_confirmed: true,
+                  awarded_winner_type: 'H1',
+                  current_highest_bid: numAmount,
+                  end_time: res.data.new_end_time || new Date().toISOString(),
+                }
+              : a
+          );
+          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+        } catch {}
+        broadcastRealtimeEvent('auction_winner_awarded', { auctionId: auction.id, winnerType: 'H1' });
+        broadcastRealtimeEvent('auction_updated', {
+          id: auction.id,
+          status: 'closed',
+          winner_confirmed: true,
+          awarded_winner_type: 'H1',
+          current_highest_bid: numAmount,
+        });
+        setSuccessMsg(res.data?.message || '🎉 5 consecutive bids completed! This auction has concluded and automatically closed.');
+      } else if (res.data?.time_extended && res.data?.new_end_time) {
         setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
         try {
           const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
@@ -323,6 +370,13 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed max-w-md mx-auto">
               This auction lot has officially concluded. We sincerely thank all registered buyers and participants for their valuable bids and interest.
             </p>
+            {bids.filter((b: any) => b.status === 'approved').length >= 5 && (
+              <div className="pt-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-xs font-bold">
+                  🏁 5 Consecutive Bidding Rounds Completed — Automatically Closed & H1 Awarded
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -414,6 +468,29 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             ) : (
               `${String(timeLeft.hours).padStart(2, '0')}h : ${String(timeLeft.minutes).padStart(2, '0')}m : ${String(timeLeft.seconds).padStart(2, '0')}s`
             )}
+          </span>
+        </div>
+
+        {/* Continuous Bidding Rounds Tracker (Auto-close after 5 approved bids) */}
+        <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-slate-300">
+            <span className="flex h-2 w-2 relative">
+              {!isClosed && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isClosed ? 'bg-red-400' : 'bg-[#D48B1C]'}`}></span>
+            </span>
+            <span className="font-semibold text-slate-300">Bidding Rounds:</span>
+            <span className="font-bold text-amber-300 font-mono">
+              {Math.min(5, bids.filter((b: any) => b.status === 'approved').length)} / 5
+            </span>
+          </div>
+          <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+            bids.filter((b: any) => b.status === 'approved').length >= 5 || isClosed
+              ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+          }`}>
+            {bids.filter((b: any) => b.status === 'approved').length >= 5 || isClosed
+              ? 'Final Round Reached'
+              : `${5 - bids.filter((b: any) => b.status === 'approved').length} round(s) to auto-close`}
           </span>
         </div>
       </div>
