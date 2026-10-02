@@ -133,7 +133,7 @@ async function runTestSuite() {
   // Verify first bid appears in Admin Bids list
   const adminBidsRes = await request('GET', '/admin/bids', null, { Authorization: 'Bearer sr_master_admin_token' });
   const allBids = adminBidsRes.data?.data || adminBidsRes.data?.bids || [];
-  const foundPendingBid = allBids.find((b) => (firstAuctionBidId && b.id === firstAuctionBidId) || (b.user_id === registeredUserId && b.auction_id === 999));
+  const foundPendingBid = allBids.find((b) => (firstAuctionBidId && String(b.id) === String(firstAuctionBidId)) || (String(b.user_id) === String(registeredUserId) && String(b.auction_id) === '999'));
   assert(!!foundPendingBid, `Pending initial bid #${firstAuctionBidId} appears in Admin Panel Bids approval queue`, `Found: ${!!foundPendingBid}`);
   assert(foundPendingBid?.status === 'pending', 'Bid status in admin panel is "pending"');
 
@@ -141,7 +141,7 @@ async function runTestSuite() {
   // TEST CASE 5: Admin Approves the First Bid on Auction #999
   // ---------------------------------------------------------------------------
   console.log('\n--- 5. ADMIN ACCEPTS / APPROVES FIRST BID ---');
-  const approveBidRes = await request('PUT', `/admin/bids/${firstAuctionBidId || foundPendingBid.id}/status`, { status: 'approved' }, { Authorization: 'Bearer sr_master_admin_token' });
+  const approveBidRes = await request('PUT', `/admin/bids/${firstAuctionBidId || foundPendingBid?.id}/status`, { status: 'approved' }, { Authorization: 'Bearer sr_master_admin_token' });
   assert(approveBidRes.status === 200, 'Admin approve bid API returns HTTP 200', `Status: ${approveBidRes.status}`);
 
   // ---------------------------------------------------------------------------
