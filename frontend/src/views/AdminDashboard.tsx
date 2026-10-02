@@ -331,28 +331,7 @@ export default function AdminDashboard() {
       const s = localStorage.getItem('sr_admin_interests');
       if (s) return JSON.parse(s);
     } catch {}
-    return [
-    {
-      id: 701,
-      user_name: 'Neelkanth Sharma',
-      user_email: 'bidder@salvagereef.com',
-      company_name: 'Metals & Alloys Co',
-      auction_title: 'Private Corporate Tender: 120 MT Heavy Melting Steel (HMS 1 & 2)',
-      auction_id: 103,
-      status: 'pending',
-      created_at: '2026-08-08T10:00:00Z',
-    },
-    {
-      id: 702,
-      user_name: 'Precision Engineering Ltd',
-      user_email: 'procurement@precisioneng.com',
-      company_name: 'Precision Eng Ltd',
-      auction_title: 'CNC Milling Machine 5-Axis (Industrial Surplus)',
-      auction_id: 102,
-      status: 'pending',
-      created_at: '2026-08-07T09:30:00Z',
-    },
-  ];
+    return [];
   });
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -503,13 +482,25 @@ export default function AdminDashboard() {
   // Edit Auction Modal State & Handler
   const [editingAuction, setEditingAuction] = useState<any | null>(null);
 
+  // Helper to format Date for datetime-local input (YYYY-MM-DDTHH:mm)
+  const getLocalDateTimeString = (d: Date = new Date()) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const getFutureDateTimeString = (daysAhead = 7, hour = 18, minute = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    d.setHours(hour, minute, 0, 0);
+    return getLocalDateTimeString(d);
+  };
+
   const formatForDateTimeLocal = (dateStr?: string | null) => {
     if (!dateStr) return '';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return '';
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return getLocalDateTimeString(d);
     } catch {
       return '';
     }
@@ -702,8 +693,8 @@ export default function AdminDashboard() {
   const [customProductState, setCustomProductState] = useState('');
   const [productCity, setProductCity] = useState('Mumbai');
   const [customProductCity, setCustomProductCity] = useState('');
-  const [productStartTime, setProductStartTime] = useState('2026-08-07T12:00');
-  const [productEndTime, setProductEndTime] = useState('2026-08-15T18:00');
+  const [productStartTime, setProductStartTime] = useState<string>(() => getLocalDateTimeString(new Date()));
+  const [productEndTime, setProductEndTime] = useState<string>(() => getFutureDateTimeString(7, 18, 0));
   const [productDescription, setProductDescription] = useState('');
   const [productCondition, setProductCondition] = useState('As is where is basis - Grade A commercial condition');
 
@@ -772,6 +763,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     setPageContentForm(content);
   }, [content]);
+
+  // Automatically fetch today's latest date & time when opening Add Product tab
+  useEffect(() => {
+    if (activeTab === 'add-product') {
+      const now = new Date();
+      const currentStart = new Date(productStartTime);
+      // If start time is empty, invalid, or in the past, auto-update to today's latest date & time
+      if (!productStartTime || isNaN(currentStart.getTime()) || currentStart.getTime() < now.getTime() - 5 * 60 * 1000) {
+        setProductStartTime(getLocalDateTimeString(now));
+        setProductEndTime(getFutureDateTimeString(7, 18, 0));
+      }
+    }
+  }, [activeTab]);
 
   // SEO & Meta Keywords State
   const [metaTitle, setMetaTitle] = useState('SalvageReef - B2B Industrial Salvage & Forward Auctions');
@@ -1936,6 +1940,8 @@ export default function AdminDashboard() {
       setProductDescription('');
       setProductCondition('As is where is basis - Grade A commercial condition');
       setProductEmdAmount('50000');
+      setProductStartTime(getLocalDateTimeString(new Date()));
+      setProductEndTime(getFutureDateTimeString(7, 18, 0));
       setCustomCategoryName('');
       setCustomProductState('');
       setCustomProductCity('');
@@ -3903,7 +3909,15 @@ export default function AdminDashboard() {
                       </span>
                     </label>
 
-                    <div className="relative flex items-center bg-gradient-to-r from-amber-50/70 to-white border-2 border-amber-300 hover:border-[#D48B1C] rounded-2xl p-1.5 shadow-sm transition-all focus-within:ring-4 focus-within:ring-amber-400/20 focus-within:border-[#D48B1C]">
+                    <div 
+                      onClick={(e) => {
+                        const input = (e.currentTarget as HTMLElement).querySelector('input');
+                        if (input) {
+                          try { (input as any).showPicker?.(); } catch {}
+                        }
+                      }}
+                      className="relative flex items-center bg-gradient-to-r from-amber-50/70 to-white border-2 border-amber-300 hover:border-[#D48B1C] rounded-2xl p-1.5 shadow-sm transition-all focus-within:ring-4 focus-within:ring-amber-400/20 focus-within:border-[#D48B1C] cursor-pointer"
+                    >
                       <div className="pl-3 pr-2.5 text-[#D48B1C] flex items-center gap-2 pointer-events-none border-r border-amber-200/80 mr-2 shrink-0">
                         <Calendar className="w-6 h-6 text-[#D48B1C]" />
                       </div>
@@ -3911,9 +3925,33 @@ export default function AdminDashboard() {
                         type="datetime-local"
                         required
                         value={productStartTime}
+                        min={getLocalDateTimeString(new Date())}
                         onChange={(e) => setProductStartTime(e.target.value)}
+                        onClick={(e) => {
+                          try { (e.target as any).showPicker?.(); } catch {}
+                        }}
                         className="w-full bg-transparent py-2.5 font-black text-slate-900 text-sm sm:text-base focus:outline-none cursor-pointer"
                       />
+                    </div>
+                    {/* Quick Start Presets */}
+                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                      <span className="text-[10px] text-slate-500 font-extrabold uppercase">Quick Set:</span>
+                      <button
+                        type="button"
+                        onClick={() => setProductStartTime(getLocalDateTimeString(new Date()))}
+                        className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-black rounded-md text-[10px] border border-amber-300 transition-all active:scale-95 shadow-2xs"
+                        title="Set start date and time to today right now"
+                      >
+                        ⚡ Today (Now)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductStartTime(getFutureDateTimeString(1, 10, 0))}
+                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-md text-[10px] border border-slate-300 transition-all active:scale-95 shadow-2xs"
+                        title="Set start date to tomorrow at 10:00 AM"
+                      >
+                        Tomorrow 10 AM
+                      </button>
                     </div>
                   </div>
 
@@ -3931,7 +3969,15 @@ export default function AdminDashboard() {
                       </span>
                     </label>
 
-                    <div className="relative flex items-center bg-gradient-to-r from-emerald-50/70 to-white border-2 border-emerald-300 hover:border-emerald-500 rounded-2xl p-1.5 shadow-sm transition-all focus-within:ring-4 focus-within:ring-emerald-400/20 focus-within:border-emerald-500">
+                    <div 
+                      onClick={(e) => {
+                        const input = (e.currentTarget as HTMLElement).querySelector('input');
+                        if (input) {
+                          try { (input as any).showPicker?.(); } catch {}
+                        }
+                      }}
+                      className="relative flex items-center bg-gradient-to-r from-emerald-50/70 to-white border-2 border-emerald-300 hover:border-emerald-500 rounded-2xl p-1.5 shadow-sm transition-all focus-within:ring-4 focus-within:ring-emerald-400/20 focus-within:border-emerald-500 cursor-pointer"
+                    >
                       <div className="pl-3 pr-2.5 text-emerald-600 flex items-center gap-2 pointer-events-none border-r border-emerald-200/80 mr-2 shrink-0">
                         <Clock className="w-6 h-6 text-emerald-600" />
                       </div>
@@ -3939,9 +3985,57 @@ export default function AdminDashboard() {
                         type="datetime-local"
                         required
                         value={productEndTime}
+                        min={productStartTime || getLocalDateTimeString(new Date())}
                         onChange={(e) => setProductEndTime(e.target.value)}
+                        onClick={(e) => {
+                          try { (e.target as any).showPicker?.(); } catch {}
+                        }}
                         className="w-full bg-transparent py-2.5 font-black text-slate-900 text-sm sm:text-base focus:outline-none cursor-pointer datetime-emerald"
                       />
+                    </div>
+                    {/* Quick Duration Presets */}
+                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                      <span className="text-[10px] text-slate-500 font-extrabold uppercase">Duration:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = productStartTime ? new Date(productStartTime) : new Date();
+                          setProductEndTime(getLocalDateTimeString(new Date(base.getTime() + 24 * 3600 * 1000)));
+                        }}
+                        className="px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black rounded-md text-[10px] border border-emerald-300 transition-all active:scale-95 shadow-2xs"
+                      >
+                        +24 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = productStartTime ? new Date(productStartTime) : new Date();
+                          setProductEndTime(getLocalDateTimeString(new Date(base.getTime() + 3 * 24 * 3600 * 1000)));
+                        }}
+                        className="px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black rounded-md text-[10px] border border-emerald-300 transition-all active:scale-95 shadow-2xs"
+                      >
+                        +3 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = productStartTime ? new Date(productStartTime) : new Date();
+                          setProductEndTime(getLocalDateTimeString(new Date(base.getTime() + 7 * 24 * 3600 * 1000)));
+                        }}
+                        className="px-2 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-950 font-black rounded-md text-[10px] border border-blue-300 transition-all active:scale-95 shadow-2xs"
+                      >
+                        +7 Days (1 Wk)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = productStartTime ? new Date(productStartTime) : new Date();
+                          setProductEndTime(getLocalDateTimeString(new Date(base.getTime() + 14 * 24 * 3600 * 1000)));
+                        }}
+                        className="px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-950 font-black rounded-md text-[10px] border border-purple-300 transition-all active:scale-95 shadow-2xs"
+                      >
+                        +14 Days
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -8011,6 +8105,9 @@ export default function AdminDashboard() {
                       type="datetime-local"
                       required
                       value={formatForDateTimeLocal(editingAuction.start_time)}
+                      onClick={(e) => {
+                        try { (e.target as any).showPicker?.(); } catch {}
+                      }}
                       onChange={(e) => {
                         const val = e.target.value;
                         setEditingAuction({
@@ -8020,6 +8117,21 @@ export default function AdminDashboard() {
                       }}
                       className="w-full p-2.5 bg-white border-2 border-amber-300 focus:border-[#D48B1C] rounded-xl font-black text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#D48B1C]/30 shadow-xs cursor-pointer"
                     />
+                    <div className="flex items-center justify-between pt-0.5">
+                      <span className="text-[10px] text-slate-500 font-bold">Quick:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingAuction({
+                            ...editingAuction,
+                            start_time: new Date().toISOString(),
+                          });
+                        }}
+                        className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded text-[10px] border border-amber-300 transition-all active:scale-95"
+                      >
+                        ⚡ Set to Today (Now)
+                      </button>
+                    </div>
                   </div>
 
                   {/* END TIME */}
@@ -8034,6 +8146,9 @@ export default function AdminDashboard() {
                       type="datetime-local"
                       required
                       value={formatForDateTimeLocal(editingAuction.end_time)}
+                      onClick={(e) => {
+                        try { (e.target as any).showPicker?.(); } catch {}
+                      }}
                       onChange={(e) => {
                         const val = e.target.value;
                         const newEndIso = val ? new Date(val).toISOString() : editingAuction.end_time;
