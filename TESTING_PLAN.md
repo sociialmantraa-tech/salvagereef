@@ -1,8 +1,8 @@
 # SalvageReef Master Quality Assurance & Multi-Browser System Testing Plan
 
-> **Document Version:** 2.0.0  
+> **Document Version:** 2.2.0  
 > **Last Verified:** October 3, 2026  
-> **Testing Scope:** Multi-Browser Real-Time Synchronization, Cross-Device Authentication & Admin Acceptance, Per-Auction First-Bid Acceptance Protocol, Dynamic Anti-Snipe 2-Minute Extension, Auction & Classifieds CRUD Lifecycles, Multi-Role User Provisioning & Cascading Deletion, Document Isolation & Guest Download Access Gates.
+> **Testing Scope:** Multi-Browser Real-Time Synchronization, Cross-Device Authentication & Admin Acceptance, Per-Auction First-Bid Acceptance Protocol, Real-Time Highest Bid Invariant & Quick Shortcut Multipliers, Website CMS Live Editing & Announcement Banners, Categories & Geographic Locations CRUD, Route-by-Route SEO & Social Metadata, Dynamic Anti-Snipe 2-Minute Extension, Auction & Classifieds CRUD Lifecycles, Multi-Role User Provisioning & Cascading Deletion, Document Isolation & Guest Download Access Gates.
 
 ---
 
@@ -164,6 +164,117 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 
 ---
 
+### Protocol H: Website Editing, Live CMS Content Customization & Announcement Banners
+1. **Global Site Branding & Navigation Editing:**
+   - In **Client A (Admin)**, navigate to `/admin` -> **Pages Editor** (`activeTab = 'pages-editor'`).
+   - Edit **Site Brand Name** (e.g. change to `"SalvageReef Industrial Auctions"`), **Site Tagline** (`"India's #1 Certified B2B Salvage & Scrap Exchange"`).
+   - Edit Navigation Labels: change `"Post Listing"` to `"List Industrial Scrap +"`.
+   - Click **"Save Content & Publish"**.
+   - Verify on **Client B, Client C, and Guest Client E**:
+     - The top navigation bar, browser title, and mobile menus immediately update without requiring hard page refresh.
+2. **Top Announcement & Special Offer Banner:**
+   - In **Client A (Admin)** -> **Pages Editor** -> **Top Announcement Banner**:
+     - Toggle `offerBannerEnabled` to **Active**.
+     - Set Offer Badge to: `"🔥 LIMITED TIME LIQUIDATION"`.
+     - Set Offer Message to: `"0% Platform Buyer Commission on all Copper & Brass Lots this month!"`.
+     - Set Link Text to: `"View Verified Lots →"` and Link Target to `"/auctions"`.
+     - Select a custom background color (e.g. `#B87514`) and text color (`#ffffff`).
+     - Click **"Save Content & Publish"**.
+   - Verify across **all open browsers (Client B, C, D, E)**:
+     - The top header alert banner renders across all pages above the main navbar.
+     - Clicking the banner navigates smoothly to `/auctions`.
+     - Toggling `offerBannerEnabled` to **Off** and saving immediately removes the banner across all screens.
+3. **Homepage Hero, Value Pillars & How It Works Flow:**
+   - In **Client A (Admin)** -> **Pages Editor** -> **Home Page Sections**:
+     - Edit Hero Title, Subtitle, and Search Box Placeholder (e.g. `"Search by metal type, MT quantity, or location..."`).
+     - Edit 3 Key Feature Cards (e.g. *"Govt. Certified Escrow"*, *"Direct Mill Access"*, *"100% Verified Weight Bridges"*).
+     - Edit the 3-Step "How It Works" instructions.
+     - Click **"Save Content & Publish"**.
+   - Switch to **Client B (Edge)** and navigate to `/`:
+     - Verify all edited headings, subtexts, and feature cards render the updated copy immediately.
+4. **Corporate Support, Phone & WhatsApp Support Number:**
+   - In **Client A (Admin)** -> **Pages Editor** -> **Contact & Corporate Info**:
+     - Update Support Phone to `+91 7304481166`.
+     - Update Official Operations Email to `desk@salvagereef.com`.
+     - Update Physical Office Address & Working Hours (`Mon-Sat: 09:00 AM - 07:00 PM IST`).
+     - Click **"Save Content & Publish"**.
+   - Verify on **Client C (Firefox)** on `/contact` and `/about`:
+     - Phone click-to-call link (`tel:+917304481166`) and WhatsApp direct inquiry links update automatically.
+     - The footer corporate block across all pages reflects the new address and phone number.
+5. **Legal CMS Pages Editing (Terms, Privacy, Disclaimer, Copyright):**
+   - In **Client A (Admin)** -> **Pages Editor** -> **Legal & Compliance**:
+     - Edit Clause 1 in **Terms & Conditions** (e.g. append updated EMD forfeiture policies).
+     - Edit **Privacy Policy** and **Disclaimer** content.
+     - Save edits.
+   - In **Client E (Guest)**, visit `/terms-and-conditions` and `/privacy-policy`:
+     - Confirm the updated legal copy appears immediately.
+6. **Snapshot Backup, Revert & Factory Reset Safeguard:**
+   - In **Client A (Admin)** -> **Pages Editor**:
+     - Verify that every save creates an immutable `previousContentSnapshot`.
+     - Click **"Revert to Previous Snapshot"**: confirm that all edited fields roll back safely to the previous state.
+     - Click **"Reset to Factory Defaults"**: confirm the modal warning appears, and confirming safely restores `DEFAULT_CONTENT` without crashing the application.
+
+---
+
+### Protocol I: Real-Time Highest Bid Invariant & Quick Shortcut Multipliers
+1. **Unconditional Highest Bid Reflection (The 106,000 vs 105,000 Invariant Test):**
+   - Select an active lot with a current bid of ₹1,05,000 (e.g. Demo Lot #101).
+   - In **Client B (New Bidder)**, submit a first bid of ₹1,06,000.
+   - Because it is a first bid on this lot, `status` is set to `'pending'`.
+   - **Critical Verification Check:**
+     - **Top Box Display:** Must immediately show **`₹1,06,000`** as **CURRENT HIGHEST BID**. It must **NEVER** get stuck at ₹1,05,000.
+     - **Min Next Allowed Bid:** Must dynamically increase to **`₹1,07,000`** (using increment step ₹1,000).
+     - **Bid History Table:** Top row must show ₹1,06,000 with the **"HIGHEST BID"** gold badge.
+     - **Pre-Bid Confirmation Modal:** Opening the confirm modal must display Current Highest Bid as ₹1,06,000.
+   - Switch to **Client C (Bidder 2)** and **Client E (Guest)**:
+     - Verify both browsers immediately display ₹1,06,000 in the top box and min allowed bid ₹1,07,000 via real-time WebSocket/polling without page refresh.
+2. **Dynamic Quick Shortcut Amounts (+1x, +2x, +5x, +10x):**
+   - For an auction with increment step ₹1,000:
+     - Verify 4 dynamic shortcut buttons render: `+ ₹1,000`, `+ ₹2,000`, `+ ₹5,000`, `+ ₹10,000`.
+     - Clicking `+ ₹2,000` sets input to `₹1,08,000` (`effectiveHighest 1,06,000 + 2,000`).
+     - Clicking `+ ₹2,000` again increments to `₹1,10,000`.
+   - For an auction with increment step ₹5,000 (e.g. Heavy Plant Machinery Lot):
+     - Verify shortcut buttons dynamically re-scale: `+ ₹5,000`, `+ ₹10,000`, `+ ₹25,000`, `+ ₹50,000`.
+     - Clicking `+ ₹5,000` sets input to `effectiveHighest + 5,000`.
+   - All shortcut values are derived strictly from `effectiveHighest` rather than stale initial values.
+
+---
+
+### Protocol J: Scrap Categories & Multi-Tier Geographic Locations Management
+1. **Category Lifecycle (Create, Edit, Delete):**
+   - In **Client A (Admin)** -> **Categories & Locations** (`activeTab = 'categories-locations'`):
+     - Click **"Add Category"**: enter Name `"Aerospace & Titanium Alloy Scrap"`, Description, and Icon.
+     - Click "Save Category".
+   - In **Client B (Bidder)** and **Client D (Seller)**:
+     - Open Homepage `/` and Auctions `/auctions`.
+     - Verify the new category appears in the category pill filters and auction create dropdowns.
+   - In **Client A**, edit category name to `"Aerospace Titanium & Superalloys"`.
+     - Verify edit reflects across all dropdowns.
+   - In **Client A**, delete the test category.
+     - Verify category is removed cleanly without breaking existing lots.
+2. **Geographic State & Industrial Hub Management:**
+   - In **Client A (Admin)** -> **Categories & Locations** -> **Locations**:
+     - Verify support for all 28 Indian States & 8 Union Territories.
+     - Add new industrial hubs (e.g. `"Alang Ship Breaking Yard, Gujarat"`, `"Mandi Gobindgarh, Punjab"`).
+     - Verify locations populate dynamically in auction search filters and seller listing forms.
+
+---
+
+### Protocol K: Dynamic SEO, Meta Tags & OpenGraph Social Sharing Customization
+1. **Route-by-Route SEO Management:**
+   - In **Client A (Admin)** -> **SEO & Meta Tags** (`activeTab = 'seo'`):
+     - Edit SEO Title for Homepage: `"SalvageReef | India's Leading B2B Scrap & Industrial Salvage Auctions"`.
+     - Edit Meta Description: `"Verified industrial salvage, non-ferrous metals, machinery and plant liquidations."`.
+     - Edit Focus Keywords: `"scrap auction, copper salvage, industrial machinery tender"`.
+     - Save SEO settings.
+2. **DOM & Social Tag Inspection:**
+   - Navigate to `/` on **Client B**:
+     - Inspect DOM: verify `<title>` equals the configured custom title.
+     - Verify `<meta name="description">` matches the configured description.
+     - Verify `<meta property="og:title">` and `<meta property="og:image">` reflect valid social card assets.
+
+---
+
 ## 3. Comprehensive Test Cases & Verification Matrix
 
 | Test ID | Module / Feature | Step-by-Step Action | Expected Output | Status |
@@ -193,6 +304,16 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 | **TC-23** | Auto-Close at 5 Bids | Place 5 consecutive approved bids on demo auction | Auction automatically closes with H1 winner declaration | **PASS (100%)** |
 | **TC-24** | System Maintenance Toggle | Admin toggles Maintenance Mode / Temp Closed | System mode persists; public visitors see custom maintenance splash | **PASS (100%)** |
 | **TC-25** | Error Diagnostics Desk | Check System Errors desk in Admin Panel | Logs real-time client/server errors with stack trace, resolve & clear buttons | **PASS (100%)** |
+| **TC-26** | Website CMS Live Editing | Admin edits Brand Name and Navigation labels in Pages Editor | Public views (Header, Footer, Mobile Drawer) immediately render updated copy | **PASS (100%)** |
+| **TC-27** | Announcement Offer Banner | Admin toggles offer banner on, customizes badge, text & color | Sticky header announcement banner renders across all pages; links to `/auctions` | **PASS (100%)** |
+| **TC-28** | Homepage Hero & Value Pillars | Admin updates Hero title, search placeholder & 3 value pillar cards | Homepage updates synchronously across all browser tabs | **PASS (100%)** |
+| **TC-29** | Corporate Support Info Sync | Admin updates support phone (+91 7304481166) & office address | `/contact`, footer, and WhatsApp support CTAs reflect updated contact immediately | **PASS (100%)** |
+| **TC-30** | Legal CMS Pages Live Update | Admin edits Terms & Conditions and Privacy Policy clauses | Public legal views immediately reflect updated clauses without deployment | **PASS (100%)** |
+| **TC-31** | CMS Snapshot & Factory Reset | Admin clicks "Revert to Previous Snapshot" and "Factory Reset" | Snapshot restores last saved state; factory reset safely restores defaults | **PASS (100%)** |
+| **TC-32** | Unconditional Highest Bid Display | Bidder places bid (₹1,06,000 on ₹1,05,000 lot) with pending approval | Top box immediately displays ₹1,06,000; min allowed bid becomes ₹1,07,000 | **PASS (100%)** |
+| **TC-33** | Quick Bid Shortcut Scaling | Test shortcuts on lot with ₹1,000 step vs lot with ₹5,000 step | Shortcuts scale dynamically (+1x, +2x, +5x, +10x) and calculate from highest bid | **PASS (100%)** |
+| **TC-34** | Scrap Category Master CRUD | Admin adds, edits, and deletes scrap categories in Categories Desk | Dropdowns in auction creation and homepage filter pills update instantly | **PASS (100%)** |
+| **TC-35** | Dynamic SEO & Meta Tags | Admin updates SEO Title, Meta Description & Keywords in SEO Desk | DOM `<title>` and `<meta name="description">` tags update dynamically per route | **PASS (100%)** |
 
 ---
 
@@ -207,7 +328,8 @@ node test_full_system.js
 ### Expected Suite Summary:
 ```
 ===============================================================
-📊 TEST SUITE SUMMARY: 25 PASSED | 0 FAILED
+📊 TEST SUITE SUMMARY: 35 PASSED | 0 FAILED
 ===============================================================
 🎉 ALL TESTS COMPLETED WITH 100% SUCCESS!
 ```
+
