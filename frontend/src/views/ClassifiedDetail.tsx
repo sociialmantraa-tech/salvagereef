@@ -133,24 +133,21 @@ export default function ClassifiedDetail() {
                     >
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
                     </button>
-                    <button
-                      onClick={() => {
-                        if (!isAuthenticated || !user) {
-                          setAuthModalType('pdf');
-                          setShowAuthModal(true);
-                          return;
-                        }
-                        const link = document.createElement('a');
-                        link.href = currentImg;
-                        link.download = `Classified-${classified.id}-Document.pdf`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
-                    >
-                      <Download className="w-4 h-4" /> Download PDF
-                    </button>
+                    {isAuthenticated && user && (
+                      <button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = currentImg;
+                          link.download = `Classified-${classified.id}-Document.pdf`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+                      >
+                        <Download className="w-4 h-4" /> Download PDF
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (

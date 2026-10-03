@@ -214,15 +214,11 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
             >
               View
             </Link>
-            {hasPdf && (
+            {hasPdf && isAuthenticated && user && (
               <button
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!isAuthenticated || !user) {
-                    setShowAuthModal(true);
-                    return;
-                  }
                   try {
                     const safeCode = displayCode || `LOT-${auction.id}`;
                     if (attachedPdfUrl) {
@@ -237,7 +233,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
                   }
                 }}
                 className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center justify-center"
-                title="Download Official Uploaded Tender PDF (Login Required)"
+                title="Download Official Uploaded Tender PDF"
               >
                 <FileText className="w-3.5 h-3.5" />
               </button>
