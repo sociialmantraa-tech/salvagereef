@@ -26,7 +26,28 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     ? Number(auction.bid_increment)
     : (initialAuction?.bid_increment && Number(initialAuction.bid_increment) > 0 ? Number(initialAuction.bid_increment) : 1000);
 
-  const minAllowedBid = currentHighest + incrementStep;
+  // Robust calculation: Highest bid must NEVER be lower than any bid in the list or auction base
+  const bidsMaxAmount = (bids && bids.length > 0)
+    ? bids.reduce((max, b) => Math.max(max, Number(b.amount) || 0), 0)
+    : 0;
+
+  const effectiveHighest = Math.max(
+    Number(currentHighest) || 0,
+    Number(auction?.current_highest_bid) || 0,
+    Number(initialAuction?.current_highest_bid) || 0,
+    Number(auction?.starting_price) || 0,
+    Number(initialAuction?.starting_price) || 0,
+    bidsMaxAmount
+  );
+
+  const minAllowedBid = effectiveHighest + incrementStep;
+
+  // Sync internal state if effectiveHighest exceeds currentHighest
+  useEffect(() => {
+    if (effectiveHighest > currentHighest) {
+      setCurrentHighest(effectiveHighest);
+    }
+  }, [effectiveHighest, currentHighest]);
 
   // Dynamic shortcut amount multipliers: 1x, 2x, 5x, 10x increment step
   const shortcutMultipliers = [1, 2, 5, 10];
@@ -34,7 +55,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
   const handleShortcutClick = (shortcutValue: number) => {
     const currentVal = Number(bidAmount);
-    const targetWithStepFromHighest = currentHighest + shortcutValue;
+    const targetWithStepFromHighest = effectiveHighest + shortcutValue;
 
     if (!currentVal || isNaN(currentVal) || currentVal < minAllowedBid) {
       setBidAmount(targetWithStepFromHighest);
@@ -42,7 +63,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       // If clicking the same shortcut again, increment further by that step
       setBidAmount(currentVal + shortcutValue);
     } else if (currentVal === minAllowedBid && shortcutValue === incrementStep) {
-      // Already at minAllowedBid (which is currentHighest + incrementStep), clicking +1x increments
+      // Already at minAllowedBid (which is effectiveHighest + incrementStep), clicking +1x increments
       setBidAmount(currentVal + shortcutValue);
     } else {
       if (currentVal >= targetWithStepFromHighest) {
@@ -93,11 +114,21 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
   useEffect(() => {
     setAuction(initialAuction);
-    setBids(initialAuction.bids || []);
-    const highest = initialAuction.current_highest_bid || initialAuction.starting_price;
+    const incomingBids = initialAuction.bids || [];
+    setBids(incomingBids);
+    const maxIncomingBid = incomingBids.reduce((m, b) => Math.max(m, Number(b.amount) || 0), 0);
+    const highest = Math.max(
+      Number(initialAuction.current_highest_bid) || 0,
+      Number(initialAuction.starting_price) || 0,
+      maxIncomingBid,
+      Number(currentHighest) || 0
+    );
     const step = initialAuction.bid_increment && Number(initialAuction.bid_increment) > 0 ? Number(initialAuction.bid_increment) : 1000;
     setCurrentHighest(highest);
-    setBidAmount(highest + step);
+    setBidAmount((prev) => {
+      const pNum = Number(prev);
+      return isNaN(pNum) || pNum <= highest ? highest + step : pNum;
+    });
   }, [initialAuction]);
 
   useEffect(() => {
@@ -134,41 +165,57 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       if (event.type === 'bid_status_updated' && (String(event.payload?.auctionId) === String(auction.id) || String(event.payload?.auction_id) === String(auction.id))) {
         if (event.payload.status === 'approved' && Number(event.payload.amount) > 0) {
           const approvedAmount = Number(event.payload.amount);
-          setCurrentHighest(approvedAmount);
-          setBidAmount(approvedAmount + incrementStep);
+          setCurrentHighest((prev) => Math.max(prev, approvedAmount));
+          setBidAmount((prev) => {
+            const pNum = Number(prev);
+            return isNaN(pNum) || pNum <= approvedAmount ? approvedAmount + incrementStep : pNum;
+          });
           setHighlightPulse(true);
-          setBids((prev) => [
-            {
-              id: event.payload.bidId || Date.now(),
-              amount: approvedAmount,
-              status: 'approved',
-              user: { name: event.payload.bidder_name || 'Verified Bidder' },
-              created_at: new Date().toISOString(),
-            },
-            ...prev.filter((b) => b.id !== event.payload.bidId),
-          ]);
+          setBids((prev) => {
+            const updated = [
+              {
+                id: event.payload.bidId || Date.now(),
+                amount: approvedAmount,
+                status: 'approved',
+                user: { name: event.payload.bidder_name || 'Verified Bidder' },
+                created_at: new Date().toISOString(),
+              },
+              ...prev.filter((b) => b.id !== event.payload.bidId),
+            ];
+            return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+          });
           setTimeout(() => setHighlightPulse(false), 2000);
         }
       } else if (event.type === 'bid_submitted' && (String(event.payload?.auction_id) === String(auction.id) || String(event.payload?.auctionId) === String(auction.id))) {
         const submittedAmount = Number(event.payload.amount);
-        if (submittedAmount > currentHighest) {
-          setCurrentHighest(submittedAmount);
-          setBidAmount(submittedAmount + incrementStep);
+        if (submittedAmount > 0) {
+          setCurrentHighest((prev) => Math.max(prev, submittedAmount));
+          setBidAmount((prev) => {
+            const pNum = Number(prev);
+            return isNaN(pNum) || pNum <= submittedAmount ? submittedAmount + incrementStep : pNum;
+          });
           setHighlightPulse(true);
           setTimeout(() => setHighlightPulse(false), 2000);
         }
-        setBids((prev) => [
-          {
-            id: event.payload.id || Date.now(),
-            amount: submittedAmount,
-            status: event.payload.status || 'pending',
-            user: { name: event.payload.bidder_name || event.payload.bidder_company || 'Active Bidder' },
-            created_at: event.payload.created_at || new Date().toISOString(),
-          },
-          ...prev.filter((b) => b.id !== event.payload.id),
-        ]);
+        setBids((prev) => {
+          const updated = [
+            {
+              id: event.payload.id || Date.now(),
+              amount: submittedAmount,
+              status: event.payload.status || 'pending',
+              user: { name: event.payload.bidder_name || event.payload.bidder_company || 'Active Bidder' },
+              created_at: event.payload.created_at || new Date().toISOString(),
+            },
+            ...prev.filter((b) => b.id !== event.payload.id),
+          ];
+          return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+        });
       } else if (event.type === 'auction_updated' && String(event.payload?.id) === String(auction.id)) {
         setAuction((prev) => ({ ...prev, ...event.payload }));
+        if (event.payload.current_highest_bid) {
+          const topBid = Number(event.payload.current_highest_bid);
+          setCurrentHighest((prev) => Math.max(prev, topBid));
+        }
       } else if (event.type === 'auction_winner_awarded' && String(event.payload?.auctionId) === String(auction.id)) {
         setAuction((prev) => ({ ...prev, winner_confirmed: true, awarded_winner_type: event.payload.winnerType }));
       }
@@ -179,14 +226,17 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         const res = await api.get(`/auctions/${auction.slug || auction.id}`);
         const fresh: Auction = res.data.auction;
         if (fresh) {
-          if (fresh.current_highest_bid && fresh.current_highest_bid > currentHighest) {
-            setCurrentHighest(fresh.current_highest_bid);
-            setBids(fresh.bids || []);
+          const freshBids: Bid[] = fresh.bids || [];
+          const freshMaxFromBids = freshBids.reduce((m, b) => Math.max(m, Number(b.amount) || 0), 0);
+          const freshHighest = Math.max(Number(fresh.current_highest_bid) || 0, freshMaxFromBids);
+
+          if (freshHighest > currentHighest) {
+            setCurrentHighest(freshHighest);
             setHighlightPulse(true);
             setTimeout(() => setHighlightPulse(false), 1500);
           }
           if (fresh.bids) {
-            setBids(fresh.bids);
+            setBids(fresh.bids.sort((a: any, b: any) => (Number(b.amount) || 0) - (Number(a.amount) || 0)));
           }
           if (fresh.status !== auction.status || fresh.winner_confirmed !== auction.winner_confirmed) {
             setAuction((prev) => ({
@@ -243,6 +293,14 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       const res = await api.post(`/auctions/${auction.id}/bid`, { amount: numAmount });
       const isPending = res.data?.status === 'pending' || res.data?.requires_admin_approval;
       
+      // Immediately reflect the placed bid as the highest bid across all displays
+      setCurrentHighest((prev) => Math.max(prev, numAmount));
+      setBidAmount(numAmount + incrementStep);
+      setAuction((prev) => ({
+        ...prev,
+        current_highest_bid: Math.max(Number(prev.current_highest_bid) || 0, numAmount),
+      }));
+
       if (isPending) {
         setSuccessMsg(`⏳ Your initial bid of ₹${numAmount.toLocaleString('en-IN')} is submitted for Admin Acceptance. Once accepted, you can freely raise bids on this lot!`);
       } else {
@@ -286,7 +344,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         });
         setSuccessMsg(res.data?.message || '🎉 5 consecutive bids completed! This auction has concluded and automatically closed.');
       } else if (res.data?.time_extended && res.data?.new_end_time) {
-        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
+        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
         try {
           const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
           const updatedStored = currentStored.map((a: any) =>
@@ -301,8 +359,22 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           current_highest_bid: numAmount,
         });
         setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minutes! Auction extended by +2:00 minutes.');
-      } else if (res.data?.new_end_time) {
-        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time }));
+      } else {
+        if (res.data?.new_end_time) {
+          setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
+        }
+        try {
+          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+          const updatedStored = currentStored.map((a: any) =>
+            a.id === auction.id ? { ...a, current_highest_bid: Math.max(Number(a.current_highest_bid) || 0, numAmount) } : a
+          );
+          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+        } catch {}
+        broadcastRealtimeEvent('auction_updated', {
+          id: auction.id,
+          current_highest_bid: numAmount,
+        });
       }
 
       const newBidObj = {
@@ -318,8 +390,11 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         created_at: new Date().toISOString(),
       };
 
-      // Add to local state
-      setBids((prev) => [newBidObj as any, ...prev.filter((b) => b.id !== newBidObj.id)]);
+      // Add to local state and keep sorted by amount descending
+      setBids((prev) => {
+        const updated = [newBidObj as any, ...prev.filter((b) => b.id !== newBidObj.id)];
+        return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+      });
 
       // Save into sr_admin_bids so Admin console sees it immediately
       try {
@@ -460,7 +535,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className={`text-3xl sm:text-4xl font-black ${isClosed ? 'text-slate-800' : 'text-white'}`}>
-            ₹{Number(currentHighest).toLocaleString('en-IN')}
+            ₹{Number(effectiveHighest).toLocaleString('en-IN')}
           </span>
           <span className="text-xs text-slate-400 font-medium">
             (Starting Price: ₹{Number(auction.starting_price).toLocaleString('en-IN')})
@@ -837,7 +912,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="text-slate-500 font-medium">Current Highest Bid:</span>
-                <span className="font-bold text-slate-900">₹{Number(currentHighest).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-slate-900">₹{Number(effectiveHighest).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="text-slate-500 font-medium">Minimum Bid Increment:</span>

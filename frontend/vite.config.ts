@@ -471,70 +471,67 @@ function devApiPlugin(): Plugin {
             bids.unshift(newBid);
             writeJson(bidsFilePath, bids);
 
-            // If already approved, update auction's current_highest_bid & anti-sniping
             let timeExtended = false;
             let newEndTime = auction?.end_time;
-
             let autoClosed = false;
             let approvedBidsCount = 0;
 
-            if (bidStatus === 'approved' && aucIdx !== -1) {
-              const approvedBids = bids.filter((b: any) => Number(b.auction_id) === Number(auctionId) && b.status === 'approved');
-              approvedBidsCount = approvedBids.length;
-
-              if (approvedBidsCount >= 5) {
-                autoClosed = true;
-                approvedBids.sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
-                const h1 = approvedBids[0];
-                const h2 = approvedBids[1];
-                const h3 = approvedBids[2];
-
-                auctions[aucIdx].status = 'closed';
-                auctions[aucIdx].winner_confirmed = true;
-                auctions[aucIdx].winner_user_id = h1 ? h1.user_id : null;
-                auctions[aucIdx].winner_h1_user_id = h1 ? h1.user_id : null;
-                auctions[aucIdx].winner_h2_user_id = h2 ? h2.user_id : null;
-                auctions[aucIdx].winner_h3_user_id = h3 ? h3.user_id : null;
-                auctions[aucIdx].awarded_winner_type = 'H1';
-                auctions[aucIdx].awarded_winner_id = h1 ? h1.user_id : null;
+            // Unconditionally update auction's current_highest_bid and bids list for any valid placed bid
+            if (aucIdx !== -1) {
+              const currentHighest = auctions[aucIdx].current_highest_bid || auctions[aucIdx].starting_price || 0;
+              if (amount > currentHighest) {
                 auctions[aucIdx].current_highest_bid = amount;
-                auctions[aucIdx].end_time = new Date().toISOString();
-                newEndTime = auctions[aucIdx].end_time;
-              } else {
-                if (amount > (auctions[aucIdx].current_highest_bid || auctions[aucIdx].starting_price)) {
-                  auctions[aucIdx].current_highest_bid = amount;
-                }
-                if (auctions[aucIdx].end_time) {
-                  const endTs = new Date(auctions[aucIdx].end_time).getTime();
-                  const nowTs = Date.now();
-                  const remainingSecs = (endTs - nowTs) / 1000;
-                  if (remainingSecs > 0 && remainingSecs <= 120) {
-                    timeExtended = true;
-                    newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
-                    auctions[aucIdx].end_time = newEndTime;
-                  }
-                }
               }
 
               if (!auctions[aucIdx].bids) auctions[aucIdx].bids = [];
               auctions[aucIdx].bids.unshift({
                 id: newBid.id,
                 amount: amount,
+                status: bidStatus,
                 user: { name: newBid.bidder_name },
                 created_at: newBid.created_at,
               });
+              auctions[aucIdx].bids.sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
+
+              // Anti-Sniping Rule: if placed in last 2 minutes (<= 120s), extend timer
+              if (auctions[aucIdx].end_time) {
+                const endTs = new Date(auctions[aucIdx].end_time).getTime();
+                const nowTs = Date.now();
+                const remainingSecs = (endTs - nowTs) / 1000;
+                if (remainingSecs > 0 && remainingSecs <= 120) {
+                  timeExtended = true;
+                  newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
+                  auctions[aucIdx].end_time = newEndTime;
+                }
+              }
+
+              // Continuous 5 approved bids rule for auto-closing
+              if (bidStatus === 'approved') {
+                const approvedBids = bids.filter((b: any) => Number(b.auction_id) === Number(auctionId) && b.status === 'approved');
+                approvedBidsCount = approvedBids.length;
+
+                if (approvedBidsCount >= 5) {
+                  autoClosed = true;
+                  approvedBids.sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
+                  const h1 = approvedBids[0];
+                  const h2 = approvedBids[1];
+                  const h3 = approvedBids[2];
+
+                  auctions[aucIdx].status = 'closed';
+                  auctions[aucIdx].winner_confirmed = true;
+                  auctions[aucIdx].winner_user_id = h1 ? h1.user_id : null;
+                  auctions[aucIdx].winner_h1_user_id = h1 ? h1.user_id : null;
+                  auctions[aucIdx].winner_h2_user_id = h2 ? h2.user_id : null;
+                  auctions[aucIdx].winner_h3_user_id = h3 ? h3.user_id : null;
+                  auctions[aucIdx].awarded_winner_type = 'H1';
+                  auctions[aucIdx].awarded_winner_id = h1 ? h1.user_id : null;
+                  auctions[aucIdx].current_highest_bid = amount;
+                  auctions[aucIdx].end_time = new Date().toISOString();
+                  newEndTime = auctions[aucIdx].end_time;
+                }
+              }
 
               writeJson(auctionsFilePath, auctions);
-            } else if (aucIdx !== -1 && auctions[aucIdx].end_time) {
-              const endTs = new Date(auctions[aucIdx].end_time).getTime();
-              const nowTs = Date.now();
-              const remainingSecs = (endTs - nowTs) / 1000;
-              if (remainingSecs > 0 && remainingSecs <= 120) {
-                timeExtended = true;
-                newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
-                auctions[aucIdx].end_time = newEndTime;
-                writeJson(auctionsFilePath, auctions);
-              }
             }
 
             // Broadcast email notification to all registered users
@@ -564,6 +561,8 @@ function devApiPlugin(): Plugin {
                 status: 'pending',
                 requires_admin_approval: true,
                 is_first_bid: true,
+                bid_id: newBid.id,
+                current_highest_bid: amount,
                 time_extended: timeExtended,
                 new_end_time: newEndTime,
                 extension_seconds: 120,
@@ -758,11 +757,34 @@ function devApiPlugin(): Plugin {
             });
 
             if (item) {
+              const allBids = readJson(bidsFilePath, []);
+              const lotBids = allBids
+                .filter((b: any) => Number(b.auction_id) === Number(item.id))
+                .sort((a: any, b: any) => Number(b.amount) - Number(a.amount));
+              const highestBidInLot = lotBids.length > 0 ? Number(lotBids[0].amount) : 0;
+              const maxVal = Math.max(Number(item.current_highest_bid) || 0, Number(item.starting_price) || 0, highestBidInLot);
+              item.current_highest_bid = maxVal;
+              if (lotBids.length > 0) {
+                item.bids = lotBids.map((b: any) => ({
+                  id: b.id,
+                  amount: Number(b.amount),
+                  status: b.status,
+                  user: { name: b.bidder_name || b.user?.name || 'Registered Bidder' },
+                  created_at: b.created_at,
+                }));
+              }
               return sendJson({ success: true, auction: item, data: item, is_unlocked: true });
             }
           }
           if (!url.includes('/top-bidders') && !url.includes('/confirm-winner') && !url.includes('/pdf')) {
-            return sendJson({ success: true, data: auctions, total: auctions.length });
+            const allBids = readJson(bidsFilePath, []);
+            const syncedAuctions = auctions.map((a: any) => {
+              const lotBids = allBids.filter((b: any) => Number(b.auction_id) === Number(a.id));
+              const highestBidInLot = lotBids.reduce((m: number, b: any) => Math.max(m, Number(b.amount) || 0), 0);
+              const maxVal = Math.max(Number(a.current_highest_bid) || 0, Number(a.starting_price) || 0, highestBidInLot);
+              return { ...a, current_highest_bid: maxVal };
+            });
+            return sendJson({ success: true, data: syncedAuctions, total: syncedAuctions.length });
           }
         }
 

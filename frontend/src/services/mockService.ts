@@ -501,31 +501,30 @@ export function handleMockApi(config: any): any {
     let newEndTime = aucIndex !== -1 ? auctions[aucIndex].end_time : undefined;
 
     if (aucIndex !== -1) {
-      if (bidStatus === 'approved') {
-        if (amount > (auctions[aucIndex].current_highest_bid || auctions[aucIndex].starting_price)) {
-          auctions[aucIndex].current_highest_bid = amount;
-        }
-        if (!auctions[aucIndex].bids) auctions[aucIndex].bids = [];
+      if (amount > (auctions[aucIndex].current_highest_bid || auctions[aucIndex].starting_price || 0)) {
+        auctions[aucIndex].current_highest_bid = amount;
+      }
+      if (!auctions[aucIndex].bids) auctions[aucIndex].bids = [];
 
-        const newBid: Bid = {
-          id: newBidObj.id,
-          amount: amount,
-          bidder_name: currentUser.company_name || currentUser.name,
-          user: { name: currentUser.name },
-          created_at: newBidObj.created_at,
-        };
-        auctions[aucIndex].bids!.unshift(newBid);
+      const newBid: Bid = {
+        id: newBidObj.id,
+        amount: amount,
+        bidder_name: currentUser.company_name || currentUser.name,
+        user: { name: currentUser.name },
+        created_at: newBidObj.created_at,
+      };
+      auctions[aucIndex].bids!.unshift(newBid);
+      auctions[aucIndex].bids!.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
 
-        // Anti-Sniping Rule
-        if (auctions[aucIndex].end_time) {
-          const endTs = new Date(auctions[aucIndex].end_time).getTime();
-          const nowTs = Date.now();
-          const remainingSeconds = (endTs - nowTs) / 1000;
-          if (remainingSeconds > 0 && remainingSeconds <= 60) {
-            timeExtended = true;
-            newEndTime = new Date(endTs + 120 * 1000).toISOString();
-            auctions[aucIndex].end_time = newEndTime;
-          }
+      // Anti-Sniping Rule
+      if (auctions[aucIndex].end_time) {
+        const endTs = new Date(auctions[aucIndex].end_time).getTime();
+        const nowTs = Date.now();
+        const remainingSeconds = (endTs - nowTs) / 1000;
+        if (remainingSeconds > 0 && remainingSeconds <= 120) {
+          timeExtended = true;
+          newEndTime = new Date(Math.max(endTs + 120 * 1000, nowTs + 120 * 1000)).toISOString();
+          auctions[aucIndex].end_time = newEndTime;
         }
       }
 
@@ -539,6 +538,9 @@ export function handleMockApi(config: any): any {
         status: 'pending',
         requires_admin_approval: true,
         is_first_bid: true,
+        current_highest_bid: amount,
+        time_extended: timeExtended,
+        new_end_time: newEndTime,
         message: `Your initial bid of ₹${amount.toLocaleString('en-IN')} has been submitted for Admin Acceptance. Once accepted by Admin, you can freely increase your bid on this lot!`,
         bid: newBidObj,
       };

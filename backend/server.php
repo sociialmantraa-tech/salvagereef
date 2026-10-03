@@ -2504,8 +2504,15 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $stmtBids = $pdo->prepare("SELECT b.*, u.name as bidder_name FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.amount DESC LIMIT 10");
     $stmtBids->execute([$auction['id']]);
     $auction['bids'] = array_map(function($b) {
-        return ['id' => $b['id'], 'amount' => (float)$b['amount'], 'user' => ['name' => $b['bidder_name']], 'created_at' => $b['created_at']];
+        return ['id' => $b['id'], 'amount' => (float)$b['amount'], 'status' => $b['status'] ?? 'pending', 'user' => ['name' => $b['bidder_name']], 'created_at' => $b['created_at']];
     }, $stmtBids->fetchAll());
+
+    if (!empty($auction['bids'])) {
+        $highestBidInDb = (float)$auction['bids'][0]['amount'];
+        if ($highestBidInDb > (float)$auction['current_highest_bid']) {
+            $auction['current_highest_bid'] = $highestBidInDb;
+        }
+    }
 
     $auction['group_children'] = [];
     if ($auction['is_group']) {
@@ -2658,9 +2665,15 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
                     $stmtUpdate->execute([$bidAmount, $auctionId]);
                 }
             }
-        } elseif ($timeExtended) {
-            $stmtUpdate = $pdo->prepare("UPDATE auctions SET end_time = ? WHERE id = ?");
-            $stmtUpdate->execute([$newEndTime, $auctionId]);
+        } else {
+            // First/Pending Bid: ALWAYS update current_highest_bid so that the highest placed bid is shown everywhere
+            if ($timeExtended) {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+            } else {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $auctionId]);
+            }
         }
 
         $pdo->commit();
@@ -2673,6 +2686,7 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
                 'requires_admin_approval' => true,
                 'is_first_bid' => true,
                 'bid_id' => $bidId,
+                'current_highest_bid' => $bidAmount,
                 'time_extended' => $timeExtended,
                 'new_end_time' => $newEndTime,
                 'extension_seconds' => 120,
