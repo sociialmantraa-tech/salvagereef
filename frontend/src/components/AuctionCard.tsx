@@ -19,12 +19,36 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
   const isPrivate = auction.auction_type === 'private';
   const isGroup = auction.auction_type === 'group';
 
-  const primaryImg =
-    auction.primary_image?.image_path ||
-    auction.images?.[0]?.image_path ||
-    FALLBACK_AUCTION_IMG;
+  // Resolve valid non-PDF image for the front thumbnail (JPG, WebP, PNG)
+  const resolveFrontImage = () => {
+    if (auction.primary_image?.image_path && !isPdfDocument(auction.primary_image.image_path)) {
+      return auction.primary_image.image_path;
+    }
+    if (auction.images && auction.images.length > 0) {
+      const nonPdf = auction.images.find((img) => img.image_path && !isPdfDocument(img.image_path));
+      if (nonPdf?.image_path) return nonPdf.image_path;
+    }
+    if ((auction as any).image_url && !isPdfDocument((auction as any).image_url)) {
+      return (auction as any).image_url;
+    }
+    return FALLBACK_AUCTION_IMG;
+  };
 
-  const [imgSrc, setImgSrc] = useState<string>(primaryImg);
+  const [imgSrc, setImgSrc] = useState<string>(resolveFrontImage());
+
+  useEffect(() => {
+    setImgSrc(resolveFrontImage());
+  }, [auction]);
+
+  // Check if official PDF Tender / Document is uploaded
+  const attachedPdfUrl =
+    auction.pdf_url ||
+    auction.pdf_document ||
+    (auction as any).attachment_url ||
+    auction.images?.find((img) => isPdfDocument(img.image_path))?.image_path ||
+    (isPdfDocument((auction as any).image_url) ? (auction as any).image_url : null);
+
+  const hasPdf = Boolean(attachedPdfUrl);
 
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return '31 Jul 2026 16:00 PM';
@@ -90,23 +114,14 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     <div className="bg-[#f0f7ff]/90 rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-3">
       {/* Top Section: Thumbnail Image + Right Specs Table + Badge */}
       <div className="flex gap-4 items-start">
-        {/* Left Thumbnail Image */}
+        {/* Left Thumbnail Image - Always high-fidelity JPG/WebP photo */}
         <div className="w-36 sm:w-40 h-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm flex items-center justify-center">
-          {isPdfDocument(imgSrc) ? (
-            <div className="w-full h-full bg-slate-900 text-red-400 flex flex-col items-center justify-center p-2 text-center group-hover:scale-105 transition-transform">
-              <FileText className="w-8 h-8 text-red-500 mb-1" />
-              <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded">
-                PDF Tender
-              </span>
-            </div>
-          ) : (
-            <img
-              src={imgSrc}
-              alt={displayTitle}
-              onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
-              className="w-full h-full object-cover"
-            />
-          )}
+          <img
+            src={imgSrc}
+            alt={displayTitle}
+            onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          />
         </div>
 
         {/* Right Specs Table & Badge */}
@@ -199,26 +214,34 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
             >
               View
             </Link>
-            <button
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isAuthenticated || !user) {
-                  setShowAuthModal(true);
-                  return;
-                }
-                try {
-                  const { downloadAuctionPdf } = await import('../utils/pdfGenerator');
-                  await downloadAuctionPdf(auction);
-                } catch (err) {
-                  console.error('Failed to download PDF:', err);
-                }
-              }}
-              className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center justify-center"
-              title="Download Official PDF Dossier (Login Required)"
-            >
-              <FileText className="w-3.5 h-3.5" />
-            </button>
+            {hasPdf && (
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isAuthenticated || !user) {
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  try {
+                    const safeCode = displayCode || `LOT-${auction.id}`;
+                    if (attachedPdfUrl) {
+                      const { downloadSingleImage } = await import('../utils/imageDownloader');
+                      await downloadSingleImage(attachedPdfUrl, `${safeCode}_tender_document.pdf`);
+                    } else {
+                      const { downloadAuctionPdf } = await import('../utils/pdfGenerator');
+                      await downloadAuctionPdf(auction);
+                    }
+                  } catch (err) {
+                    console.error('Failed to download PDF:', err);
+                  }
+                }}
+                className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center justify-center"
+                title="Download Official Uploaded Tender PDF (Login Required)"
+              >
+                <FileText className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {isPrivate && (

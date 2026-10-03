@@ -557,7 +557,8 @@ if (!$pdo) {
         awarded_winner_type TEXT DEFAULT NULL,
         awarded_winner_id INTEGER DEFAULT NULL,
         emd_amount NUMERIC DEFAULT 0,
-        condition TEXT DEFAULT NULL
+        condition TEXT DEFAULT NULL,
+        pdf_url TEXT DEFAULT NULL
     )");
 
     // Auto-create bids table
@@ -752,6 +753,7 @@ if (!$pdo) {
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN winner_h3_user_id INTEGER DEFAULT NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN awarded_winner_type TEXT DEFAULT NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN awarded_winner_id INTEGER DEFAULT NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE auctions ADD COLUMN pdf_url TEXT DEFAULT NULL"); } catch (Exception $e) {}
 
     // Ensure status column exists on bids table for admin approvals
     try { $pdo->exec("ALTER TABLE bids ADD COLUMN status TEXT DEFAULT 'approved'"); } catch (Exception $e) {}
@@ -1920,18 +1922,126 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
     }
 
     foreach ($items as &$item) {
+        $rawImgs = $imgsByAuction[$item['id']] ?? (!empty($item['primary_image_url']) ? [['image_path' => $item['primary_image_url'], 'is_primary' => 1]] : []);
+        $cleanImages = [];
+        $detectedPdf = !empty($item['pdf_url']) ? $item['pdf_url'] : null;
+
+        foreach ($rawImgs as $row) {
+            $path = is_array($row) ? ($row['image_path'] ?? '') : (string)$row;
+            if (preg_match('/\.pdf($|\?)/i', $path)) {
+                if (empty($detectedPdf)) {
+                    $detectedPdf = $path;
+                }
+            } else {
+                $cleanImages[] = $row;
+            }
+        }
+
+        $primaryImg = $item['primary_image_url'] ?? null;
+        if (!empty($primaryImg) && preg_match('/\.pdf($|\?)/i', $primaryImg)) {
+            if (empty($detectedPdf)) {
+                $detectedPdf = $primaryImg;
+            }
+            $primaryImg = null;
+        }
+
+        if (empty($primaryImg) && !empty($cleanImages)) {
+            $primaryImg = is_array($cleanImages[0]) ? ($cleanImages[0]['image_path'] ?? null) : $cleanImages[0];
+        }
+
+        if (empty($primaryImg)) {
+            $primaryImg = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80';
+            if (empty($cleanImages)) {
+                $cleanImages[] = ['image_path' => $primaryImg, 'is_primary' => 1];
+            }
+        }
+
+        $item['pdf_url'] = $detectedPdf;
+        $item['pdf_document'] = $detectedPdf;
+        $item['primary_image_url'] = $primaryImg;
         $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
-        $item['images'] = $imgsByAuction[$item['id']] ?? (!empty($item['primary_image_url']) ? [['image_path' => $item['primary_image_url'], 'is_primary' => 1]] : []);
-        $item['primary_image'] = ['image_path' => $item['primary_image_url']];
+        $item['images'] = $cleanImages;
+        $item['primary_image'] = ['image_path' => $primaryImg];
         $item['creator'] = ['id' => $item['created_by'], 'name' => $item['creator_name'], 'company_name' => $item['creator_company']];
     }
 
     jsonResponse(['data' => $items, 'total' => count($items)]);
 }
 
-// 9a. Create Auction: POST /api/v1/auctions OR /api/v1/admin/auctions
+// 9a. Create or Update Auction: POST /api/v1/auctions OR /api/v1/admin/auctions
 if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin/auctions')) {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    // Extract PDF URL if provided explicitly or in legacy fields
+    $pdfUrl = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) {
+                if (preg_match('/\.pdf($|\?)/i', $path)) {
+                    if (empty($pdfUrl)) $pdfUrl = $path;
+                } else {
+                    $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+                }
+            }
+        }
+    }
+    if (empty($imagesList)) {
+        $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
+        if ($single) {
+            if (preg_match('/\.pdf($|\?)/i', $single)) {
+                if (empty($pdfUrl)) $pdfUrl = $single;
+            } else {
+                $imagesList[] = ['path' => $single, 'primary' => 1];
+            }
+        }
+    }
+    if (empty($imagesList)) {
+        $imagesList[] = ['path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 'primary' => 1];
+    } else {
+        $hasPrimary = false;
+        foreach ($imagesList as $im) {
+            if (!empty($im['primary'])) { $hasPrimary = true; break; }
+        }
+        if (!$hasPrimary) {
+            $imagesList[0]['primary'] = 1;
+        }
+    }
+
+    if (!empty($body['id'])) {
+        $auctionId = (int)$body['id'];
+        $fields = [];
+        $params = [];
+        $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed', 'pdf_url'];
+        foreach ($allowed as $f) {
+            if ($f === 'pdf_url') {
+                if ($pdfUrl !== null) {
+                    $fields[] = "$f = ?";
+                    $params[] = $pdfUrl;
+                }
+            } elseif (isset($body[$f])) {
+                $fields[] = "$f = ?";
+                $params[] = $body[$f];
+            }
+        }
+        if (!empty($fields)) {
+            $params[] = $auctionId;
+            $pdo->prepare("UPDATE auctions SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
+        }
+        if (!empty($imagesList)) {
+            try {
+                $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+                foreach ($imagesList as $imgItem) {
+                    $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                        ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
+                }
+            } catch (\Throwable $e) {}
+        }
+        jsonResponse(['message' => 'Auction updated successfully', 'id' => $auctionId, 'success' => true]);
+    }
+
     $title = trim($body['title'] ?? '');
     if (empty($title)) jsonResponse(['message' => 'Title is required'], 422);
 
@@ -1950,24 +2060,12 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     $startTime = $body['start_time'] ?? date('Y-m-d H:i:s');
     $endTime = $body['end_time'] ?? date('Y-m-d H:i:s', time() + 7 * 86400);
     $createdBy = (int)($body['created_by'] ?? 1);
-
     $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
 
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$title, $slug . '-' . time(), $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy]);
+    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$title, $slug . '-' . time(), $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy, $pdfUrl]);
     $newId = (int)$pdo->lastInsertId();
 
-    $imagesList = [];
-    if (!empty($body['images']) && is_array($body['images'])) {
-        foreach ($body['images'] as $idx => $img) {
-            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
-            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
-        }
-    }
-    if (empty($imagesList)) {
-        $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
-        if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
-    }
     foreach ($imagesList as $imgItem) {
         try {
             $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
@@ -1983,11 +2081,18 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     $auctionId = (int)$m[2];
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
+    $pdfUrlFromEdit = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+
     $fields = [];
     $params = [];
-    $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed'];
+    $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed', 'pdf_url'];
     foreach ($allowed as $f) {
-        if (isset($body[$f])) {
+        if ($f === 'pdf_url') {
+            if ($pdfUrlFromEdit !== null) {
+                $fields[] = "$f = ?";
+                $params[] = $pdfUrlFromEdit;
+            }
+        } elseif (isset($body[$f])) {
             $fields[] = "$f = ?";
             $params[] = $body[$f];
         }
@@ -2001,14 +2106,43 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     if (!empty($body['images']) && is_array($body['images'])) {
         foreach ($body['images'] as $idx => $img) {
             $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
-            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+            if ($path) {
+                if (preg_match('/\.pdf($|\?)/i', $path)) {
+                    if (empty($pdfUrlFromEdit)) {
+                        $pdfUrlFromEdit = $path;
+                        try {
+                            $pdo->prepare("UPDATE auctions SET pdf_url = ? WHERE id = ?")->execute([$path, $auctionId]);
+                        } catch (\Throwable $e) {}
+                    }
+                } else {
+                    $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+                }
+            }
         }
     }
     if (empty($imagesList)) {
         $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
-        if ($single) $imagesList[] = ['path' => $single, 'primary' => 1];
+        if ($single) {
+            if (preg_match('/\.pdf($|\?)/i', $single)) {
+                if (empty($pdfUrlFromEdit)) {
+                    $pdfUrlFromEdit = $single;
+                    try {
+                        $pdo->prepare("UPDATE auctions SET pdf_url = ? WHERE id = ?")->execute([$single, $auctionId]);
+                    } catch (\Throwable $e) {}
+                }
+            } else {
+                $imagesList[] = ['path' => $single, 'primary' => 1];
+            }
+        }
     }
     if (!empty($imagesList)) {
+        $hasPrimary = false;
+        foreach ($imagesList as $im) {
+            if (!empty($im['primary'])) { $hasPrimary = true; break; }
+        }
+        if (!$hasPrimary) {
+            $imagesList[0]['primary'] = 1;
+        }
         try {
             $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
             foreach ($imagesList as $imgItem) {
@@ -2341,7 +2475,30 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
 
     $stmtImg = $pdo->prepare("SELECT * FROM auction_images WHERE auction_id = ?");
     $stmtImg->execute([$auction['id']]);
-    $auction['images'] = $stmtImg->fetchAll();
+    $rawImgs = $stmtImg->fetchAll();
+    $cleanImgs = [];
+    $detectedPdf = !empty($auction['pdf_url']) ? $auction['pdf_url'] : null;
+    foreach ($rawImgs as $img) {
+        $path = $img['image_path'] ?? '';
+        if (preg_match('/\.pdf($|\?)/i', $path)) {
+            if (empty($detectedPdf)) $detectedPdf = $path;
+        } else {
+            $cleanImgs[] = $img;
+        }
+    }
+    if (empty($cleanImgs)) {
+        $cleanImgs[] = [
+            'id' => 1,
+            'auction_id' => $auction['id'],
+            'image_path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80',
+            'is_primary' => 1
+        ];
+    }
+    $auction['images'] = $cleanImgs;
+    $auction['primary_image_url'] = $cleanImgs[0]['image_path'] ?? 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80';
+    $auction['primary_image'] = ['image_path' => $auction['primary_image_url']];
+    $auction['pdf_url'] = $detectedPdf;
+    $auction['pdf_document'] = $detectedPdf;
 
     $stmtBids = $pdo->prepare("SELECT b.*, u.name as bidder_name FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.amount DESC LIMIT 10");
     $stmtBids->execute([$auction['id']]);
@@ -3446,9 +3603,44 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
 
     $body = json_decode(file_get_contents('php://input'), true);
 
+    $pdfUrl = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+
+    $imagesList = [];
+    if (!empty($body['images']) && is_array($body['images'])) {
+        foreach ($body['images'] as $idx => $img) {
+            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
+            if ($path) {
+                if (preg_match('/\.pdf($|\?)/i', $path)) {
+                    if (empty($pdfUrl)) $pdfUrl = $path;
+                } else {
+                    $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
+                }
+            }
+        }
+    }
+    if (empty($imagesList) && !empty($body['image_url'])) {
+        $single = $body['image_url'];
+        if (preg_match('/\.pdf($|\?)/i', $single)) {
+            if (empty($pdfUrl)) $pdfUrl = $single;
+        } else {
+            $imagesList[] = ['path' => $single, 'primary' => 1];
+        }
+    }
+    if (empty($imagesList)) {
+        $imagesList[] = ['path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 'primary' => 1];
+    } else {
+        $hasPrimary = false;
+        foreach ($imagesList as $im) {
+            if (!empty($im['primary'])) { $hasPrimary = true; break; }
+        }
+        if (!$hasPrimary) {
+            $imagesList[0]['primary'] = 1;
+        }
+    }
+
     if (!empty($body['id'])) {
         // UPDATE Existing Auction Lot
-        $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, current_highest_bid = ?, location_city = ?, location_state = ?, auction_type = ?, status = ?, start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time) WHERE id = ?");
+        $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, current_highest_bid = ?, location_city = ?, location_state = ?, auction_type = ?, status = ?, start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), pdf_url = COALESCE(?, pdf_url) WHERE id = ?");
         $stmtUpd->execute([
             $body['title'],
             $body['description'] ?? '',
@@ -3462,13 +3654,16 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
             $body['status'] ?? 'live',
             !empty($body['start_time']) ? date('Y-m-d H:i:s', strtotime($body['start_time'])) : null,
             !empty($body['end_time']) ? date('Y-m-d H:i:s', strtotime($body['end_time'])) : null,
+            $pdfUrl,
             $body['id']
         ]);
 
-        if (!empty($body['image_url'])) {
+        if (!empty($imagesList)) {
             $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$body['id']]);
-            $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")
-                ->execute([$body['id'], $body['image_url']]);
+            foreach ($imagesList as $imgItem) {
+                $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                    ->execute([$body['id'], $imgItem['path'], $imgItem['primary']]);
+            }
         }
 
         jsonResponse(['message' => 'Auction lot updated successfully', 'id' => $body['id']]);
@@ -3494,7 +3689,7 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
     $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
     $bidIncrement = !empty($body['bid_increment']) ? (float)$body['bid_increment'] : 1000;
 
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $body['title'],
         $slug,
@@ -3514,19 +3709,10 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         $body['location_state'] ?? 'Maharashtra',
         !empty($body['is_group']) ? 1 : 0,
         $user['id'],
+        $pdfUrl
     ]);
 
     $id = $pdo->lastInsertId();
-    $imagesList = [];
-    if (!empty($body['images']) && is_array($body['images'])) {
-        foreach ($body['images'] as $idx => $img) {
-            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
-            if ($path) $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
-        }
-    }
-    if (empty($imagesList) && !empty($body['image_url'])) {
-        $imagesList[] = ['path' => $body['image_url'], 'primary' => 1];
-    }
     foreach ($imagesList as $imgItem) {
         $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
             ->execute([$id, $imgItem['path'], $imgItem['primary']]);

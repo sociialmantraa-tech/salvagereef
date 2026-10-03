@@ -124,8 +124,24 @@ export default function AuctionDetail() {
     );
   }
 
-  const images = auction.images && auction.images.length > 0
+  // Official Tender / Specification PDF Document
+  const attachedPdfUrl =
+    auction.pdf_url ||
+    auction.pdf_document ||
+    (auction as any).attachment_url ||
+    auction.images?.find((img) => isPdfDocument(img.image_path))?.image_path ||
+    (isPdfDocument((auction as any).image_url) ? (auction as any).image_url : null);
+
+  const hasPdf = Boolean(attachedPdfUrl);
+
+  // Gallery Photos (JPG, WebP, PNG only - PDF documents excluded from photo slider)
+  const rawImagePaths = auction.images && auction.images.length > 0
     ? auction.images.map((img) => img.image_path)
+    : [(auction as any).image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
+
+  const nonPdfImages = rawImagePaths.filter((path) => path && !isPdfDocument(path));
+  const images = nonPdfImages.length > 0
+    ? nonPdfImages
     : ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
 
   const handleDownloadPdf = async () => {
@@ -138,12 +154,17 @@ export default function AuctionDetail() {
     setGeneratingPdf(true);
     setPdfSuccess(false);
     try {
-      await downloadAuctionPdf(auction);
+      const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
+      if (attachedPdfUrl) {
+        await downloadSingleImage(attachedPdfUrl, `${lotCode}_tender_document.pdf`);
+      } else {
+        await downloadAuctionPdf(auction);
+      }
       setPdfSuccess(true);
       setTimeout(() => setPdfSuccess(false), 4000);
     } catch (err) {
-      console.error('Failed to generate PDF:', err);
-      alert('Unable to generate PDF document at this moment. Please try again.');
+      console.error('Failed to download PDF:', err);
+      alert('Unable to download PDF document at this moment. Please try again.');
     } finally {
       setGeneratingPdf(false);
     }
@@ -174,7 +195,9 @@ export default function AuctionDetail() {
       setShowAuthModal(true);
       return;
     }
-    window.open(images[activeImage], '_blank');
+    if (attachedPdfUrl) {
+      window.open(attachedPdfUrl, '_blank');
+    }
   };
 
   const handleDownloadSinglePhoto = (imgUrl: string, idx: number) => {
@@ -223,23 +246,25 @@ export default function AuctionDetail() {
           <span className="text-slate-900 font-semibold truncate max-w-xs">{auction.title}</span>
         </nav>
 
-        {/* Global Download Actions */}
+        {/* Global Download Actions - Download PDF only when PDF uploaded */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleDownloadPdf}
-            disabled={generatingPdf}
-            className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-            title="Download complete printable lot catalog PDF with all prices, specs, and photos"
-          >
-            {generatingPdf ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : pdfSuccess ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-            ) : (
-              <FileText className="w-4 h-4" />
-            )}
-            <span>{generatingPdf ? 'Generating PDF...' : pdfSuccess ? 'PDF Downloaded!' : 'Download Lot PDF'}</span>
-          </button>
+          {hasPdf && (
+            <button
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf}
+              className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+              title="Download official uploaded tender PDF document"
+            >
+              {generatingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : pdfSuccess ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              <span>{generatingPdf ? 'Downloading PDF...' : pdfSuccess ? 'PDF Downloaded!' : 'Download Tender PDF'}</span>
+            </button>
+          )}
 
           <button
             onClick={handleDownloadImages}
@@ -262,72 +287,39 @@ export default function AuctionDetail() {
         {/* Left Column */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-4">
+            {/* Main Featured Photo Viewer - Always JPG/WebP */}
             <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center group">
-              {isPdfDocument(images[activeImage]) ? (
-                <div className="w-full h-full bg-[#0B192C] flex flex-col items-center justify-center p-6 text-center space-y-4">
-                  <div className="w-20 h-20 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-xl border border-red-400">
-                    <FileText className="w-10 h-10" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="bg-red-600 text-white text-[11px] font-black uppercase px-3 py-1 rounded-full tracking-wider inline-block">
-                      PDF Document Attached
-                    </span>
-                    <h3 className="text-white font-extrabold text-base pt-1">
-                      Official Lot Specifications & Inspection Document
-                    </h3>
-                    <p className="text-slate-400 text-xs max-w-sm">
-                      Click below to inspect or download the official verification PDF document.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <button
-                      onClick={handleOpenAttachedPdf}
-                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" /> Open Full PDF Document
-                    </button>
-                    <button
-                      onClick={handleDownloadPdf}
-                      disabled={generatingPdf}
-                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
-                    >
-                      <Download className="w-4 h-4" /> Download Official PDF
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <img
-                    src={images[activeImage]}
-                    alt={auction.title}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Floating Action Controls on Image */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleDownloadSinglePhoto(images[activeImage], activeImage)}
-                      className="p-2 bg-black/70 hover:bg-black text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
-                      title="Download this photo"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Save Photo</span>
-                    </button>
-                    <button
-                      onClick={handleDownloadPdf}
-                      disabled={generatingPdf}
-                      className="p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
-                      title="Download Official PDF Dossier"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">PDF Dossier</span>
-                    </button>
-                  </div>
-                </>
-              )}
+              <img
+                src={images[activeImage]}
+                alt={auction.title}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                }}
+                className="w-full h-full object-cover transition-transform duration-300"
+              />
+              {/* Floating Action Controls on Image */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleDownloadSinglePhoto(images[activeImage], activeImage)}
+                  className="p-2 bg-black/70 hover:bg-black text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
+                  title="Download this photo"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Save Photo</span>
+                </button>
+                {hasPdf && (
+                  <button
+                    onClick={handleDownloadPdf}
+                    disabled={generatingPdf}
+                    className="p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
+                    title="Download Official Uploaded Tender PDF"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Tender PDF</span>
+                  </button>
+                )}
+              </div>
               <div className="absolute top-4 left-4 flex gap-2">
                 <span className="bg-[#0B192C] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                   {auction.auction_type} Lot
@@ -340,6 +332,7 @@ export default function AuctionDetail() {
               </div>
             </div>
 
+            {/* Thumbnail Row */}
             {images.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {images.map((img, idx) => (
@@ -350,27 +343,58 @@ export default function AuctionDetail() {
                       activeImage === idx ? 'border-[#D48B1C] scale-105' : 'border-slate-200 opacity-60'
                     }`}
                   >
-                    {isPdfDocument(img) ? (
-                      <div className="w-full h-full bg-red-950 text-red-400 flex flex-col items-center justify-center p-1">
-                        <FileText className="w-5 h-5 mb-0.5" />
-                        <span className="text-[9px] font-bold">PDF</span>
-                      </div>
-                    ) : (
-                      <img 
-                        src={img} 
-                        alt="" 
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-                        }}
-                        className="w-full h-full object-cover" 
-                      />
-                    )}
+                    <img 
+                      src={img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                      }}
+                      className="w-full h-full object-cover" 
+                    />
                   </button>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Dedicated Official Tender PDF Document Box (Shown ONLY when PDF is uploaded) */}
+          {hasPdf && (
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 rounded-3xl border border-slate-700/80 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-lg shrink-0">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded">
+                      Official Tender PDF
+                    </span>
+                    <span className="text-xs font-semibold text-slate-300">Tender Document & Material Specifications</span>
+                  </div>
+                  <p className="text-xs sm:text-sm font-extrabold text-white mt-1">
+                    Official Inspection Report, Lot Sheet & Terms Document
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <button
+                  onClick={handleOpenAttachedPdf}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl border border-slate-600 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> View
+                </button>
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={generatingPdf}
+                  className="flex-1 sm:flex-initial px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                >
+                  {generatingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div>

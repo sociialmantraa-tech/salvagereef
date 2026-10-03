@@ -1350,6 +1350,7 @@ export function handleMockApi(config: any): any {
         { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }
       ],
       primary_image: { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      pdf_url: bodyData.pdf_url || null,
       bids: [],
     };
 
@@ -1915,6 +1916,9 @@ export function handleMockApi(config: any): any {
       start_time: bodyData.start_time || new Date().toISOString(),
       end_time: bodyData.end_time || new Date(Date.now() + 7 * 86400000).toISOString(),
       created_by: currentUser.id,
+      images: bodyData.images || (bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : [{ id: Date.now(), image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }]),
+      primary_image: { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      pdf_url: bodyData.pdf_url || null,
       bids: [],
     };
 
