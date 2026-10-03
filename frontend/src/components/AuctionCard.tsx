@@ -110,6 +110,13 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     }
   }
 
+  // Safe normalized URL slug for links
+  const targetSlug = (
+    auction.slug
+      ? String(auction.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+      : (auction.title ? String(auction.title).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : String(auction.id))
+  ) || String(auction.id);
+
   return (
     <div className="bg-[#f0f7ff]/90 rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-3">
       {/* Top Section: Thumbnail Image + Right Specs Table + Badge */}
@@ -178,7 +185,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           <span className="text-slate-300 font-normal text-xs">|</span>
         </div>
         <Link
-          to={`/auctions/${auction.slug}`}
+          to={`/auctions/${targetSlug}`}
           className="font-extrabold text-slate-900 hover:text-[#0096C7] text-xs sm:text-sm leading-snug line-clamp-1 block transition-colors tracking-tight"
           title={displayTitle}
         >
@@ -209,7 +216,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
         <div className="flex flex-col items-stretch gap-1.5 shrink-0 min-w-[95px]">
           <div className="flex items-center gap-1">
             <Link
-              to={`/auctions/${auction.slug}`}
+              to={`/auctions/${targetSlug}`}
               className="flex-1 bg-[#0096C7] hover:bg-[#0077B6] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center"
             >
               View
@@ -242,7 +249,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
 
           {isPrivate && (
             <Link
-              to={`/auctions/${auction.slug}`}
+              to={`/auctions/${targetSlug}`}
               className="bg-[#52B788] hover:bg-[#40916C] text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-colors text-center whitespace-nowrap"
             >
               Show Interest

@@ -2466,9 +2466,10 @@ if ($method === 'GET' && ($uri === '/api/v1/admin/analytics/overview' || str_sta
 
 // 10. Auction Detail: GET /api/v1/auctions/{slug}
 if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
-    $identifier = urldecode($m[1]);
-    $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.slug = ? OR a.id = ?");
-    $stmt->execute([$identifier, $identifier]);
+    $identifier = trim(urldecode($m[1]));
+    $slugified = trim(preg_replace('/[^a-zA-Z0-9]+/', '-', strtolower($identifier)), '-');
+    $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.slug = ? OR a.slug = ? OR a.id = ? OR LOWER(a.title) = ? OR LOWER(a.title) LIKE ?");
+    $stmt->execute([$identifier, $slugified, $identifier, strtolower($identifier), '%' . strtolower($identifier) . '%']);
     $auction = $stmt->fetch();
 
     if (!$auction) jsonResponse(['message' => 'Auction not found'], 404);
@@ -2527,7 +2528,7 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
 
     $auction['category'] = ['name' => $auction['category_name']];
 
-    jsonResponse(['auction' => $auction, 'is_unlocked' => $isUnlocked, 'server_time' => date('c')]);
+    jsonResponse(['success' => true, 'auction' => $auction, 'data' => $auction, 'is_unlocked' => $isUnlocked, 'server_time' => date('c')]);
 }
 
 // 11. Place Bid: POST /api/v1/auctions/{id}/bid

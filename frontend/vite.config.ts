@@ -735,14 +735,33 @@ function devApiPlugin(): Plugin {
         if (req.method === 'GET' && (url.includes('/auctions') || url.includes('/admin/auctions'))) {
           const auctions = readJson(auctionsFilePath, []);
           const singleMatch = url.match(/\/auctions\/([^/?]+)/);
-          if (singleMatch && singleMatch[1] && singleMatch[1] !== 'all' && !url.includes('/top-bidders') && !url.includes('/confirm-winner')) {
-            const param = singleMatch[1];
-            const item = auctions.find((a: any) => String(a.id) === param || a.slug === param);
+          if (singleMatch && singleMatch[1] && singleMatch[1] !== 'all' && !url.includes('/top-bidders') && !url.includes('/confirm-winner') && !url.includes('/pdf')) {
+            const rawParam = singleMatch[1];
+            const cleanParam = decodeURIComponent(rawParam).trim().toLowerCase();
+            const normParam = cleanParam.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+            const item = auctions.find((a: any) => {
+              const aId = String(a.id);
+              const aSlug = (a.slug || '').toLowerCase();
+              const aNormSlug = aSlug.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+              const aLotCode = (a.lot_code || '').toLowerCase();
+              const aTitleNorm = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+              return (
+                aId === cleanParam ||
+                aSlug === cleanParam ||
+                aNormSlug === normParam ||
+                aLotCode === cleanParam ||
+                (normParam && aTitleNorm.includes(normParam)) ||
+                (normParam && normParam.includes(aNormSlug) && aNormSlug.length > 5)
+              );
+            });
+
             if (item) {
-              return sendJson({ success: true, auction: item, data: item });
+              return sendJson({ success: true, auction: item, data: item, is_unlocked: true });
             }
           }
-          if (!url.includes('/top-bidders') && !url.includes('/confirm-winner')) {
+          if (!url.includes('/top-bidders') && !url.includes('/confirm-winner') && !url.includes('/pdf')) {
             return sendJson({ success: true, data: auctions, total: auctions.length });
           }
         }

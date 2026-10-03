@@ -37,10 +37,34 @@ export default function AuctionDetail() {
 
   const fetchAuctionDetail = async () => {
     try {
-      const res = await api.get(`/auctions/${slug}`);
-      if (res.data?.auction) {
-        setAuction(res.data.auction);
-        setIsUnlocked(res.data.is_unlocked ?? true);
+      const cleanParam = slug ? encodeURIComponent(slug) : '';
+      const res = await api.get(`/auctions/${cleanParam}`);
+      
+      let fetchedAuction: Auction | null = null;
+      if (res.data?.auction && !Array.isArray(res.data.auction)) {
+        fetchedAuction = res.data.auction;
+      } else if (res.data?.data && !Array.isArray(res.data.data)) {
+        fetchedAuction = res.data.data;
+      } else if (res.data && !Array.isArray(res.data) && (res.data as any).id) {
+        fetchedAuction = res.data;
+      } else if (Array.isArray(res.data?.data) || Array.isArray(res.data)) {
+        const list: Auction[] = Array.isArray(res.data?.data) ? res.data.data : res.data;
+        if (slug) {
+          const raw = decodeURIComponent(slug).toLowerCase().trim();
+          const norm = raw.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+          fetchedAuction = list.find((a: any) => 
+            String(a.id) === raw ||
+            (a.slug && a.slug.toLowerCase() === raw) ||
+            (a.slug && a.slug.toLowerCase().replace(/[^a-z0-9]+/g, '-') === norm) ||
+            (a.lot_code && a.lot_code.toLowerCase() === raw) ||
+            (a.title && a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(norm))
+          ) || null;
+        }
+      }
+
+      if (fetchedAuction) {
+        setAuction(fetchedAuction);
+        setIsUnlocked(res.data?.is_unlocked ?? true);
       }
     } catch (err) {
       console.error('Error loading auction detail:', err);

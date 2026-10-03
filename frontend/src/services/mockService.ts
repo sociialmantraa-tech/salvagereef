@@ -726,10 +726,27 @@ export function handleMockApi(config: any): any {
   const isSingleAuction = /\/auctions\/[^\/]+$/.test(cleanUrl) && !cleanUrl.endsWith('/auctions');
   if (isSingleAuction && method === 'get') {
     const parts = cleanUrl.split('/');
-    const slugOrId = parts[parts.length - 1];
+    const rawSlugOrId = parts[parts.length - 1];
+    const cleanParam = decodeURIComponent(rawSlugOrId).trim().toLowerCase();
+    const normParam = cleanParam.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
     const auctions = getMockAuctions();
-    const auction = auctions.find((a) => a.slug === slugOrId || String(a.id) === slugOrId) || auctions[0];
+    const auction = auctions.find((a) => {
+      const aId = String(a.id);
+      const aSlug = (a.slug || '').toLowerCase();
+      const aNormSlug = aSlug.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const aLotCode = (a.lot_code || '').toLowerCase();
+      const aTitleNorm = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+      return (
+        aId === cleanParam ||
+        aSlug === cleanParam ||
+        aNormSlug === normParam ||
+        aLotCode === cleanParam ||
+        (normParam && aTitleNorm.includes(normParam)) ||
+        (normParam && normParam.includes(aNormSlug) && aNormSlug.length > 5)
+      );
+    }) || auctions[0];
 
     const interests = getMockInterests();
     const currentUser = getStoredUser();
