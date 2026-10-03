@@ -1,8 +1,8 @@
 # SalvageReef Master Quality Assurance & System Testing Plan
 
-> **Document Version:** 1.0.0  
-> **Last Verified:** September 30, 2026  
-> **Scope:** Authentication, Admin-to-User State Synchronization, Per-Auction Bidder Approval Workflow, Scrap Requests, Content Management, Multi-Browser Consistency.
+> **Document Version:** 1.1.0  
+> **Last Verified:** October 3, 2026  
+> **Scope:** Authentication, Admin-to-User State Synchronization, Per-Auction Bidder Approval Workflow, Tender PDF Isolation & Guest Download Access Gate, Content Management, Multi-Browser Consistency.
 
 ---
 
@@ -49,6 +49,10 @@
 | **TC-11** | Winner Selection (H1/H2/H3) | Admin opens Top Bidders modal and confirms winner | H1/H2/H3 awarded; customizable email & WhatsApp alert generated; lot closed | **PASS (100%)** |
 | **TC-12** | System Maintenance Toggle | Admin toggles Maintenance Mode / Temp Closed | System mode persists; public visitors see custom maintenance splash | **PASS (100%)** |
 | **TC-13** | Error Diagnostics Desk | Check System Errors desk | Logs real-time client/server errors with stack trace, resolve & clear buttons | **PASS (100%)** |
+| **TC-14** | Front Image Photo Validation | View auction cards on Homepage & `/auctions` | Real photo (`jpg`, `webp`, `png`) displayed on front thumbnail; "PDF Tender" black box eliminated | **PASS (100%)** |
+| **TC-15** | Dedicated Tender PDF Upload | Add/Edit auction in Admin Panel (`/admin` -> Auctions) | Separate slots for Front Photos (image only) and Official Tender PDF; persisted to `pdf_url` | **PASS (100%)** |
+| **TC-16** | Unauthenticated Download Gate | Browse auction detail & listing as guest (not logged in) | All download options (card download icon, top bar buttons, photo save, Official Media section) strictly hidden | **PASS (100%)** |
+| **TC-17** | Authenticated Tender Download | Sign in as user/admin and browse lot with uploaded PDF | Download buttons render dynamically; 1-click download retrieves genuine uploaded tender PDF | **PASS (100%)** |
 
 ---
 
