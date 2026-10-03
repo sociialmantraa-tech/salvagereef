@@ -22,11 +22,37 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     initialAuction.current_highest_bid || initialAuction.starting_price
   );
 
-  const incrementStep = initialAuction.bid_increment && Number(initialAuction.bid_increment) > 0
-    ? Number(initialAuction.bid_increment)
-    : 1000;
+  const incrementStep = auction?.bid_increment && Number(auction.bid_increment) > 0
+    ? Number(auction.bid_increment)
+    : (initialAuction?.bid_increment && Number(initialAuction.bid_increment) > 0 ? Number(initialAuction.bid_increment) : 1000);
 
   const minAllowedBid = currentHighest + incrementStep;
+
+  // Dynamic shortcut amount multipliers: 1x, 2x, 5x, 10x increment step
+  const shortcutMultipliers = [1, 2, 5, 10];
+  const shortcutAmounts = shortcutMultipliers.map((m) => incrementStep * m);
+
+  const handleShortcutClick = (shortcutValue: number) => {
+    const currentVal = Number(bidAmount);
+    const targetWithStepFromHighest = currentHighest + shortcutValue;
+
+    if (!currentVal || isNaN(currentVal) || currentVal < minAllowedBid) {
+      setBidAmount(targetWithStepFromHighest);
+    } else if (currentVal === targetWithStepFromHighest) {
+      // If clicking the same shortcut again, increment further by that step
+      setBidAmount(currentVal + shortcutValue);
+    } else if (currentVal === minAllowedBid && shortcutValue === incrementStep) {
+      // Already at minAllowedBid (which is currentHighest + incrementStep), clicking +1x increments
+      setBidAmount(currentVal + shortcutValue);
+    } else {
+      if (currentVal >= targetWithStepFromHighest) {
+        setBidAmount(currentVal + shortcutValue);
+      } else {
+        setBidAmount(targetWithStepFromHighest);
+      }
+    }
+    setError(null);
+  };
 
   const [bidAmount, setBidAmount] = useState<string | number>(minAllowedBid);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -568,6 +594,16 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         </div>
       ) : (
         <form onSubmit={handleOpenConfirmModal} className="space-y-4">
+          <div className="border-b border-slate-200/80 pb-2 flex items-center justify-between">
+            <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+              <Gavel className="w-4 h-4 text-[#D48B1C]" />
+              Place a Bid
+            </h4>
+            <span className="text-[11px] font-semibold text-slate-500 font-mono">
+              Lot #{auction.id}
+            </span>
+          </div>
+
           {/* BIDDER LOT AUTHORIZATION BADGE */}
           {isUserApprovedForLot ? (
             <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold shadow-sm">
@@ -593,14 +629,14 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="text-xs font-bold text-slate-800">
-                Enter Your Bid Amount (₹)
+                Bid Amount (multiples of ₹{incrementStep.toLocaleString('en-IN')})<span className="text-red-500 font-bold">*</span>
               </label>
               <span className="text-[10px] text-slate-500 font-semibold">
                 Min: ₹{minAllowedBid.toLocaleString('en-IN')}
               </span>
             </div>
             <div className="relative">
-              <span className="absolute left-3.5 top-3 text-slate-400 font-bold text-base">₹</span>
+              <span className="absolute left-3.5 top-3.5 text-slate-400 font-bold text-base select-none">₹</span>
               <input
                 type="number"
                 step={incrementStep}
@@ -608,12 +644,47 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 disabled={submitting}
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C] focus:bg-white text-lg font-mono shadow-inner"
-                placeholder="Enter bid amount"
+                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C] focus:bg-white text-lg font-mono shadow-inner transition-all"
+                placeholder={`e.g. ${minAllowedBid.toLocaleString('en-IN')}`}
                 required
               />
             </div>
-            <p className="text-[11px] text-slate-500 mt-1.5 font-medium flex items-center gap-1">
+
+            {/* Quick Bid Increment Shortcut Buttons (Dynamically generated according to incrementStep: 1x, 2x, 5x, 10x) */}
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+              {shortcutAmounts.map((stepVal, idx) => {
+                const isActive = Number(bidAmount) === currentHighest + stepVal;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleShortcutClick(stepVal)}
+                    disabled={submitting || isClosed}
+                    className={`px-3 py-1.5 text-xs sm:text-sm font-extrabold rounded-xl border transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 ${
+                      isActive
+                        ? 'bg-amber-100 text-amber-950 border-[#D48B1C] ring-2 ring-[#D48B1C]/40 shadow-xs'
+                        : 'bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border-slate-300 hover:border-[#D48B1C]'
+                    }`}
+                    title={`Bid ₹${(currentHighest + stepVal).toLocaleString('en-IN')} (+₹${stepVal.toLocaleString('en-IN')} above current highest)`}
+                  >
+                    +₹{stepVal.toLocaleString('en-IN')}
+                  </button>
+                );
+              })}
+
+              {Number(bidAmount) > minAllowedBid && (
+                <button
+                  type="button"
+                  onClick={() => setBidAmount(minAllowedBid)}
+                  className="text-[11px] text-slate-400 hover:text-red-500 font-semibold underline underline-offset-2 ml-auto cursor-pointer"
+                  title="Reset to minimum allowed bid"
+                >
+                  Reset to Min
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-[#D48B1C]" />
               <span>Each bid must increase by at least ₹{incrementStep.toLocaleString('en-IN')}.</span>
             </p>
