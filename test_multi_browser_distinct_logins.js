@@ -4,7 +4,7 @@ const fs = require('fs');
 
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const EDGE_PATH = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const ARTIFACTS_DIR = 'C:\\Users\\Intekhab Ansari\\.gemini\\antigravity-ide\\brain\\aff24297-46a9-477e-bcf2-7f4e76787ad9';
+const ARTIFACTS_DIR = 'C:\\Users\\Intekhab Ansari\\.gemini\\antigravity-ide\\brain\\c2181c30-a141-48ec-849e-3616f35c044d';
 const SCRATCH_DIR = path.join(ARTIFACTS_DIR, 'scratch');
 const BASE_URL = 'http://localhost:5173';
 

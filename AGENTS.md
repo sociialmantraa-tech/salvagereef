@@ -44,4 +44,6 @@
 - **Build Package Generator**: `node build_hosting_package.cjs` -> outputs `salvagereef_UPDATE_SAFE_NO_DATABASE.zip` and `salvagereef_FULL_UPLOAD.zip`.
 - **Bid Visibility & Moderation Rule**: Unapproved bids (`status = 'pending'`) must NEVER be visible on public pages or user bid logs until approved by admin.
 - **User Password Reveal Rule**: Password reveal must authenticate against the logged-in admin's/executive's database password via `POST /api/v1/admin/users/{id}/reveal-password`.
+- **Instant Page Loading Rule (No Static HTML Preloader Overlays)**: Never include fixed HTML preloader overlays (`app-preloader`) in `index.html` or blocking loading state overlays in `App.tsx`. React must mount `<div id="root"></div>` directly so pages render instantly (0ms delay) on browser load and reload without getting trapped behind dark loading screens.
+- **Indian Standard Time (IST UTC+5:30) Rule**: All backend API dates, timestamps, and database operations must strictly enforce `Asia/Kolkata` (`+05:30`). All frontend date renderings must format timestamps using `formatDateTime()` from `src/utils/dateUtils.ts`.
 

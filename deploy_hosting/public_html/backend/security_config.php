@@ -1,4 +1,7 @@
 <?php
+// Enforce Indian Standard Time (IST UTC+5:30) across entire platform
+date_default_timezone_set('Asia/Kolkata');
+
 // =============================================================================
 // SALVAGEREEF BACKEND SECURITY CONFIGURATION
 // =============================================================================

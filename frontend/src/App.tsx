@@ -84,7 +84,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const { user, checkAuth } = useAuthStore();
-  const [initialChecking, setInitialChecking] = useState(true);
+  const [initialChecking, setInitialChecking] = useState(false);
   const [isMaintenance, setIsMaintenance]     = useState(false);
   const [systemMode, setSystemMode]           = useState<'online' | 'maintenance' | 'temporary_closed'>('online');
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
@@ -115,16 +115,23 @@ export default function App() {
     const preloader = document.getElementById('app-preloader');
     if (preloader) {
       preloader.style.opacity = '0';
-      preloader.style.transition = 'opacity 0.2s ease-out';
-      setTimeout(() => preloader.remove(), 200);
+      preloader.style.transition = 'opacity 0.15s ease-out';
+      setTimeout(() => preloader.remove(), 150);
     }
+
+    const hasAuthToken = typeof localStorage !== 'undefined' && !!(
+      localStorage.getItem('salvagereef_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('sr_admin_auth')
+    );
 
     const init = async () => {
       try {
-        // Run startup tasks with 1.5s cap for reliable status detection
+        // Fast non-blocking startup tasks
         await Promise.all([
-          withTimeout(checkAuth(), 1500),
-          withTimeout(checkSystemStatus(), 1500),
+          hasAuthToken ? withTimeout(checkAuth(), 600) : Promise.resolve(),
+          withTimeout(checkSystemStatus(), 600),
           // Fetch DB content, categories & locations non-critically in background
           (async () => {
             try {
@@ -138,8 +145,8 @@ export default function App() {
       } catch {}
     };
 
-    // Absolute hard cap: show the site after 1.2 seconds max no matter what
-    const hardCap = setTimeout(() => setInitialChecking(false), 1200);
+    // Fast render: 50ms for public visitors, 250ms cap for authenticated sessions
+    const hardCap = setTimeout(() => setInitialChecking(false), hasAuthToken ? 250 : 50);
     init().finally(() => {
       clearTimeout(hardCap);
       setInitialChecking(false);
@@ -162,18 +169,14 @@ export default function App() {
     return () => window.removeEventListener('sr_system_mode_changed', handleModeChange);
   }, []);
 
-  // Real-time synchronization across all browsers: Check status on every navigation and every 4 seconds
+  // Background status check on navigation and periodic 15s heartbeat
   useEffect(() => {
     checkSystemStatus();
     const interval = setInterval(() => {
       checkSystemStatus();
-    }, 4000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [location.pathname]);
-
-  if (initialChecking) {
-    return <PageLoading message="Initializing B2B Auctions & Scrap Desk..." />;
-  }
 
   const isBypassPath = location.pathname.startsWith('/admin');
 

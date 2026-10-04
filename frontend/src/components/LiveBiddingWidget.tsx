@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatTimeOnly } from '../utils/dateUtils';
 import { getEcho } from '../services/echo';
 import api from '../services/api';
 import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck, Scale, FileText } from 'lucide-react';
@@ -864,7 +865,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
                       {formatBidderName(b.user?.name || b.bidder_name, user?.role === 'admin')}
                     </span>
                     <span className="text-[10px] text-slate-400 block font-sans">
-                      {b.created_at ? new Date(b.created_at).toLocaleTimeString() : 'Just now'}
+                      {b.created_at ? formatTimeOnly(b.created_at) : 'Just now'}
                     </span>
                   </div>
                 </div>

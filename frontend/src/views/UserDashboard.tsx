@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { Gavel, Trophy, Eye, Tag, ArrowUpRight, Clock } from 'lucide-react';
 import { Classified } from '../types';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function UserDashboard() {
   const { user } = useAuthStore();
@@ -129,37 +130,52 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* Top 3 Simple Stat Cards ONLY */}
+      {/* Top 3 Interactive Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+        <button
+          onClick={() => setActiveTab('bids')}
+          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between text-left hover:border-[#D48B1C] hover:shadow-md transition-all group"
+        >
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Active Bids</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-[#D48B1C] transition-colors block">
+              Active Bids
+            </span>
             <span className="text-3xl font-black text-slate-900 mt-1 block">{stats.active_bids}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] border border-amber-200 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] border border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Gavel className="w-6 h-6" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+        <button
+          onClick={() => setActiveTab('bids')}
+          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between text-left hover:border-emerald-500 hover:shadow-md transition-all group"
+        >
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Auctions Won</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-emerald-600 transition-colors block">
+              Auctions Won
+            </span>
             <span className="text-3xl font-black text-slate-900 mt-1 block">{stats.auctions_won}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Trophy className="w-6 h-6" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+        <button
+          onClick={() => setActiveTab('listings')}
+          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between text-left hover:border-blue-500 hover:shadow-md transition-all group"
+        >
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Watchlist</span>
-            <span className="text-3xl font-black text-slate-900 mt-1 block">{stats.watchlist_count}</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-600 transition-colors block">
+              My Products
+            </span>
+            <span className="text-3xl font-black text-slate-900 mt-1 block">{my_listings.length}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Eye className="w-6 h-6" />
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Single Clean List: My Recent Bids */}
@@ -169,12 +185,20 @@ export default function UserDashboard() {
             <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
               <Gavel className="w-5 h-5 text-[#D48B1C]" /> My Recent Bids
             </h3>
-            <span className="text-xs text-slate-400">Total Bids ({recent_bids.length})</span>
+            <span className="text-xs text-slate-400 font-bold">Total Bids ({recent_bids.length})</span>
           </div>
 
           {recent_bids.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs">
-              You have not placed any bids yet. Explore live tenders to place your first bid!
+            <div className="p-8 text-center space-y-3">
+              <p className="text-slate-500 text-xs font-medium">
+                You have not placed any bids yet. Explore live tenders to place your first bid!
+              </p>
+              <Link
+                to="/auctions"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D48B1C] hover:bg-[#b87614] text-white text-xs font-bold rounded-xl shadow transition-all"
+              >
+                <Gavel className="w-3.5 h-3.5" /> Explore Live Auctions
+              </Link>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -195,7 +219,7 @@ export default function UserDashboard() {
                         {bid.auction_title} <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
                       </Link>
                       <p className="text-xs text-slate-500">
-                        Placed on {new Date(bid.created_at).toLocaleString('en-IN')}
+                        Placed on {formatDateTime(bid.created_at)}
                       </p>
                     </div>
 
@@ -217,33 +241,43 @@ export default function UserDashboard() {
         </div>
       )}
 
-      {/* Simple "My Listings" Section */}
-      {my_listings.length > 0 && (activeTab === 'overview' || activeTab === 'listings') && (
+      {/* "My Products / Classified Listings" Section */}
+      {(activeTab === 'overview' || activeTab === 'listings') && (
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-              <Tag className="w-5 h-5 text-[#D48B1C]" /> My Classified Listings
+              <Tag className="w-5 h-5 text-[#D48B1C]" /> My Scrap Listings
             </h3>
-            {(user?.role === 'admin' || user?.role === 'agent') && (
-              <Link to="/classifieds/post-listing" className="text-xs font-bold text-[#D48B1C] hover:underline">
-                + Post New Listing
-              </Link>
-            )}
+            <Link to="/sell-scrap" className="text-xs font-bold text-[#D48B1C] hover:underline flex items-center gap-1">
+              + Post New Listing
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {my_listings.map((item) => (
-              <div key={item.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{item.title}</h4>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-black text-[#D48B1C]">₹{Number(item.price).toLocaleString('en-IN')}</span>
-                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                    {item.status}
-                  </span>
+          {my_listings.length === 0 ? (
+            <div className="p-8 text-center space-y-3">
+              <p className="text-slate-500 text-xs font-medium">You have not posted any scrap listings yet.</p>
+              <Link
+                to="/sell-scrap"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D48B1C] hover:bg-[#b87614] text-white text-xs font-bold rounded-xl shadow transition-all"
+              >
+                <Tag className="w-3.5 h-3.5" /> + Sell Your Scrap
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {my_listings.map((item) => (
+                <div key={item.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{item.title}</h4>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-black text-[#D48B1C]">₹{Number(item.price).toLocaleString('en-IN')}</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      {item.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

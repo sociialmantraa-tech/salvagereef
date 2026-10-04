@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
+import { formatDateTime } from '../utils/dateUtils';
 import { getUserEffectiveDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
 import { 
   Gavel, 
@@ -962,16 +963,18 @@ export default function AdminDashboard() {
           showNotification(`✓ Database Active & Connected (${elapsed} ms)`);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       const elapsed = Math.round(performance.now() - start);
+      const errDetail = err?.response?.data?.message || err?.message || 'HTTP Request Failed';
       setDbHealth((prev) => ({
         ...prev,
-        connected: true,
+        status_text: 'HEALTH CHECK ERROR',
+        mysql_last_error: errDetail,
         ping_ms: elapsed,
         timestamp: new Date().toLocaleTimeString(),
       }));
       if (showToast) {
-        showNotification(`✓ Database is Connected & Operational (${elapsed} ms)`);
+        showNotification(`⚠️ Health Check Alert: ${errDetail} (${elapsed} ms)`);
       }
     } finally {
       setDbTesting(false);
@@ -1656,8 +1659,18 @@ export default function AdminDashboard() {
       if (statsRes?.data?.stats) setStats(statsRes.data.stats);
       if (usersRes?.data) {
         const fetchedUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data || []);
-        if (Array.isArray(fetchedUsers) && fetchedUsers.length > 0) {
-          const normalized = normalizeAdminUsers(fetchedUsers);
+        if (Array.isArray(fetchedUsers)) {
+          let deletedIds: number[] = [];
+          let deletedEmails: string[] = [];
+          try { deletedIds = JSON.parse(localStorage.getItem('sr_deleted_user_ids') || '[]'); } catch {}
+          try { deletedEmails = JSON.parse(localStorage.getItem('sr_deleted_user_emails') || '[]'); } catch {}
+
+          const cleanUsers = fetchedUsers.filter((u: any) => 
+            !deletedIds.includes(Number(u.id)) && 
+            !deletedEmails.includes((u.email || '').toLowerCase())
+          );
+
+          const normalized = normalizeAdminUsers(cleanUsers);
           const sorted = sortUsersByHierarchy(normalized);
           setUsers(sorted);
           localStorage.setItem('sr_admin_users', JSON.stringify(sorted));
@@ -2472,6 +2485,20 @@ export default function AdminDashboard() {
       setUsers(updated);
       localStorage.setItem('sr_admin_users', JSON.stringify(updated));
       localStorage.setItem('sr_all_users', JSON.stringify(updated));
+
+      // Persist deleted ID and Email into LocalStorage memory to prevent refetch re-injection
+      try {
+        const delIds: number[] = JSON.parse(localStorage.getItem('sr_deleted_user_ids') || '[]');
+        if (!delIds.includes(Number(id))) delIds.push(Number(id));
+        localStorage.setItem('sr_deleted_user_ids', JSON.stringify(delIds));
+
+        if (userToDelete && userToDelete.email) {
+          const delEmails: string[] = JSON.parse(localStorage.getItem('sr_deleted_user_emails') || '[]');
+          const emailLower = userToDelete.email.toLowerCase();
+          if (!delEmails.includes(emailLower)) delEmails.push(emailLower);
+          localStorage.setItem('sr_deleted_user_emails', JSON.stringify(delEmails));
+        }
+      } catch {}
 
       if (userToDelete) {
         pushUndoAction(`Delete User "${userToDelete.name}"`, () => {
@@ -5332,7 +5359,7 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="p-3.5 text-slate-500 font-medium">
-                          {new Date(bid.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {formatDateTime(bid.created_at)}
                         </td>
                         <td className="p-3.5 text-center whitespace-nowrap align-middle">
                           {bid.status === 'approved' ? (

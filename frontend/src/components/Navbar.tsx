@@ -61,10 +61,10 @@ export default function Navbar() {
           </Link>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-700">
+          <nav className="hidden xl:flex items-center gap-5 lg:gap-7 xl:gap-8 text-sm font-bold text-slate-700 whitespace-nowrap shrink-0">
             <Link
               to="/"
-              className={`transition-colors ${
+              className={`whitespace-nowrap shrink-0 transition-colors ${
                 isActive('/') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
@@ -72,7 +72,7 @@ export default function Navbar() {
             </Link>
             <Link
               to="/auctions"
-              className={`transition-colors ${
+              className={`whitespace-nowrap shrink-0 transition-colors ${
                 isActive('/auctions') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
@@ -80,7 +80,7 @@ export default function Navbar() {
             </Link>
             <Link
               to="/classifieds"
-              className={`transition-colors ${
+              className={`whitespace-nowrap shrink-0 transition-colors ${
                 isActive('/classifieds') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
@@ -88,7 +88,7 @@ export default function Navbar() {
             </Link>
             <Link
               to="/about"
-              className={`transition-colors ${
+              className={`whitespace-nowrap shrink-0 transition-colors ${
                 isActive('/about') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
@@ -96,7 +96,7 @@ export default function Navbar() {
             </Link>
             <Link
               to="/contact"
-              className={`transition-colors ${
+              className={`whitespace-nowrap shrink-0 transition-colors ${
                 isActive('/contact') ? 'text-[#1D70B8]' : 'hover:text-[#1D70B8]'
               }`}
             >
@@ -106,10 +106,10 @@ export default function Navbar() {
             {/* Sell Your Scrap Button - Open for Everyone */}
             <Link
               to="/sell-scrap"
-              className="flex items-center gap-1.5 text-xs font-extrabold text-[#D48B1C] bg-amber-50 border border-amber-300 px-3.5 py-1.5 rounded-xl hover:bg-[#D48B1C] hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1.5 text-xs font-extrabold text-[#D48B1C] bg-amber-50 border border-amber-300 px-3.5 py-1.5 rounded-xl hover:bg-[#D48B1C] hover:text-white transition-all shadow-sm whitespace-nowrap shrink-0"
             >
               <PlusCircle className="w-4 h-4 shrink-0" />
-              <span>
+              <span className="whitespace-nowrap">
                 {content.navPostListingButton && !content.navPostListingButton.includes('Post Listing')
                   ? content.navPostListingButton.replace(/^\+\s*/, '')
                   : 'Sell Your Scrap'}
@@ -118,9 +118,9 @@ export default function Navbar() {
           </nav>
 
           {/* Right Controls: Login / Register / Logout */}
-          <div className="hidden md:flex items-center gap-6 text-sm font-bold">
+          <div className="hidden xl:flex items-center gap-4 lg:gap-6 text-sm font-bold shrink-0 whitespace-nowrap">
             {isAuthenticated ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 shrink-0 whitespace-nowrap">
                 {(() => {
                   const isAdmin =
                     user?.role === 'admin' ||
@@ -132,7 +132,7 @@ export default function Navbar() {
                   return (
                     <Link
                       to={isAdmin ? '/admin' : '/dashboard'}
-                      className="flex items-center gap-1.5 text-slate-800 hover:text-[#1D70B8] transition-colors"
+                      className="flex items-center gap-1.5 text-slate-800 hover:text-[#1D70B8] transition-colors whitespace-nowrap shrink-0"
                     >
                       <LayoutDashboard className="w-4 h-4 text-[#1D70B8]" />
                       {isAdmin ? 'Admin Desk' : 'Dashboard'}
@@ -143,23 +143,23 @@ export default function Navbar() {
                 {/* Logout Button with Confirmation Dialog */}
                 <button
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                  className="text-slate-400 hover:text-red-600 transition-colors p-1 shrink-0"
                   title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 font-extrabold text-xs">
+              <div className="flex items-center gap-2.5 font-extrabold text-xs shrink-0 whitespace-nowrap">
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-xl border border-slate-300 hover:border-[#1D70B8] text-slate-800 hover:text-[#1D70B8] transition-all flex items-center gap-1.5 shadow-sm bg-slate-50/50"
+                  className="px-3.5 py-2 rounded-xl border border-slate-300 hover:border-[#1D70B8] text-slate-800 hover:text-[#1D70B8] transition-all flex items-center gap-1.5 shadow-sm bg-slate-50/50 whitespace-nowrap shrink-0"
                 >
                   {content.navSignInText || 'Sign In'}
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-xl bg-[#D48B1C] hover:bg-[#b87614] text-white transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg uppercase tracking-wider text-[11px]"
+                  className="px-3.5 py-2 rounded-xl bg-[#D48B1C] hover:bg-[#b87614] text-white transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg uppercase tracking-wider text-[11px] whitespace-nowrap shrink-0"
                 >
                   {content.navRegisterText && content.navRegisterText.trim() !== 'Register Free'
                     ? content.navRegisterText
@@ -169,11 +169,12 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Drawer Toggle */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile & Tablet Drawer Toggle */}
+          <div className="xl:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-slate-700 hover:text-slate-900 p-2"
+              aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -181,9 +182,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile & Tablet Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-slate-200 px-4 py-4 space-y-3 text-sm font-bold">
+        <div className="xl:hidden bg-white border-b border-slate-200 px-4 py-4 space-y-3 text-sm font-bold shadow-lg animate-fade-in">
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
