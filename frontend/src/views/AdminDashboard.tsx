@@ -5383,6 +5383,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="p-3.5">Auction Title</th>
                       <th className="p-3.5">Type</th>
+                      <th className="p-3.5">Status</th>
                       <th className="p-3.5">Starting Price</th>
                       <th className="p-3.5">Top 3 Bidders (H1 / H2 / H3)</th>
                       <th className="p-3.5 text-right">Award Winner & Actions</th>
@@ -5404,6 +5405,41 @@ export default function AdminDashboard() {
                             <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded border uppercase text-[10px] font-bold">
                               {auc.auction_type}
                             </span>
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            {auc.status === 'live' && (
+                              <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full uppercase text-[10px] font-black tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                LIVE NOW
+                              </span>
+                            )}
+                            {auc.status === 'closed' && (
+                              <span className="bg-slate-800 text-slate-100 border border-slate-900 px-2.5 py-1 rounded-full uppercase text-[10px] font-black tracking-wider inline-flex items-center gap-1 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                CLOSED
+                              </span>
+                            )}
+                            {auc.status === 'upcoming' && (
+                              <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full uppercase text-[10px] font-black tracking-wider inline-flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                UPCOMING
+                              </span>
+                            )}
+                            {auc.status === 'draft' && (
+                              <span className="bg-gray-100 text-gray-700 border border-gray-300 px-2.5 py-1 rounded-full uppercase text-[10px] font-black tracking-wider inline-flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                DRAFT
+                              </span>
+                            )}
+                            {auc.status !== 'live' && auc.status !== 'closed' && auc.status !== 'upcoming' && auc.status !== 'draft' && (
+                              <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full uppercase text-[10px] font-black tracking-wider inline-flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                {String(auc.status || 'LIVE').toUpperCase()}
+                              </span>
+                            )}
                           </td>
                           <td className="p-3.5 font-mono font-extrabold text-slate-900">
                             ₹{Number(auc.starting_price).toLocaleString('en-IN')}
