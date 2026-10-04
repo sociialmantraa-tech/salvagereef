@@ -408,8 +408,8 @@ foreach (SR_BLOCKED_AGENTS as $blocked) {
 
 // ─── LOAD .ENV FILE IF PRESENT ───────────────────────────────────────────────
 $_SR_ENV = [];
-$envFile = __DIR__ . '/.env';
-if (file_exists($envFile)) {
+$envFile = file_exists(__DIR__ . '/.env') ? __DIR__ . '/.env' : (file_exists(__DIR__ . '/.env.production') ? __DIR__ . '/.env.production' : null);
+if ($envFile) {
     $lines = @file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     if ($lines) {
         foreach ($lines as $line) {
@@ -435,8 +435,8 @@ $dbConnection = $_SR_ENV['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: 'sqlite'
 if ($dbConnection === 'mysql') {
     $dbHost = $_SR_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1';
     $dbPort = $_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
-    $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'salvagereef';
-    $dbUser = $_SR_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'root';
+    $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'scrab';
+    $dbUser = $_SR_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'scrab_user';
     $dbPass = $_SR_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
 
     try {

@@ -5247,41 +5247,41 @@ export default function AdminDashboard() {
                       <th className="p-3.5">Auction Lot</th>
                       <th className="p-3.5">Bid Amount</th>
                       <th className="p-3.5">Submitted</th>
-                      <th className="p-3.5 text-center min-w-[130px] whitespace-nowrap">Status</th>
-                      <th className="p-3.5 text-right min-w-[220px] whitespace-nowrap">Decision</th>
+                      <th className="p-3.5 text-center">Status</th>
+                      <th className="p-3.5 text-right">Decision</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {(bidStatusFilter === 'all' ? bidsList : bidsList.filter(b => b.status === bidStatusFilter)).map((bid) => (
                       <tr key={bid.id} className="hover:bg-slate-50/80">
-                        <td className="p-3.5 align-middle">
+                        <td className="p-3.5">
                           <div className="font-extrabold text-slate-900">{bid.bidder_name}</div>
                           <div className="text-slate-500 text-[11px]">{bid.bidder_company}</div>
                           <div className="text-[#D48B1C] text-[10px] font-semibold">{bid.bidder_email}</div>
                         </td>
-                        <td className="p-3.5 align-middle">
+                        <td className="p-3.5">
                           <div className="font-bold text-slate-800 max-w-xs line-clamp-2">{bid.auction_title}</div>
                           <div className="text-slate-400 text-[10px]">Lot #{bid.auction_id}</div>
                         </td>
-                        <td className="p-3.5 align-middle whitespace-nowrap">
+                        <td className="p-3.5">
                           <span className="font-mono font-black text-emerald-700 text-sm">
                             ₹{Number(bid.amount).toLocaleString('en-IN')}
                           </span>
                         </td>
-                        <td className="p-3.5 text-slate-500 font-medium align-middle whitespace-nowrap">
+                        <td className="p-3.5 text-slate-500 font-medium">
                           {new Date(bid.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="p-3.5 text-center whitespace-nowrap align-middle">
-                          <span className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap leading-none align-middle ${
+                        <td className="p-3.5 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                             bid.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                             : bid.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200'
                             : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
                           }`}>
-                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'approved' ? '✓ APPROVED' : '✕ REJECTED'}
+                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
                           </span>
                         </td>
-                        <td className="p-3.5 text-right whitespace-nowrap align-middle">
-                          <div className="inline-flex items-center justify-end gap-2 flex-nowrap align-middle">
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                             {/* If pending: show both Approve and Reject */}
                             {bid.status === 'pending' && (
                               <>
@@ -7134,6 +7134,34 @@ export default function AdminDashboard() {
                     <span className="text-[10px] text-slate-400 block">Status Checked: {dbHealth.timestamp || 'Live'}</span>
                   </div>
                 </div>
+
+                {/* Database Engine Information & Switching Guide */}
+                {dbHealth.driver === 'sqlite' ? (
+                  <div className="mt-4 p-4 bg-amber-950/70 border border-amber-500/50 rounded-2xl flex items-start gap-3 text-xs text-amber-200">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-black text-amber-300 text-xs">
+                        ⚡ Active Engine: SQLite 3 (Zero-Config Embedded Database)
+                      </div>
+                      <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                        The backend is currently running on the self-contained SQLite 3 database (<code>database.sqlite</code>).
+                        If you want to connect to your cPanel MySQL Database (<code>Database: scrab</code> | <code>User: scrab_user</code>), simply copy <code>public_html/backend/.env.production</code> to <code>public_html/backend/.env</code> in your cPanel File Manager and enter your MySQL user password!
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 p-4 bg-emerald-950/70 border border-emerald-500/50 rounded-2xl flex items-start gap-3 text-xs text-emerald-200">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-black text-emerald-300 text-xs">
+                        ✓ Active Engine: MySQL / MariaDB Database Connected ({dbHealth.database_name})
+                      </div>
+                      <p className="text-[11px] text-emerald-200/90 leading-relaxed">
+                        The website is actively connected to your cPanel MySQL database <strong>{dbHealth.database_name}</strong> on <strong>{dbHealth.database_host}</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* TRI-STATE SYSTEM OPERATIONAL MODE CONTROL PANEL */}
