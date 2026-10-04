@@ -446,31 +446,37 @@ if (!$forcedSqliteOnly) {
         $envUser = !empty($_SR_ENV['DB_USERNAME']) ? $_SR_ENV['DB_USERNAME'] : 'scrab_user';
         $dbPass  = !empty($_SR_ENV['DB_PASSWORD']) ? $_SR_ENV['DB_PASSWORD'] : 'scrabRoot@123';
 
-        // Multi-host & multi-credential auto-discovery for GoDaddy cPanel environment
-        $hostsToTry = array_values(array_unique(['localhost', '127.0.0.1', $envHost]));
-        $namesToTry = array_values(array_unique([$envName, 'scrab', 'md1ofov5ad9b_scrab', 'salvagereef']));
-        $usersToTry = array_values(array_unique([$envUser, 'scrab_user', 'md1ofov5ad9b_scrab_user']));
+        // 4 Fast Targeted Connection Candidates for GoDaddy cPanel environment
+        $candidatesToTry = [
+            ['host' => $envHost,   'dbname' => $envName,               'user' => $envUser],
+            ['host' => 'localhost', 'dbname' => 'scrab',                'user' => 'scrab_user'],
+            ['host' => 'localhost', 'dbname' => 'md1ofov5ad9b_scrab',   'user' => 'md1ofov5ad9b_scrab_user'],
+            ['host' => '127.0.0.1', 'dbname' => 'scrab',                'user' => 'scrab_user'],
+            ['host' => '127.0.0.1', 'dbname' => 'md1ofov5ad9b_scrab',   'user' => 'md1ofov5ad9b_scrab_user'],
+        ];
 
         $attempts = [];
-        foreach ($hostsToTry as $h) {
-            foreach ($namesToTry as $n) {
-                foreach ($usersToTry as $u) {
-                    try {
-                        $dsn = "mysql:host={$h};port={$dbPort};dbname={$n};charset=utf8mb4";
-                        $conn = new PDO($dsn, $u, $dbPass, [
-                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                            PDO::ATTR_EMULATE_PREPARES => false,
-                            PDO::ATTR_TIMEOUT => 3,
-                        ]);
-                        $conn->query("SELECT 1");
-                        $pdo = $conn;
-                        $_SR_CONNECTED_MYSQL_INFO = ['host' => $h, 'dbname' => $n, 'user' => $u];
-                        break 3;
-                    } catch (Exception $e) {
-                        $attempts[] = "{$u}@{$h}/{$n}: " . $e->getMessage();
-                    }
-                }
+        $triedKeys = [];
+
+        foreach ($candidatesToTry as $c) {
+            $key = "{$c['user']}@{$c['host']}:{$dbPort}/{$c['dbname']}";
+            if (isset($triedKeys[$key])) continue;
+            $triedKeys[$key] = true;
+
+            try {
+                $dsn = "mysql:host={$c['host']};port={$dbPort};dbname={$c['dbname']};charset=utf8mb4";
+                $conn = new PDO($dsn, $c['user'], $dbPass, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 2,
+                ]);
+                $conn->query("SELECT 1");
+                $pdo = $conn;
+                $_SR_CONNECTED_MYSQL_INFO = ['host' => $c['host'], 'dbname' => $c['dbname'], 'user' => $c['user']];
+                break;
+            } catch (Exception $e) {
+                $attempts[] = "{$key}: " . $e->getMessage();
             }
         }
 

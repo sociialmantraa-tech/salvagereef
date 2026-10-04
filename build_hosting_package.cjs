@@ -128,6 +128,7 @@ const backendFiles = [
   'index.php',
   'seed_db.php',
   'view_logs.php',
+  'test_db.php',
 ];
 
 backendFiles.forEach(file => {
