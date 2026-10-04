@@ -120,26 +120,30 @@ export default function App() {
     }
 
     const init = async () => {
-      // Run startup tasks with 2.5s cap for reliable status detection on simple page refresh
-      await Promise.all([
-        withTimeout(checkAuth(), 2000),
-        withTimeout(checkSystemStatus(), 2500),
-        // Fetch DB content, categories & locations non-critically in background
-        (async () => {
-          try {
-            const { useContentStore } = await import('./store/useContentStore');
-            const { useCategoryLocationStore } = await import('./store/useCategoryLocationStore');
-            useContentStore.getState().fetchContentFromApi().catch(() => {});
-            useCategoryLocationStore.getState().fetchCategoriesAndLocations().catch(() => {});
-          } catch {}
-        })(),
-      ]);
-      setInitialChecking(false);
+      try {
+        // Run startup tasks with 1.5s cap for reliable status detection
+        await Promise.all([
+          withTimeout(checkAuth(), 1500),
+          withTimeout(checkSystemStatus(), 1500),
+          // Fetch DB content, categories & locations non-critically in background
+          (async () => {
+            try {
+              const { useContentStore } = await import('./store/useContentStore');
+              const { useCategoryLocationStore } = await import('./store/useCategoryLocationStore');
+              useContentStore.getState().fetchContentFromApi().catch(() => {});
+              useCategoryLocationStore.getState().fetchCategoriesAndLocations().catch(() => {});
+            } catch {}
+          })(),
+        ]);
+      } catch {}
     };
 
-    // Absolute hard cap: show the site after 1.2 seconds no matter what
+    // Absolute hard cap: show the site after 1.2 seconds max no matter what
     const hardCap = setTimeout(() => setInitialChecking(false), 1200);
-    init().finally(() => clearTimeout(hardCap));
+    init().finally(() => {
+      clearTimeout(hardCap);
+      setInitialChecking(false);
+    });
   }, []);
 
   // Instant local synchronization when admin changes mode

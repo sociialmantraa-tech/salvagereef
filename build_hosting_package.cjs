@@ -148,6 +148,30 @@ if (!fs.existsSync(dbPlaceholder)) {
 }
 success('Configured backend/database/ with database.sqlite and salvagereef_mysql.sql');
 
+// Create pre-configured .env.production template in deploy backend
+const envProductionContent = `# SalvageReef Production Environment Configuration
+# GoDaddy cPanel MySQL & SQLite Connection Settings
+
+# Option A: MySQL Connection (cPanel Database: scrab)
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=scrab
+DB_USERNAME=scrab_user
+DB_PASSWORD=
+
+# Option B: Fallback SQLite Connection (Zero-Config)
+# DB_CONNECTION=sqlite
+# DB_DATABASE=backend/database/database.sqlite
+
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://salvagereef.com
+`;
+fs.writeFileSync(path.join(DEPLOY_BACKEND, '.env.production'), envProductionContent);
+fs.writeFileSync(path.join(BACKEND, '.env.production'), envProductionContent);
+success('Generated backend/.env.production template with cPanel MySQL (scrab/scrab_user) & SQLite options');
+
 // Copy backend logs directory (empty)
 ensureDir(path.join(DEPLOY_BACKEND, 'logs'));
 fs.writeFileSync(path.join(DEPLOY_BACKEND, 'logs', '.gitkeep'), '# Server logs directory\n');
@@ -221,8 +245,8 @@ try {
 
   // Create ZIP using PowerShell Compress-Archive
   execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '${DEPLOY}\\*' -DestinationPath '${fullZipPath}' -Force"`,
-    { stdio: 'pipe' }
+    `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*' -DestinationPath '.\\${fullZipName}' -Force"`,
+    { cwd: ROOT, stdio: 'pipe' }
   );
   
   const zipSize = (fs.statSync(fullZipPath).size / 1024).toFixed(1);
@@ -243,8 +267,8 @@ try {
   if (hadDb) fs.renameSync(dbFile, dbTempMove);
   
   execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '${DEPLOY}\\*' -DestinationPath '${updateZipPath}' -Force"`,
-    { stdio: 'pipe' }
+    `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*' -DestinationPath '.\\${updateZipName}' -Force"`,
+    { cwd: ROOT, stdio: 'pipe' }
   );
   
   if (hadDb) fs.renameSync(dbTempMove, dbFile);
