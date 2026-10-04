@@ -19,3 +19,14 @@
 - Strict attention to detail across UI/UX, responsive layouts, error handling, and data validation.
 - All forms and network requests must feature clear feedback (loading indicators, error alerts, success confirmations).
 - Maintain robust, bug-free, and production-ready code.
+
+## System Architecture & Credentials Reference
+- **Master Documentation**: See [`PROJECT_SYSTEM_ARCHITECTURE.md`](file:///c:/Coding/Project/Business&Portfolio/Work/scrab/PROJECT_SYSTEM_ARCHITECTURE.md) for full database schemas, API routes, and deployment instructions.
+- **SQLite Database Path**: `backend/database/database.sqlite` (Public deploy: `deploy_hosting/public_html/backend/database/database.sqlite`)
+- **Master Admin Credentials**: Login ID `SR-ADMIN` | Email `admin@salvagereef.com` | Password `sociial123`
+- **Executive Desk Admin**: Login ID `SR-EXEC-1` | Email `executive@salvagereef.com` | Password `execadmin123`
+- **Read-Only Desk Admin**: Login ID `SR-DESK-1` | Email `inspector@salvagereef.com` | Password `deskadmin123`
+- **Verified Seller**: Login ID `SR-SELLER-1` | Email `seller@salvagereef.com` | Password `SellerPass@2026`
+- **Verified Bidder**: Login ID `SR-BIDDER-1` | Email `bidder@salvagereef.com` | Password `BidderPass@2026`
+- **Zero-Maintenance Safeguards**: `ensureActiveContentAutoSeeded($pdo)` runs on backend startup to renew unawarded past auctions and seed minimum 3 active auctions & classifieds automatically.
+
