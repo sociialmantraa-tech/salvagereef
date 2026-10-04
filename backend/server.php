@@ -431,14 +431,14 @@ if ($envFile) {
 // Priority 1: Primary cPanel Production MySQL Database (scrab / scrab_user / scrabRoot@123)
 // Priority 2: Fallback to SQLite automatically if MySQL connection fails or PDO driver is unavailable.
 $pdo = null;
-$dbConnection = $_SR_ENV['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: 'mysql';
+$forcedSqliteOnly = isset($_SR_ENV['DB_CONNECTION']) && $_SR_ENV['DB_CONNECTION'] === 'sqlite_forced';
 
-if ($dbConnection === 'mysql' || $dbConnection === 'auto') {
-    $dbHost = $_SR_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1';
-    $dbPort = $_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
-    $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'scrab';
-    $dbUser = $_SR_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'scrab_user';
-    $dbPass = $_SR_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: 'scrabRoot@123';
+if (!$forcedSqliteOnly) {
+    $dbHost = !empty($_SR_ENV['DB_HOST']) ? $_SR_ENV['DB_HOST'] : (getenv('DB_HOST') ?: '127.0.0.1');
+    $dbPort = !empty($_SR_ENV['DB_PORT']) ? $_SR_ENV['DB_PORT'] : (getenv('DB_PORT') ?: '3306');
+    $dbName = (!empty($_SR_ENV['DB_DATABASE']) && !str_contains($_SR_ENV['DB_DATABASE'], '.sqlite')) ? $_SR_ENV['DB_DATABASE'] : 'scrab';
+    $dbUser = !empty($_SR_ENV['DB_USERNAME']) ? $_SR_ENV['DB_USERNAME'] : 'scrab_user';
+    $dbPass = !empty($_SR_ENV['DB_PASSWORD']) ? $_SR_ENV['DB_PASSWORD'] : 'scrabRoot@123';
 
     try {
         $pdo = new PDO("mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
