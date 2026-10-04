@@ -5247,41 +5247,41 @@ export default function AdminDashboard() {
                       <th className="p-3.5">Auction Lot</th>
                       <th className="p-3.5">Bid Amount</th>
                       <th className="p-3.5">Submitted</th>
-                      <th className="p-3.5 text-center">Status</th>
-                      <th className="p-3.5 text-right">Decision</th>
+                      <th className="p-3.5 text-center min-w-[130px] whitespace-nowrap">Status</th>
+                      <th className="p-3.5 text-right min-w-[220px] whitespace-nowrap">Decision</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {(bidStatusFilter === 'all' ? bidsList : bidsList.filter(b => b.status === bidStatusFilter)).map((bid) => (
                       <tr key={bid.id} className="hover:bg-slate-50/80">
-                        <td className="p-3.5">
+                        <td className="p-3.5 align-middle">
                           <div className="font-extrabold text-slate-900">{bid.bidder_name}</div>
                           <div className="text-slate-500 text-[11px]">{bid.bidder_company}</div>
                           <div className="text-[#D48B1C] text-[10px] font-semibold">{bid.bidder_email}</div>
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 align-middle">
                           <div className="font-bold text-slate-800 max-w-xs line-clamp-2">{bid.auction_title}</div>
                           <div className="text-slate-400 text-[10px]">Lot #{bid.auction_id}</div>
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 align-middle whitespace-nowrap">
                           <span className="font-mono font-black text-emerald-700 text-sm">
                             ₹{Number(bid.amount).toLocaleString('en-IN')}
                           </span>
                         </td>
-                        <td className="p-3.5 text-slate-500 font-medium">
+                        <td className="p-3.5 text-slate-500 font-medium align-middle whitespace-nowrap">
                           {new Date(bid.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="p-3.5 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        <td className="p-3.5 text-center whitespace-nowrap align-middle">
+                          <span className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider whitespace-nowrap leading-none align-middle ${
                             bid.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                             : bid.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200'
                             : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
                           }`}>
-                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'approved' ? '✓ APPROVED' : '✕ REJECTED'}
                           </span>
                         </td>
-                        <td className="p-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                        <td className="p-3.5 text-right whitespace-nowrap align-middle">
+                          <div className="inline-flex items-center justify-end gap-2 flex-nowrap align-middle">
                             {/* If pending: show both Approve and Reject */}
                             {bid.status === 'pending' && (
                               <>
