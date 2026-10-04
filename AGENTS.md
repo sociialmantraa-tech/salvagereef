@@ -28,8 +28,13 @@
 ## System Architecture, Database & Credentials Reference
 - **Master Documentation**: See [`PROJECT_SYSTEM_ARCHITECTURE.md`](file:///c:/Coding/Project/Business&Portfolio/Work/scrab/PROJECT_SYSTEM_ARCHITECTURE.md) for full database schemas, API routes, and deployment instructions.
 - **Production Domain**: `https://salvagereef.com`
-- **cPanel Production MySQL Database**: Database `scrab` | User `scrab_user` | Password `scrabRoot@123` | Host `127.0.0.1:3306`
-- **SQLite Database Path**: `backend/database/database.sqlite` (Deploy path: `deploy_hosting/public_html/backend/database/database.sqlite`)
+- **cPanel Production MySQL Database**:
+  - Database: `scrab` (or cPanel prefixed `md1ofov5ad9b_scrab`)
+  - User: `scrab_user` (or cPanel prefixed `md1ofov5ad9b_scrab_user`)
+  - Password: `scrabRoot@123`
+  - Host: `localhost` (Primary cPanel Unix Domain Socket) or `127.0.0.1:3306` (TCP)
+- **Live Server Diagnostic Tool**: `https://salvagereef.com/backend/test_db.php`
+- **SQLite Fallback Database Path**: `backend/database/database.sqlite` (Deploy path: `deploy_hosting/public_html/backend/database/database.sqlite`)
 - **Master Admin Credentials**: Login ID `SR-ADMIN` | Email `admin@salvagereef.com` | Password `sociial123`
 - **Executive Desk Admin**: Login ID `SR-EXEC-1` | Email `executive@salvagereef.com` | Password `execadmin123`
 - **Read-Only Desk Admin**: Login ID `SR-DESK-1` | Email `inspector@salvagereef.com` | Password `deskadmin123`
@@ -37,3 +42,6 @@
 - **Verified Bidder**: Login ID `SR-BIDDER-1` | Email `bidder@salvagereef.com` | Password `BidderPass@2026`
 - **Pending Seller**: Login ID `SR-SELLER-2` | Email `rajesh@rajeshmetals.com` | Password `Rajesh@2026`
 - **Build Package Generator**: `node build_hosting_package.cjs` -> outputs `salvagereef_UPDATE_SAFE_NO_DATABASE.zip` and `salvagereef_FULL_UPLOAD.zip`.
+- **Bid Visibility & Moderation Rule**: Unapproved bids (`status = 'pending'`) must NEVER be visible on public pages or user bid logs until approved by admin.
+- **User Password Reveal Rule**: Password reveal must authenticate against the logged-in admin's/executive's database password via `POST /api/v1/admin/users/{id}/reveal-password`.
+
