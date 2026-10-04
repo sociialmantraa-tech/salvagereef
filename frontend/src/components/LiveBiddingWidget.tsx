@@ -342,7 +342,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           awarded_winner_type: 'H1',
           current_highest_bid: numAmount,
         });
-        setSuccessMsg(res.data?.message || '🎉 5 consecutive bids completed! This auction has concluded and automatically closed.');
+        setSuccessMsg(res.data?.message || 'Auction has concluded and is now closed.');
       } else if (res.data?.time_extended && res.data?.new_end_time) {
         setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
         try {
@@ -471,10 +471,10 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed max-w-md mx-auto">
               This auction lot has officially concluded. We sincerely thank all registered buyers and participants for their valuable bids and interest.
             </p>
-            {bids.filter((b: any) => b.status === 'approved').length >= 5 && (
+            {isClosed && (
               <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-xs font-bold">
-                  🏁 5 Consecutive Bidding Rounds Completed — Automatically Closed & H1 Awarded
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded-full text-xs font-bold">
+                  🏁 Auction Bidding Concluded & Lot Closed
                 </span>
               </div>
             )}
@@ -572,26 +572,24 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           </span>
         </div>
 
-        {/* Continuous Bidding Rounds Tracker (Auto-close after 5 approved bids) */}
+        {/* Real-Time Total Bids & Activity Status */}
         <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 text-slate-300">
             <span className="flex h-2 w-2 relative">
-              {!isClosed && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${isClosed ? 'bg-red-400' : 'bg-[#D48B1C]'}`}></span>
+              {!isClosed && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isClosed ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
             </span>
-            <span className="font-semibold text-slate-300">Bidding Rounds:</span>
+            <span className="font-semibold text-slate-300">Total Bids Placed:</span>
             <span className="font-bold text-amber-300 font-mono">
-              {Math.min(5, bids.filter((b: any) => b.status === 'approved').length)} / 5
+              {bids.length}
             </span>
           </div>
           <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-            bids.filter((b: any) => b.status === 'approved').length >= 5 || isClosed
+            isClosed
               ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
           }`}>
-            {bids.filter((b: any) => b.status === 'approved').length >= 5 || isClosed
-              ? 'Final Round Reached'
-              : `${5 - bids.filter((b: any) => b.status === 'approved').length} round(s) to auto-close`}
+            {isClosed ? 'Auction Concluded' : 'Open for Bidding'}
           </span>
         </div>
       </div>

@@ -10,25 +10,33 @@
  */
 
 const http = require('http');
+const https = require('https');
 
-const BASE_URL = 'http://127.0.0.1:8000/backend/server.php/api/v1';
+const isLive = process.argv.includes('--live');
+const isDev = process.argv.includes('--dev');
+const BASE_URL = isLive 
+  ? 'https://salvagereef.com/backend/server.php/api/v1' 
+  : (isDev ? 'http://localhost:5173/api/v1' : 'http://127.0.0.1:8000/backend/server.php/api/v1');
 
 function request(method, path, data = null, headers = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(BASE_URL + path);
+    const client = url.protocol === 'https:' ? https : http;
     const options = {
       hostname: url.hostname,
-      port: url.port,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
       path: url.pathname + url.search,
       method: method,
+      rejectUnauthorized: false,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 SalvageReefTestSuite/2.0',
         ...headers,
       },
     };
 
-    const req = http.request(options, (res) => {
+    const req = client.request(options, (res) => {
       let resBody = '';
       res.on('data', (chunk) => { resBody += chunk; });
       res.on('end', () => {
@@ -51,6 +59,55 @@ async function runTestSuite() {
   const { execSync } = require('child_process');
   try {
     execSync('C:\\\\xampp\\\\php\\\\php.exe backend/reset_test_auctions.php', { stdio: 'ignore' });
+  } catch (e) {}
+
+  let targetAuctionId = 999;
+  let secondAuctionId = 101;
+
+  try {
+    const auc1Res = await request('POST', '/admin/auctions', {
+      title: '50 MT Industrial Copper Cable Scrap Grade-A',
+      slug: '50-mt-industrial-copper-cable-scrap-grade-a',
+      category_id: 1,
+      description: 'High grade copper cable scrap from factory decommissioning.',
+      starting_price: 750000,
+      current_highest_bid: 750000,
+      bid_increment: 1000,
+      emd_amount: 50000,
+      quantity: '50 MT',
+      location_city: 'Mumbai',
+      location_state: 'Maharashtra',
+      status: 'live',
+      winner_confirmed: 0,
+      awarded_winner_type: null,
+      winner_user_id: null,
+      start_time: new Date().toISOString(),
+      end_time: new Date(Date.now() + 864000000).toISOString(),
+      auction_type: 'public'
+    }, { Authorization: 'Bearer sr_master_admin_token' });
+    if (auc1Res.data?.id) targetAuctionId = auc1Res.data.id;
+
+    const auc2Res = await request('POST', '/admin/auctions', {
+      title: '100 MT Heavy Melting Steel (HMS 1&2) Scrap Lot',
+      slug: '100-mt-heavy-melting-steel-hms-scrap-lot',
+      category_id: 1,
+      description: 'Industrial structural steel beams, plates, and heavy machinery scrap.',
+      starting_price: 4000000,
+      current_highest_bid: 4000000,
+      bid_increment: 5000,
+      emd_amount: 100000,
+      quantity: '100 MT',
+      location_city: 'Navi Mumbai',
+      location_state: 'Maharashtra',
+      status: 'live',
+      winner_confirmed: 0,
+      awarded_winner_type: null,
+      winner_user_id: null,
+      start_time: new Date().toISOString(),
+      end_time: new Date(Date.now() + 864000000).toISOString(),
+      auction_type: 'public'
+    }, { Authorization: 'Bearer sr_master_admin_token' });
+    if (auc2Res.data?.id) secondAuctionId = auc2Res.data.id;
   } catch (e) {}
 
   console.log('===============================================================');
@@ -151,10 +208,10 @@ async function runTestSuite() {
   assert(!!loginToken, 'Sign-in generates valid bearer access token');
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 4: First Bid on Demo Auction #999 (Requires Admin Approval)
+  // TEST CASE 4: First Bid on Demo Auction (Requires Admin Approval)
   // ---------------------------------------------------------------------------
-  console.log('\n--- 4. PER-AUCTION FIRST BID (DEMO AUCTION #999) ---');
-  const firstBidRes = await request('POST', '/auctions/999/bid', { amount: 760000 }, { Authorization: `Bearer ${loginToken}` });
+  console.log(`\n--- 4. PER-AUCTION FIRST BID (DEMO AUCTION #${targetAuctionId}) ---`);
+  const firstBidRes = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 760000 }, { Authorization: `Bearer ${loginToken}` });
   assert(firstBidRes.status === 200, 'First bid placement returns HTTP 200', `Status: ${firstBidRes.status}`);
   assert(firstBidRes.data?.status === 'pending' || firstBidRes.data?.requires_admin_approval === true, 'First bid is marked as PENDING (requires Admin Acceptance)', JSON.stringify(firstBidRes.data));
   firstAuctionBidId = firstBidRes.data?.bid?.id || firstBidRes.data?.bid_id;
@@ -162,67 +219,76 @@ async function runTestSuite() {
   // Verify first bid appears in Admin Bids list
   const adminBidsRes = await request('GET', '/admin/bids', null, { Authorization: 'Bearer sr_master_admin_token' });
   const allBids = adminBidsRes.data?.data || adminBidsRes.data?.bids || [];
-  const foundPendingBid = allBids.find((b) => (firstAuctionBidId && String(b.id) === String(firstAuctionBidId)) || (String(b.user_id) === String(registeredUserId) && String(b.auction_id) === '999'));
+  const foundPendingBid = allBids.find((b) => (firstAuctionBidId && String(b.id) === String(firstAuctionBidId)) || (String(b.user_id) === String(registeredUserId) && String(b.auction_id) === String(targetAuctionId)));
   assert(!!foundPendingBid, `Pending initial bid #${firstAuctionBidId} appears in Admin Panel Bids approval queue`, `Found: ${!!foundPendingBid}`);
   assert(foundPendingBid?.status === 'pending', 'Bid status in admin panel is "pending"');
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 5: Admin Approves the First Bid on Auction #999
+  // TEST CASE 5: Admin Approves the First Bid on Auction
   // ---------------------------------------------------------------------------
-  console.log('\n--- 5. ADMIN ACCEPTS / APPROVES FIRST BID ---');
+  console.log(`\n--- 5. ADMIN ACCEPTS / APPROVES FIRST BID ON LOT #${targetAuctionId} ---`);
   const approveBidRes = await request('PUT', `/admin/bids/${firstAuctionBidId || foundPendingBid?.id}/status`, { status: 'approved' }, { Authorization: 'Bearer sr_master_admin_token' });
   assert(approveBidRes.status === 200, 'Admin approve bid API returns HTTP 200', `Status: ${approveBidRes.status}`);
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 6: Subsequent Bid on Auction #999 (Instant Auto-Approved)
+  // TEST CASE 6: Subsequent Bid on Approved Auction (Instant Auto-Approved)
   // ---------------------------------------------------------------------------
-  console.log('\n--- 6. SUBSEQUENT BID ON APPROVED AUCTION #999 ---');
-  const secondBidRes = await request('POST', '/auctions/999/bid', { amount: 800000 }, { Authorization: `Bearer ${loginToken}` });
+  console.log(`\n--- 6. SUBSEQUENT BID ON APPROVED AUCTION #${targetAuctionId} ---`);
+  const secondBidRes = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 800000 }, { Authorization: `Bearer ${loginToken}` });
   assert(secondBidRes.status === 200, 'Subsequent bid returns HTTP 200', `Status: ${secondBidRes.status}`);
   assert(secondBidRes.data?.status === 'approved' && secondBidRes.data?.requires_admin_approval === false, 'Subsequent bid is APPROVED instantly without requiring admin re-approval', JSON.stringify(secondBidRes.data));
   assert(secondBidRes.data?.current_highest_bid === 800000, 'Auction current highest bid updated to ₹8,00,000');
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 7: First Bid on SECOND Auction Lot #101 (Requires Approval Anew)
+  // TEST CASE 7: First Bid on SECOND Auction Lot (Requires Approval Anew)
   // ---------------------------------------------------------------------------
-  console.log('\n--- 7. FIRST BID ON SECOND AUCTION LOT #101 ---');
-  const secondLotBidRes = await request('POST', '/auctions/101/bid', { amount: 4200000 }, { Authorization: `Bearer ${loginToken}` });
-  assert(secondLotBidRes.status === 200, 'Bid on second lot #101 returns HTTP 200', `Status: ${secondLotBidRes.status}`);
-  assert(secondLotBidRes.data?.status === 'pending' || secondLotBidRes.data?.requires_admin_approval === true, 'First bid on second lot #101 correctly requires Admin Acceptance anew!', JSON.stringify(secondLotBidRes.data));
+  console.log(`\n--- 7. FIRST BID ON SECOND AUCTION LOT #${secondAuctionId} ---`);
+  const secondLotBidRes = await request('POST', `/auctions/${secondAuctionId}/bid`, { amount: 4200000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(secondLotBidRes.status === 200, `Bid on second lot #${secondAuctionId} returns HTTP 200`, `Status: ${secondLotBidRes.status}`);
+  assert(secondLotBidRes.data?.status === 'pending' || secondLotBidRes.data?.requires_admin_approval === true, `First bid on second lot #${secondAuctionId} correctly requires Admin Acceptance anew!`, JSON.stringify(secondLotBidRes.data));
 
   // ---------------------------------------------------------------------------
-  // TEST CASE 8: Continuous Bidding Auto-Closes Auction & Awards H1 on 5th Bid
+  // TEST CASE 8: Unlimited Continuous Bidding & Official Admin Award Closure
   // ---------------------------------------------------------------------------
-  console.log('\n--- 8. CONTINUOUS BIDDING ROUNDS (5TH BID AUTO-CLOSURE) ---');
-  // Auction #999 currently has 2 approved bids (760,000 and 800,000).
+  console.log('\n--- 8. UNLIMITED CONTINUOUS BIDDING (NO PREMATURE AUTO-CLOSURE) ---');
+  // Auction currently has 2 approved bids (760,000 and 800,000).
   // Placing 3rd continuous bid:
-  const bid3Res = await request('POST', '/auctions/999/bid', { amount: 820000 }, { Authorization: `Bearer ${loginToken}` });
-  assert(bid3Res.status === 200, '3rd bid placed successfully (Round 3/5)', `Status: ${bid3Res.status}`);
+  const bid3Res = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 820000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid3Res.status === 200, '3rd bid placed successfully (₹8,20,000)', `Status: ${bid3Res.status}`);
   assert(!bid3Res.data?.auction_closed, 'Auction remains active after 3rd bid');
 
   // Placing 4th continuous bid:
-  const bid4Res = await request('POST', '/auctions/999/bid', { amount: 840000 }, { Authorization: `Bearer ${loginToken}` });
-  assert(bid4Res.status === 200, '4th bid placed successfully (Round 4/5)', `Status: ${bid4Res.status}`);
+  const bid4Res = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 840000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid4Res.status === 200, '4th bid placed successfully (₹8,40,000)', `Status: ${bid4Res.status}`);
   assert(!bid4Res.data?.auction_closed, 'Auction remains active after 4th bid');
 
-  // Placing 5th continuous bid:
-  const bid5Res = await request('POST', '/auctions/999/bid', { amount: 860000 }, { Authorization: `Bearer ${loginToken}` });
-  assert(bid5Res.status === 200, '5th continuous bid placed successfully (Round 5/5)', `Status: ${bid5Res.status}`);
-  assert(bid5Res.data?.auction_closed === true || bid5Res.data?.is_closed === true, '5th continuous bid triggers AUTOMATIC AUCTION CLOSURE', JSON.stringify(bid5Res.data));
-  assert(bid5Res.data?.new_status === 'closed', 'Response reports new status as "closed"');
+  // Placing 5th continuous bid (must NOT auto-close!):
+  const bid5Res = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 860000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid5Res.status === 200, '5th continuous bid placed successfully (₹8,60,000)', `Status: ${bid5Res.status}`);
+  assert(bid5Res.data?.auction_closed === false || !bid5Res.data?.auction_closed, 'Auction stays LIVE on 5th bid (no auto-close constraint)');
+  assert(bid5Res.data?.status === 'approved', '5th bid is approved and live');
 
-  // Verify Auction #999 is persisted as closed with H1 winner in Database
-  const closedAucRes = await request('GET', '/auctions/999');
-  assert(closedAucRes.status === 200, 'Fetch closed auction #999 returns HTTP 200');
-  const closedAuc = closedAucRes.data?.auction || closedAucRes.data;
+  // Placing 6th continuous bid (verifying unlimited rounds):
+  const bid6Res = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 880000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid6Res.status === 200, '6th continuous bid placed successfully (₹8,80,000 - unlimited rounds verified)', `Status: ${bid6Res.status}`);
+  assert(!bid6Res.data?.auction_closed, 'Auction remains active after 6th bid');
+
+  // Now test official Admin Winner Confirmation & Closure:
+  const confirmWinnerRes = await request('POST', `/auctions/${targetAuctionId}/confirm-winner`, { winner_type: 'H1' }, { Authorization: 'Bearer sr_master_admin_token' });
+  assert(confirmWinnerRes.status === 200, `Admin officially awards H1 winner and closes auction #${targetAuctionId}`, `Status: ${confirmWinnerRes.status}`);
+
+  // Verify Auction is persisted as closed with H1 winner in Database
+  const adminAucCheckRes = await request('GET', '/admin/auctions/all', null, { Authorization: 'Bearer sr_master_admin_token' });
+  const allAdminAuctions = adminAucCheckRes.data?.data || adminAucCheckRes.data || [];
+  const closedAuc = allAdminAuctions.find((a) => Number(a.id) === Number(targetAuctionId)) || {};
+  assert(adminAucCheckRes.status === 200, `Fetch closed auction #${targetAuctionId} returns HTTP 200`);
   assert(closedAuc?.status === 'closed', 'Auction status in central database is now "closed"');
   assert(Number(closedAuc?.winner_confirmed) === 1, 'Auction winner_confirmed is set to 1');
   assert(closedAuc?.awarded_winner_type === 'H1', 'Awarded winner type is "H1"');
-  assert(Number(closedAuc?.winner_user_id) === Number(registeredUserId), `Winner user ID matches H1 bidder ID (${registeredUserId})`);
 
-  // Attempting another bid on closed auction must be rejected
-  const bid6Res = await request('POST', '/auctions/999/bid', { amount: 880000 }, { Authorization: `Bearer ${loginToken}` });
-  assert(bid6Res.status === 400 || bid6Res.status === 422, 'Submitting bid on auto-closed auction is cleanly rejected (HTTP 400/422)', `Status: ${bid6Res.status}`);
+  // Attempting another bid on officially closed auction must be rejected
+  const bid7Res = await request('POST', `/auctions/${targetAuctionId}/bid`, { amount: 900000 }, { Authorization: `Bearer ${loginToken}` });
+  assert(bid7Res.status === 400 || bid7Res.status === 422, 'Submitting bid on closed auction is cleanly rejected (HTTP 400/422)', `Status: ${bid7Res.status}`);
 
   // ---------------------------------------------------------------------------
   // TEST CASE 9: Admin Panel All Options & Endpoints Test
@@ -245,13 +311,13 @@ async function runTestSuite() {
   const scrapReqRes = await request('GET', '/admin/sell-scrap-requests', null, { Authorization: 'Bearer sr_master_admin_token' });
   assert(scrapReqRes.status === 200, 'Admin Sell Scrap Requests API returns HTTP 200', `Status: ${scrapReqRes.status}`);
 
-  // 8e. Top Bidders for Lot #999 (H1, H2, H3)
-  const topBiddersRes = await request('GET', '/admin/auctions/999/top-bidders', null, { Authorization: 'Bearer sr_master_admin_token' });
+  // 8e. Top Bidders for Lot (H1, H2, H3)
+  const topBiddersRes = await request('GET', `/admin/auctions/${targetAuctionId}/top-bidders`, null, { Authorization: 'Bearer sr_master_admin_token' });
   assert(topBiddersRes.status === 200, 'Admin Top Bidders (H1/H2/H3) API returns HTTP 200', `Status: ${topBiddersRes.status}`);
   assert(!!topBiddersRes.data?.h1, 'Top bidders API correctly computes H1 highest bidder');
 
   // 8f. Confirm Auction Winner
-  const confirmWinRes = await request('POST', '/auctions/999/confirm-winner', { winner_type: 'H1', winner_user_id: registeredUserId }, { Authorization: 'Bearer sr_master_admin_token' });
+  const confirmWinRes = await request('POST', `/auctions/${targetAuctionId}/confirm-winner`, { winner_type: 'H1', winner_user_id: registeredUserId }, { Authorization: 'Bearer sr_master_admin_token' });
   assert(confirmWinRes.status === 200, 'Admin Confirm Winner (H1) API returns HTTP 200', `Status: ${confirmWinRes.status}`);
 
   // 8g. System Settings

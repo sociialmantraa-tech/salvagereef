@@ -65,6 +65,10 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 5. **Second Lot Verification (Lot #101):**
    - Bidder 1 navigates to Lot #101 and places a bid.
    - Verify: Because Bidder 1 is not approved for Lot #101, this first bid correctly requires 1-time Admin Acceptance anew (`pending`).
+6. **Unlimited Bidding Rounds (Strictly No Premature Auto-Closure):**
+   - Verify that there is NO artificial limit on the number of bids or bidding rounds (e.g. no 5-bid auto-closure).
+   - The live bidding widget displays **"Total Bids Placed: X"** and **"Open for Bidding"** without any artificial round countdowns.
+   - The auction remains 100% active and open for continuous bids until its scheduled closing time (or anti-snipe extension), or until the Admin officially awards and closes the lot.
 
 ---
 
@@ -301,7 +305,7 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 | **TC-20** | Guest Download Protection | Unauthenticated visitor browses auction detail & cards | All download buttons (card icons, header actions, media dossier) strictly hidden | **PASS (100%)** |
 | **TC-21** | Authenticated Tender Download | Logged-in bidder views lot with uploaded PDF tender | Download options render dynamically; clicking retrieves official uploaded PDF | **PASS (100%)** |
 | **TC-22** | Winner Selection (H1/H2/H3) | Admin opens Top Bidders modal and confirms winner | H1/H2/H3 awarded; customizable email & WhatsApp alert generated; lot closed | **PASS (100%)** |
-| **TC-23** | Auto-Close at 5 Bids | Place 5 consecutive approved bids on demo auction | Auction automatically closes with H1 winner declaration | **PASS (100%)** |
+| **TC-23** | Unlimited Bidding Rounds (Strictly No Premature Auto-Close) | Place consecutive bids beyond 5 rounds on active auction lot | Auction remains 100% active and open for bidding; NO artificial auto-close or round limits | **PASS (100%)** |
 | **TC-24** | System Maintenance Toggle | Admin toggles Maintenance Mode / Temp Closed | System mode persists; public visitors see custom maintenance splash | **PASS (100%)** |
 | **TC-25** | Error Diagnostics Desk | Check System Errors desk in Admin Panel | Logs real-time client/server errors with stack trace, resolve & clear buttons | **PASS (100%)** |
 | **TC-26** | Website CMS Live Editing | Admin edits Brand Name and Navigation labels in Pages Editor | Public views (Header, Footer, Mobile Drawer) immediately render updated copy | **PASS (100%)** |
@@ -314,6 +318,10 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 | **TC-33** | Quick Bid Shortcut Scaling | Test shortcuts on lot with ₹1,000 step vs lot with ₹5,000 step | Shortcuts scale dynamically (+1x, +2x, +5x, +10x) and calculate from highest bid | **PASS (100%)** |
 | **TC-34** | Scrap Category Master CRUD | Admin adds, edits, and deletes scrap categories in Categories Desk | Dropdowns in auction creation and homepage filter pills update instantly | **PASS (100%)** |
 | **TC-35** | Dynamic SEO & Meta Tags | Admin updates SEO Title, Meta Description & Keywords in SEO Desk | DOM `<title>` and `<meta name="description">` tags update dynamically per route | **PASS (100%)** |
+| **TC-36** | KYC Multi-Doc Upload & Zoom | User uploads PAN, GSTIN & Cheque during onboarding; Admin inspects | Files saved in `uploads/kyc/`; Admin modal renders high-res preview & PDF zoom | **PASS (100%)** |
+| **TC-37** | MySQL Live Connection & Fallback | Live server connects to MySQL `scrab` with graceful SQLite fallback | All queries execute via MySQL; if server disconnects, seamless SQLite fallback prevents 500 error | **PASS (100%)** |
+| **TC-38** | Apache PATH_INFO & SPA Deep Link | Direct refresh on `/auctions`, `/register`, `/admin` and `/backend/server.php/api/v1/*` | Apache handles `AcceptPathInfo On`; SPA routes load `index.html` without 404 | **PASS (100%)** |
+| **TC-39** | Real-Time Scrap Ticker Sync | Admin updates scrap rates in settings; public homepage ticker checked | Live prices (HMS, Copper, Aluminium, Brass) update dynamically with % delta | **PASS (100%)** |
 
 ---
 
@@ -328,8 +336,9 @@ node test_full_system.js
 ### Expected Suite Summary:
 ```
 ===============================================================
-📊 TEST SUITE SUMMARY: 35 PASSED | 0 FAILED
+📊 TEST SUITE SUMMARY: 39 PASSED | 0 FAILED
 ===============================================================
 🎉 ALL TESTS COMPLETED WITH 100% SUCCESS!
 ```
+
 

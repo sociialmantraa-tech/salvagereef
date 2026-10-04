@@ -9,18 +9,18 @@
     "category_name": "Non-Ferrous Copper, Brass & Aluminium Scrap",
     "category_slug": "non-ferrous-copper-brass",
     "auction_type": "public",
-    "status": "live",
+    "status": "closed",
     "quantity": 45,
     "unit": "MT",
     "starting_price": 500000,
-    "current_highest_bid": 750000,
+    "current_highest_bid": 880000,
     "bid_increment": 10000,
     "emd_amount": 50000,
     "location_city": "Mumbai",
     "location_state": "Maharashtra",
     "start_time": "2026-09-30 12:05:26",
-    "end_time": "2026-10-07 12:05:26",
-    "winner_confirmed": 0,
+    "end_time": "2026-10-03T12:27:40.141Z",
+    "winner_confirmed": true,
     "created_by": 1,
     "creator_name": "SalvageReef Verified Seller",
     "creator_company": "Apex Scrap Recyclers Ltd",
@@ -47,6 +47,129 @@
     ],
     "bids": [
       {
+        "id": 1791030361099,
+        "amount": 900000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.099Z"
+      },
+      {
+        "id": 1791030505312,
+        "amount": 880000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.312Z"
+      },
+      {
+        "id": 1791030361085,
+        "amount": 880000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.085Z"
+      },
+      {
+        "id": 1791030505301,
+        "amount": 860000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.301Z"
+      },
+      {
+        "id": 1791030361076,
+        "amount": 860000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.076Z"
+      },
+      {
+        "id": 1791030505290,
+        "amount": 840000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.290Z"
+      },
+      {
+        "id": 1791030361069,
+        "amount": 840000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.069Z"
+      },
+      {
+        "id": 1791030505282,
+        "amount": 820000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.282Z"
+      },
+      {
+        "id": 1791030361059,
+        "amount": 820000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.059Z"
+      },
+      {
+        "id": 1791030505266,
+        "amount": 800000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.266Z"
+      },
+      {
+        "id": 1791030361034,
+        "amount": 800000,
+        "status": "approved",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.034Z"
+      },
+      {
+        "id": 1791030505250,
+        "amount": 760000,
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.250Z"
+      },
+      {
+        "id": 1791030460119,
+        "amount": 760000,
+        "user": {
+          "name": "Test Metal Recycler 1791030460081"
+        },
+        "created_at": "2026-10-03T12:27:40.119Z"
+      },
+      {
+        "id": 1791030361006,
+        "amount": 760000,
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.006Z"
+      },
+      {
         "id": 901,
         "amount": 750000,
         "user": {
@@ -54,7 +177,13 @@
         },
         "created_at": "2026-09-30T12:05:26.057Z"
       }
-    ]
+    ],
+    "awarded_winner_type": "H1",
+    "winner_user_id": 1791030505219,
+    "winner_h1_user_id": 1791030360983,
+    "winner_h2_user_id": 1791030360983,
+    "winner_h3_user_id": 1791030360983,
+    "awarded_winner_id": 1791030360983
   },
   {
     "id": 101,
@@ -70,7 +199,7 @@
     "unit": "MT",
     "starting_price": 3500000,
     "emd_amount": 100000,
-    "current_highest_bid": 4150000,
+    "current_highest_bid": 4260000,
     "bid_increment": 10000,
     "start_time": "2026-09-29T10:00:00.000Z",
     "end_time": "2026-10-06T18:00:00.000Z",
@@ -102,7 +231,73 @@
       "id": 1,
       "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
       "is_primary": true
-    }
+    },
+    "bids": [
+      {
+        "id": 1791033546334,
+        "amount": 4260000,
+        "status": "approved",
+        "user": {
+          "name": "Neelkanth Sharma"
+        },
+        "created_at": "2026-10-03T13:19:06.334Z"
+      },
+      {
+        "id": 1791033468674,
+        "amount": 4240000,
+        "status": "approved",
+        "user": {
+          "name": "Neelkanth Sharma"
+        },
+        "created_at": "2026-10-03T13:17:48.674Z"
+      },
+      {
+        "id": 1791031358541,
+        "amount": 4220000,
+        "status": "approved",
+        "user": {
+          "name": "Neelkanth Sharma"
+        },
+        "created_at": "2026-10-03T12:42:38.541Z"
+      },
+      {
+        "id": 1791030505274,
+        "amount": 4200000,
+        "status": "pending",
+        "user": {
+          "name": "Test Metal Recycler 1791030505218"
+        },
+        "created_at": "2026-10-03T12:28:25.274Z"
+      },
+      {
+        "id": 1791030460154,
+        "amount": 4200000,
+        "status": "pending",
+        "user": {
+          "name": "Test Metal Recycler 1791030460081"
+        },
+        "created_at": "2026-10-03T12:27:40.154Z"
+      },
+      {
+        "id": 1791030394984,
+        "amount": 4200000,
+        "status": "pending",
+        "user": {
+          "name": "Test Metal Recycler 1791030394927"
+        },
+        "created_at": "2026-10-03T12:26:34.984Z"
+      },
+      {
+        "id": 1791030361047,
+        "amount": 4200000,
+        "status": "pending",
+        "user": {
+          "name": "Test Metal Recycler 1791030360961"
+        },
+        "created_at": "2026-10-03T12:26:01.047Z"
+      }
+    ],
+    "winner_confirmed": 0
   },
   {
     "id": 102,

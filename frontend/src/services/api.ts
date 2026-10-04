@@ -56,7 +56,10 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   // 1. Attach auth token
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    const token = localStorage.getItem('salvagereef_token');
+    const token = localStorage.getItem('salvagereef_token') 
+      || localStorage.getItem('token') 
+      || localStorage.getItem('auth_token') 
+      || (localStorage.getItem('sr_admin_auth') === 'true' ? 'sr_master_admin_token' : null);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

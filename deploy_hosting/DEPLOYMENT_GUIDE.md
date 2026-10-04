@@ -1,199 +1,325 @@
-# ============================================================
 # SalvageReef — cPanel Hosting Deployment Guide
-# Version: 2026 | Tested on: GoDaddy / HostGator / Namecheap
-# ============================================================
+
+> **Version:** 3.0.0 | **Last Updated:** October 3, 2026  
+> **Tested On:** GoDaddy cPanel, HostGator, Namecheap, LiteSpeed  
+> **Domain:** salvagereef.com
 
 ---
 
-## Folder Structure to Upload
+## Quick Start (For Experienced Users)
+
+```bash
+# 1. Build everything & generate ZIP
+node build_hosting_package.cjs
+
+# 2. Upload salvagereef_FULL_UPLOAD.zip to cPanel → public_html/
+# 3. Extract ZIP in cPanel
+# 4. Rename backend/.env.production → backend/.env
+# 5. Fill in domain + Brevo SMTP key in .env
+# 6. Set permissions (database/ → 755, .env → 600)
+# 7. Visit https://salvagereef.com ✓
+```
+
+---
+
+## Complete Folder Structure
 
 ```
-public_html/
-├── .htaccess                  ← Root Apache config (HTTPS + SPA routing + caching)
-├── index.html                 ← React app entry point
-├── favicon.ico
-├── favicon.png
-├── favicon.svg
-├── logo.png
-├── assets/
-│   ├── index-*.js             ← All compiled JS chunks (content-hash named)
-│   └── index-*.css            ← Compiled CSS bundle
-├── uploads/
-│   ├── .htaccess              ← Upload folder security (blocks PHP execution)
-│   ├── index.html             ← Blank HTML (prevents directory listing)
-│   ├── auction/               ← Auction lot images
-│   ├── classified/            ← Classified listing images
-│   ├── general/               ← General uploads
-│   ├── hero/                  ← Hero/banner images
-│   ├── logo/                  ← Logo uploads
-│   └── footer-logo/           ← Footer logo uploads
-└── backend/
-    ├── .htaccess              ← Backend Apache config (API routing + CORS + PHP config)
-    ├── .env                   ← ⚠️  RENAME .env.production → .env  (fill in values!)
-    ├── server.php             ← Main PHP API handler (handles all /api/v1/* routes)
-    ├── security_config.php    ← HMAC security keys and rate limiting config
-    ├── index.php              ← Fallback PHP entry point
-    ├── seed_db.php            ← Database seeder script
-    ├── view_logs.php          ← Admin log viewer
+public_html/                              ← cPanel root
+├── .htaccess                             ← HTTPS + SPA routing + API proxy + compression + security
+├── index.html                            ← React SPA entry point (Vite build output)
+├── favicon.ico                           ← Browser tab icon
+├── favicon.png                           ← Apple touch icon
+├── favicon.svg                           ← SVG favicon
+├── logo.png                              ← Site logo
+│
+├── assets/                               ← Compiled JS/CSS bundles (content-hashed)
+│   ├── index-CFk_1pBE.js                 ← Main app bundle
+│   ├── index-CqVfHpbY.css               ← Compiled CSS
+│   ├── AdminDashboard-CW5InR90.js        ← Admin dashboard chunk
+│   ├── AuctionDetail-B27uEf2n.js         ← Auction detail page chunk
+│   └── ... (70+ code-split chunks)
+│
+├── uploads/                              ← User-uploaded files (writable)
+│   ├── .htaccess                         ← ⛔ Blocks PHP execution (critical security)
+│   ├── index.html                        ← Prevents directory listing
+│   ├── auction/                          ← Auction lot images
+│   ├── classified/                       ← Classified listing images
+│   ├── general/                          ← General uploads
+│   ├── hero/                             ← Hero/banner images
+│   ├── logo/                             ← Logo uploads
+│   ├── footer-logo/                      ← Footer logo
+│   ├── kyc/                              ← KYC documents (PAN, GST, cheque)
+│   └── tender/                           ← Tender PDF documents
+│
+└── backend/                              ← PHP API backend
+    ├── .htaccess                         ← API routing + CORS + PHP config + security
+    ├── .env                              ← ⚠️ RENAME .env.production → .env (fill values!)
+    ├── server.php                        ← Main API handler (all /api/v1/* routes)
+    ├── security_config.php               ← HMAC security keys + rate limiting
+    ├── index.php                         ← Laravel fallback entry point
+    ├── seed_db.php                       ← Database seeder (delete after use!)
+    ├── view_logs.php                     ← Admin log viewer
     ├── database/
-    │   └── database.sqlite    ← SQLite database (auto-created on first request)
-    ├── storage/
-    │   └── logs/              ← Server-side error and access logs
-    └── logs/                  ← Detailed structured API logs
+    │   └── database.sqlite               ← SQLite DB (auto-created on first request)
+    └── logs/                             ← Structured API logs (auto-created)
+        ├── error.log
+        ├── access.log
+        ├── security.log
+        └── fatal.log
 ```
 
 ---
 
 ## Step-by-Step Upload Instructions
 
-### STEP 1 — Log into cPanel File Manager
-1. Go to your hosting control panel (cPanel)
-2. Click **File Manager**
-3. Navigate to **public_html** (or the root of your domain)
-4. Delete or backup any existing `index.php` or `index.html` if present
+### STEP 1 — Build the Hosting Package
 
----
+Run the automated build script from the project root:
 
-### STEP 2 — Upload Frontend Files
-Upload these files/folders directly into `public_html/`:
-
-| File / Folder | Source Location |
-|--------------|-----------------|
-| `.htaccess` | `deploy_hosting/public_html/.htaccess` |
-| `index.html` | `deploy_hosting/public_html/index.html` |
-| `assets/` | `deploy_hosting/public_html/assets/` |
-| `favicon.ico` | `deploy_hosting/public_html/favicon.ico` |
-| `favicon.png` | `deploy_hosting/public_html/favicon.png` |
-| `favicon.svg` | `deploy_hosting/public_html/favicon.svg` |
-| `logo.png` | `deploy_hosting/public_html/logo.png` |
-
-> **Tip**: Zip the `public_html/` folder and use cPanel → File Manager → Upload → Extract to save time.
-
----
-
-### STEP 3 — Upload Uploads Folder
-Upload the `uploads/` folder structure into `public_html/`:
-- The `uploads/.htaccess` blocks PHP execution inside uploads
-- Sub-folders (`auction/`, `classified/`, `hero/`, etc.) are auto-used by the backend
-
----
-
-### STEP 4 — Upload Backend
-1. Create a folder called `backend` inside `public_html/`
-2. Upload all files from `deploy_hosting/public_html/backend/` into `public_html/backend/`
-
----
-
-### STEP 5 — Configure Environment (.env)
-1. In `public_html/backend/`, find the file `.env.production`
-2. **Rename it** to `.env`
-3. Open it and update these fields:
-
-```env
-APP_URL=https://yourdomain.com          ← Your actual live domain
-MAIL_USERNAME=your@email.com            ← Your Brevo login email
-MAIL_PASSWORD=xsmtp-key-here            ← Your Brevo SMTP key
-MAIL_FROM_ADDRESS=no-reply@yourdomain.com
-SANCTUM_STATEFUL_DOMAINS=yourdomain.com,www.yourdomain.com
-FRONTEND_URL=https://yourdomain.com
+```powershell
+node build_hosting_package.cjs
 ```
 
-> **Get Brevo SMTP key**: Go to https://app.brevo.com → Settings → SMTP & API → SMTP Settings → Generate master key
+This will:
+- ✅ Build the React frontend (production Vite build)
+- ✅ Copy compiled assets to `deploy_hosting/public_html/assets/`
+- ✅ Copy backend PHP files to `deploy_hosting/public_html/backend/`
+- ✅ Create upload directory structure with security `.htaccess`
+- ✅ Generate **`salvagereef_FULL_UPLOAD.zip`** (first-time deploy)
+- ✅ Generate **`salvagereef_UPDATE_SAFE_NO_DATABASE.zip`** (code updates only)
 
 ---
 
-### STEP 6 — Set File Permissions (cPanel File Manager)
-Right-click each path below → Permissions:
+### STEP 2 — Upload to cPanel
 
-| Path | Permission | Notes |
-|------|-----------|-------|
-| `backend/` | `755` | Directory |
-| `backend/server.php` | `644` | PHP file |
+1. Log into your hosting **cPanel → File Manager**
+2. Navigate to **`public_html/`** (root of your domain)
+3. Delete or backup any existing `index.php` or `index.html`
+4. Click **Upload** → Upload **`salvagereef_FULL_UPLOAD.zip`**
+5. Right-click the uploaded ZIP → **Extract**
+6. Verify all files are now in `public_html/` (not nested in a subfolder)
+
+> **⚠️ IMPORTANT:** Make sure files are directly inside `public_html/`, NOT inside `public_html/public_html/`. If extracted into a subfolder, move everything up one level.
+
+---
+
+### STEP 3 — Configure Environment (.env)
+
+1. In cPanel File Manager, navigate to `public_html/backend/`
+2. Find **`.env.production`** → Right-click → **Rename** → `.env`
+3. Click **Edit** on the `.env` file and fill in:
+
+```env
+# Your actual live domain
+APP_URL=https://salvagereef.com
+
+# Brevo SMTP credentials (get from https://app.brevo.com → Settings → SMTP & API)
+MAIL_USERNAME=salvagereef@gmail.com
+MAIL_PASSWORD=xsmtpsib-YOUR-ACTUAL-KEY-HERE
+
+# Frontend domain for CORS
+SANCTUM_STATEFUL_DOMAINS=salvagereef.com,www.salvagereef.com
+FRONTEND_URL=https://salvagereef.com
+```
+
+---
+
+### STEP 4 — Set File Permissions
+
+In cPanel File Manager, right-click each path → **Change Permissions**:
+
+| Path | Permission | Why |
+|------|:---------:|-----|
+| `backend/` | `755` | Directory must be traversable |
+| `backend/server.php` | `644` | PHP file — read by web server |
 | `backend/security_config.php` | `644` | PHP file |
-| `backend/.env` | `600` | **Private! Keep secret!** |
-| `backend/database/` | `755` | Must be writable |
-| `backend/database/database.sqlite` | `664` | Must be writable by web server |
-| `backend/storage/` | `755` | Must be writable |
-| `backend/storage/logs/` | `755` | Must be writable |
-| `backend/logs/` | `755` | Must be writable |
-| `uploads/` | `755` | Must be writable for uploads |
-| `uploads/auction/` | `755` | |
-| `uploads/classified/` | `755` | |
-| `uploads/hero/` | `755` | |
-| `uploads/general/` | `755` | |
-| `uploads/logo/` | `755` | |
+| `backend/.env` | `600` | **🔒 PRIVATE — owner read/write only** |
+| `backend/database/` | `755` | SQLite needs write access |
+| `backend/database/database.sqlite` | `664` | Writable by web server |
+| `backend/logs/` | `755` | Writable for server logs |
+| `uploads/` | `755` | Writable for file uploads |
+| `uploads/auction/` | `755` | Image uploads |
+| `uploads/classified/` | `755` | Image uploads |
+| `uploads/hero/` | `755` | Banner images |
+| `uploads/kyc/` | `755` | KYC document uploads |
+| `uploads/tender/` | `755` | Tender PDF uploads |
+| `uploads/general/` | `755` | General uploads |
+| `uploads/logo/` | `755` | Logo uploads |
 
 ---
 
-### STEP 7 — Enable SSL Certificate
-1. In cPanel → **SSL/TLS** → **Let's Encrypt AutoSSL** (or **Install SSL**)
-2. Install free SSL for your domain and www subdomain
-3. The `.htaccess` HTTPS redirect is already configured — it will auto-activate
+### STEP 5 — Enable SSL Certificate
+
+1. In cPanel → **SSL/TLS** → **Let's Encrypt / AutoSSL**
+2. Install free SSL for both `salvagereef.com` and `www.salvagereef.com`
+3. The `.htaccess` HTTPS redirect activates automatically after SSL is installed
 
 ---
 
-### STEP 8 — Initialize the Database (Optional)
-If the SQLite database is empty and you want demo data:
-1. Visit: `https://yourdomain.com/backend/seed_db.php`
-2. This seeds the database with demo users, auctions, and classifieds
-3. **Delete `seed_db.php` from the server after seeding!**
+### STEP 6 — Database Setup (Choose Option A or Option B)
+
+SalvageReef supports **both SQLite and MySQL / MariaDB** seamlessly out-of-the-box:
+
+#### 🟢 Option A: SQLite (Default — Zero Config, Recommended for cPanel)
+> **Best for:** Fast deployment, GoDaddy/HostGator shared hosting, zero maintenance.
+
+1. **Pre-configured:** The pre-seeded database file `backend/database/database.sqlite` is already packaged in your ZIP.
+2. **Zero Database Setup:** You do NOT need to create a MySQL database, database user, or import tables in phpMyAdmin.
+3. **Permissions:** Ensure `backend/database/` is `755` and `database.sqlite` is `664` (or `644`).
+4. **Self-Healing:** If `database.sqlite` is ever absent, `server.php` automatically creates the file and builds all 19 tables with default Master Admin and seed data.
+5. In your `backend/.env`, simply keep:
+   ```env
+   DB_CONNECTION=sqlite
+   DB_DATABASE=database/database.sqlite
+   ```
 
 ---
 
-### STEP 9 — Test Your Deployment
-Visit each URL to verify everything works:
+#### 🔵 Option B: MySQL / MariaDB (via cPanel phpMyAdmin)
+> **Best for:** High concurrent traffic or if your company policy mandates MySQL.
+
+1. **Create MySQL Database & User in cPanel:**
+   - In cPanel, click **MySQL® Databases**
+   - Create a new database: e.g. `cpaneluser_salvagereef`
+   - Create a new user: e.g. `cpaneluser_srdbuser` with a strong password
+   - Under **Add User to Database**, select both, click **Add**, and grant **ALL PRIVILEGES**.
+2. **Import Schema via phpMyAdmin:**
+   - In cPanel, open **phpMyAdmin**
+   - Click on your newly created database in the left sidebar
+   - Click the **Import** tab at the top
+   - Click **Choose File** → select `backend/database/salvagereef_mysql.sql` (also available in `deploy_hosting/salvagereef_mysql.sql`)
+   - Click **Import** at the bottom (all 19 tables, indexes, and seed records will be imported instantly).
+3. **Update `backend/.env`:**
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=cpaneluser_salvagereef
+   DB_USERNAME=cpaneluser_srdbuser
+   DB_PASSWORD=YourStrongPasswordHere
+   ```
+4. *Fallback safety:* If MySQL ever goes down or credentials fail, the backend automatically falls back to SQLite safely without crashing!
+
+---
+
+### STEP 7 — Verify Deployment
 
 | URL | Expected Result |
 |-----|----------------|
-| `https://yourdomain.com` | SalvageReef homepage loads |
-| `https://yourdomain.com/auctions` | Auctions listing page |
-| `https://yourdomain.com/classifieds` | Classifieds listing page |
-| `https://yourdomain.com/login` | Login page |
-| `https://yourdomain.com/register` | Registration page |
-| `https://yourdomain.com/backend/api/v1/system/status` | `{"status":"online","version":"1.0"}` |
-| `https://yourdomain.com/backend/api/v1/auctions` | JSON array of auction lots |
-| `http://yourdomain.com` | Auto-redirects to HTTPS ✓ |
+| `https://salvagereef.com` | Homepage loads with hero banner |
+| `https://salvagereef.com/auctions` | Auctions listing page |
+| `https://salvagereef.com/classifieds` | Classifieds page |
+| `https://salvagereef.com/login` | Login page |
+| `https://salvagereef.com/register` | Registration page |
+| `https://salvagereef.com/admin` | Admin dashboard (after login) |
+| `https://salvagereef.com/backend/server.php/api/v1/system/status` | `{"status":"online"}` |
+| `https://salvagereef.com/backend/server.php/api/v1/auctions` | JSON array of auctions |
+| `http://salvagereef.com` | Auto-redirects to `https://` ✓ |
 
 ---
 
-## Quick API Test Commands
+## API Endpoint Reference
+
+All API endpoints are routed through `backend/server.php`:
 
 ```bash
 # System health check
-curl https://yourdomain.com/backend/api/v1/system/status
+curl https://salvagereef.com/backend/server.php/api/v1/system/status
 
-# Auctions list
-curl https://yourdomain.com/backend/api/v1/auctions
+# List auctions
+curl https://salvagereef.com/backend/server.php/api/v1/auctions
 
-# Categories
-curl https://yourdomain.com/backend/api/v1/categories
+# List categories
+curl https://salvagereef.com/backend/server.php/api/v1/categories
 
-# Test login
-curl -X POST https://yourdomain.com/backend/api/v1/auth/login \
+# Admin login test
+curl -X POST https://salvagereef.com/backend/server.php/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@salvagereef.com","password":"sociial123"}'
+```
+
+The root `.htaccess` also maps `/api/v1/*` directly to `backend/server.php`, so these also work:
+
+```bash
+curl https://salvagereef.com/api/v1/system/status
+curl https://salvagereef.com/api/v1/auctions
 ```
 
 ---
 
 ## Admin Login Credentials
 
-| Role | Email | Password | URL |
-|------|-------|----------|-----|
-| Master Admin | admin@salvagereef.com | sociial123 | /login?mode=admin |
-| Executive Desk Admin | executive@salvagereef.com | execadmin123 | /login?mode=admin |
-| Demo Seller | seller@salvagereef.com | SellerPass@2026 | /login |
-| Demo Bidder | bidder@salvagereef.com | BidderPass@2026 | /login |
+| Role | Email | Password | Login URL |
+|------|-------|----------|-----------|
+| 🔴 Master Admin | admin@salvagereef.com | sociial123 | /login?mode=admin |
+| 🟡 Executive Desk | executive@salvagereef.com | execadmin123 | /login?mode=admin |
+| 🟢 Demo Seller | seller@salvagereef.com | SellerPass@2026 | /login |
+| 🔵 Demo Bidder | bidder@salvagereef.com | BidderPass@2026 | /login |
 
-> **Change all passwords after going live!** Use the Admin Console → Change Admin Password.
+> **⚠️ CHANGE ALL PASSWORDS AFTER GOING LIVE!** Use Admin Console → Users tab.
+
+---
+
+## Updating Code (Without Losing Data)
+
+For code-only updates that preserve your existing database and uploads:
+
+```bash
+# 1. Rebuild
+node build_hosting_package.cjs
+
+# 2. Upload salvagereef_UPDATE_SAFE_NO_DATABASE.zip to cPanel
+# 3. Extract (overwrites code files but NOT database.sqlite)
+# 4. Verify site loads correctly
+```
+
+**What's preserved:**
+- ✅ `backend/database/database.sqlite` (all your data)
+- ✅ `uploads/` (all uploaded images/PDFs)
+- ✅ `backend/.env` (your credentials)
+
+**What's updated:**
+- ✅ `index.html` + `assets/` (new frontend code)
+- ✅ `backend/server.php` (new API code)
+- ✅ `.htaccess` files (updated configs)
+
+---
+
+## .htaccess Files Summary
+
+| File | Purpose |
+|------|---------|
+| `public_html/.htaccess` | HTTPS redirect, API routing to `backend/server.php`, SPA fallback, Gzip, browser caching, security headers |
+| `public_html/backend/.htaccess` | API routing, CORS preflight (OPTIONS), sensitive file blocking, PHP config |
+| `public_html/uploads/.htaccess` | **Blocks ALL PHP/script execution**, only allows safe media types |
 
 ---
 
 ## Maintenance Mode
 
 - In Admin Console → **System Errors & Maintenance** tab
-- Switch between `🟢 ONLINE`, `🟡 MAINTENANCE`, `🔴 TEMPORARILY CLOSED`
+- Switch between:
+  - `🟢 ONLINE` — Normal operations
+  - `🟡 MAINTENANCE` — Shows maintenance message to public
+  - `🔴 TEMPORARILY CLOSED` — Shows closed message
 - Admin accounts bypass maintenance mode automatically
+
+---
+
+## Error Tracking
+
+All PHP errors, exceptions, and API failures are automatically logged:
+
+| Log File | Contents |
+|----------|----------|
+| `backend/logs/error.log` | Application errors, exceptions |
+| `backend/logs/access.log` | Every API request with response time |
+| `backend/logs/security.log` | Auth failures, rate limits, blocked IPs |
+| `backend/logs/upload.log` | File upload activity |
+| `backend/logs/fatal.log` | Fatal PHP errors |
+
+View errors in: **Admin Console → System Errors & Maintenance** tab
 
 ---
 
@@ -202,137 +328,30 @@ curl -X POST https://yourdomain.com/backend/api/v1/auth/login \
 | Problem | Solution |
 |---------|----------|
 | Blank white page | Ensure `.htaccess` is uploaded and `mod_rewrite` is enabled in cPanel |
-| React routes show 404 | `.htaccess` SPA routing rule is missing — re-upload root `.htaccess` |
-| API returns 404 | Check `backend/.htaccess` exists and was uploaded correctly |
-| Login fails | Check `backend/.env` has correct values and filename is exactly `.env` |
-| Images not loading | Check `assets/` folder was uploaded, verify `index.html` asset paths |
+| React routes show 404 | Root `.htaccess` SPA routing rule is missing — re-upload |
+| API returns 404 | Check `backend/.htaccess` exists; verify `mod_rewrite` is on |
+| API returns HTML instead of JSON | GoDaddy `mod_layout` is injecting scripts — `backend/.htaccess` disables it |
+| Login fails | Check `backend/.env` exists (renamed from `.env.production`) with correct values |
+| Images not loading | Check `assets/` folder was uploaded; verify `index.html` has correct asset paths |
 | No HTTPS redirect | Enable SSL in cPanel first, then the `.htaccess` redirect activates |
-| 500 error on backend | Check file permissions: `database/` must be `755`, `.sqlite` must be `664` |
-| SQLite DB not found | Set `backend/database/` to `755` — the DB auto-creates on first request |
-| Upload errors (images) | Set `uploads/` and subdirs to `755`, check `post_max_size` in `.htaccess` |
-| CORS errors in browser | Update `Access-Control-Allow-Origin` in `backend/.htaccess` to your domain |
-| Emails not sending | Verify Brevo SMTP key in `backend/.env`, check Brevo dashboard for quota |
-
-
-## Folder Structure After Upload
-
-```
-public_html/
-├── .htaccess              ← Root Apache config (SPA + HTTPS + API routing)
-├── index.html             ← React frontend entry point
-├── assets/
-│   ├── index-*.js         ← Compiled JS bundle
-│   └── index-*.css        ← Compiled CSS bundle
-├── favicon.ico
-├── favicon.png
-├── favicon.svg
-├── logo.png
-└── backend/
-    ├── .htaccess          ← Backend Apache config (API routing + security)
-    ├── .env               ← ⚠️ RENAME .env.production → .env (fill in values!)
-    ├── server.php         ← Main PHP API handler
-    ├── security_config.php← Security keys and rate limit config
-    ├── index.php          ← GoDaddy fallback entry point
-    ├── database/
-    │   └── database.sqlite← SQLite database (auto-created if missing)
-    └── storage/
-        └── logs/
-            └── errors/    ← Error logs directory
-```
+| 500 error on backend | Check file permissions: `database/` → `755`, `.sqlite` → `664` |
+| SQLite DB not found | Set `backend/database/` to `755`; DB auto-creates on first request |
+| Upload errors (images) | Set `uploads/` and subdirs to `755`; check `post_max_size` in backend `.htaccess` |
+| CORS errors in browser | Update CORS origin in `backend/.htaccess` or `security_config.php` |
+| Emails not sending | Verify Brevo SMTP key in `backend/.env`; check Brevo dashboard for quota |
+| DELETE method blocked | Backend supports both `DELETE` and `POST /delete` routes for cPanel compatibility |
+| Rate limit errors | Adjust thresholds in `backend/security_config.php` |
 
 ---
 
-## Step-by-Step Upload Instructions
+## Hosting Requirements
 
-### 1. Log into cPanel File Manager
-- Go to **cPanel → File Manager → public_html**
-
-### 2. Upload Frontend Files
-Upload everything in the root of `public_html/` folder:
-- `.htaccess`
-- `index.html`
-- `assets/` folder
-- `favicon.ico`, `favicon.png`, `favicon.svg`, `logo.png`
-
-### 3. Upload Backend Files
-- Create a folder called `backend` inside `public_html`
-- Upload all files from `public_html/backend/` into it
-
-### 4. Configure Environment
-- **Rename** `.env.production` → `.env`
-- Open `.env` and update:
-  - `APP_URL=https://yourdomain.com` ← your actual domain
-  - `MAIL_USERNAME=` ← your Brevo login email
-  - `MAIL_PASSWORD=` ← your Brevo SMTP key
-  - `FRONTEND_URL=https://yourdomain.com`
-  - `SANCTUM_STATEFUL_DOMAINS=yourdomain.com`
-
-### 5. Set File Permissions (via cPanel File Manager)
-Right-click each and set permissions:
-| Path | Permission |
-|------|-----------|
-| `backend/database/` | `755` |
-| `backend/database/database.sqlite` | `664` |
-| `backend/storage/` | `755` |
-| `backend/storage/logs/` | `755` |
-| `backend/storage/logs/errors/` | `755` |
-| `backend/server.php` | `644` |
-| `backend/.env` | `600` (keep private!) |
-
-### 6. Enable SSL Certificate
-- In cPanel → **SSL/TLS → Let's Encrypt** (or AutoSSL)
-- Install free SSL for your domain
-- The `.htaccess` HTTPS redirect is already configured
-
-### 7. Test Your Deployment
-After upload, verify these URLs work:
-- `https://yourdomain.com` → loads the SalvageReef homepage
-- `https://yourdomain.com/auctions` → auctions listing
-- `https://yourdomain.com/backend/api/v1/system/status` → `{"status":"online"}`
-- `https://yourdomain.com/login` → login page
-- `http://yourdomain.com` → auto-redirects to `https://` ✓
-
----
-
-## Quick Test API Endpoints
-
-```bash
-# System status (should return {"status":"online"})
-curl https://yourdomain.com/backend/api/v1/system/status
-
-# Auctions list
-curl https://yourdomain.com/backend/api/v1/auctions
-
-# Categories
-curl https://yourdomain.com/backend/api/v1/categories
-```
-
----
-
-## Maintenance Mode & Error Tracking System
-
-### 1. Maintenance Mode & Operating Mode Control
-- **Modes Available**: `🟢 ONLINE`, `🟡 MAINTENANCE`, `🔴 TEMPORARILY CLOSED`
-- **Admin Bypass**: Admin routes (`/api/v1/admin/*`, `/admin`) and authenticated admin users (`admin`, `master_admin`, `desk_admin`) are **100% EXEMPT** from maintenance mode block. When you switch mode to Maintenance or Temporarily Closed, visitors will see the custom maintenance announcement, while your Admin Dashboard remains fully accessible without any backend errors.
-
-### 2. Precise Hosting Error Logging & Line Number Tracking
-- **Automatic Exception Capture**: Every PHP error, database exception, or unhandled runtime failure is automatically recorded with:
-  - **Exact Hosting File Path**: e.g., `/home/username/public_html/backend/app/Http/Controllers/AuctionController.php`
-  - **Exact Line Number**: e.g., `Line 124`
-  - **Full Stack Trace**, **Request URL**, **Method**, **Client IP**, and **User Agent**
-- **Admin Error Console**: View error entries under **Admin Console → System Errors & Maintenance**. The table includes a dedicated **Hosting File & Line Number** column with a distinct line badge, and the **Inspect Trace** modal highlights the exact server file and line of code where the hosting error occurred.
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Blank white page | Check `.htaccess` is uploaded, mod_rewrite enabled |
-| API returns 404 | Check `backend/.htaccess` exists and was uploaded |
-| Login fails | Check `backend/.env` has correct values and was renamed |
-| Images not loading | Check `assets/` folder uploaded correctly |
-| No HTTPS redirect | Enable SSL in cPanel first, then `.htaccess` redirect works |
-| 500 error on backend | Check file permissions on `database/` and `storage/` |
-| SQLite DB not found | Set `backend/database/` permission to `755`, DB auto-creates |
-
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| PHP Version | 7.4 | 8.1+ |
+| Apache | 2.4 | 2.4+ (or LiteSpeed) |
+| mod_rewrite | ✅ Required | ✅ |
+| SQLite3 extension | ✅ Required | ✅ |
+| Memory Limit | 128MB | 256MB |
+| Upload Max Size | 10MB | 20MB |
+| SSL Certificate | ✅ Required | Let's Encrypt (free) |

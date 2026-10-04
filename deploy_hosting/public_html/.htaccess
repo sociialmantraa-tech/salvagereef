@@ -1,21 +1,60 @@
-# SalvageReef GoDaddy cPanel Production .htaccess Configuration
-# Enables SPA Routing, Gzip Compression, Browser Caching, and Security Headers
+# =============================================================================
+# SalvageReef — Root .htaccess (public_html/)
+# Production-Grade Apache Configuration
+# Compatible: cPanel / GoDaddy / HostGator / Namecheap / LiteSpeed
+# Last Updated: October 2026
+# =============================================================================
 
+Options -Indexes -MultiViews
+ServerSignature Off
+AcceptPathInfo On
+
+# Disable GoDaddy / cPanel mod_layout tracking script injection on all responses
+<IfModule mod_layout.c>
+  LayoutEngine Off
+</IfModule>
+
+# ─── FORCE HTTPS ─────────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Pass HTTP Authorization header to PHP CGI / FastCGI
+  RewriteCond %{HTTP:Authorization} ^(.*)
+  RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ─── FORCE WWW → NON-WWW (canonical domain) ─────────────────────────────────
+# Uncomment if you want to redirect www.salvagereef.com → salvagereef.com
+# <IfModule mod_rewrite.c>
+#   RewriteEngine On
+#   RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+#   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# ─── API ROUTING → backend/server.php ────────────────────────────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # 1. Direct API routes directly to backend/server.php
+  # Route /api/v1/* → backend/server.php (primary API path)
   RewriteRule ^api/v1/(.*)$ backend/server.php [QSA,L]
-  RewriteRule ^backend/api/v1/(.*)$ backend/server.php [QSA,L]
-  RewriteRule ^backend/server\.php - [L]
 
-  # 2. Never rewrite /backend or /uploads to index.html
-  RewriteCond %{REQUEST_URI} ^/backend [NC,OR]
-  RewriteCond %{REQUEST_URI} ^/uploads [NC]
+  # Route /backend/api/v1/* → backend/server.php (alternative API path)
+  RewriteRule ^backend/api/v1/(.*)$ backend/server.php [QSA,L]
+
+  # Route /backend/server.php path-info requests to server.php
+  RewriteRule ^backend/server\.php(/.*)?$ backend/server.php [QSA,L]
+
+  # Never rewrite actual backend PHP files, uploads, or static assets
+  RewriteCond %{REQUEST_URI} ^/backend/ [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/uploads/ [NC]
   RewriteRule ^ - [L]
 
-  # 3. SPA frontend routes
+  # ─── SPA FRONTEND ROUTING ────────────────────────────────────────────────
+  # All non-file, non-directory requests → index.html (React Router handles it)
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -23,38 +62,97 @@
   RewriteRule . index.html [L]
 </IfModule>
 
-# GZIP & DEFLATE COMPRESSION (High Speed Page Load)
+# ─── GZIP & DEFLATE COMPRESSION ─────────────────────────────────────────────
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json image/svg+xml
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml
+  AddOutputFilterByType DEFLATE text/css text/javascript
+  AddOutputFilterByType DEFLATE application/javascript application/x-javascript
+  AddOutputFilterByType DEFLATE application/json application/xml
+  AddOutputFilterByType DEFLATE application/xhtml+xml application/rss+xml
+  AddOutputFilterByType DEFLATE image/svg+xml
+  AddOutputFilterByType DEFLATE font/ttf font/otf font/woff font/woff2
 </IfModule>
 
-# BROWSER CACHING (Fast Asset Reload Speed, Instant Dynamic Content)
+# ─── BROWSER CACHING ────────────────────────────────────────────────────────
+# Static assets use content-hash filenames (e.g., index-CFk_1pBE.js) so they
+# can be cached aggressively. HTML and JSON are never cached.
 <IfModule mod_expires.c>
   ExpiresActive On
-  ExpiresDefault "access plus 0 seconds"
-  ExpiresByType text/html "access plus 0 seconds"
-  ExpiresByType application/json "access plus 0 seconds"
-  ExpiresByType image/jpg "access plus 1 year"
-  ExpiresByType image/jpeg "access plus 1 year"
-  ExpiresByType image/gif "access plus 1 year"
-  ExpiresByType image/png "access plus 1 year"
-  ExpiresByType image/webp "access plus 1 year"
-  ExpiresByType text/css "access plus 1 month"
-  ExpiresByType text/javascript "access plus 1 month"
-  ExpiresByType application/javascript "access plus 1 month"
+
+  # Default: no caching
+  ExpiresDefault                          "access plus 0 seconds"
+
+  # HTML & JSON: always fresh (never cached)
+  ExpiresByType text/html                 "access plus 0 seconds"
+  ExpiresByType application/json          "access plus 0 seconds"
+
+  # JS & CSS (content-hashed filenames): cache 1 year
+  ExpiresByType text/css                  "access plus 1 year"
+  ExpiresByType text/javascript           "access plus 1 year"
+  ExpiresByType application/javascript    "access plus 1 year"
+
+  # Images: cache 1 year
+  ExpiresByType image/jpeg                "access plus 1 year"
+  ExpiresByType image/jpg                 "access plus 1 year"
+  ExpiresByType image/png                 "access plus 1 year"
+  ExpiresByType image/gif                 "access plus 1 year"
+  ExpiresByType image/webp                "access plus 1 year"
+  ExpiresByType image/svg+xml             "access plus 1 year"
+  ExpiresByType image/x-icon              "access plus 1 year"
+  ExpiresByType image/vnd.microsoft.icon  "access plus 1 year"
+
+  # Fonts: cache 1 year
+  ExpiresByType font/ttf                  "access plus 1 year"
+  ExpiresByType font/otf                  "access plus 1 year"
+  ExpiresByType font/woff                 "access plus 1 year"
+  ExpiresByType font/woff2                "access plus 1 year"
+  ExpiresByType application/font-woff     "access plus 1 year"
+  ExpiresByType application/font-woff2    "access plus 1 year"
+
+  # PDF documents: cache 1 month
+  ExpiresByType application/pdf           "access plus 1 month"
 </IfModule>
 
-# SECURITY & NO-CACHE HEADERS
+# ─── SECURITY & CACHE-CONTROL HEADERS ───────────────────────────────────────
 <IfModule mod_headers.c>
+  # Security headers
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
-  # Enforce Zero Caching on API and dynamic requests
+  # Zero caching on PHP/JSON API responses
   <FilesMatch "\.(php|json)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "0"
   </FilesMatch>
+
+  # Zero caching on HTML (SPA entry point)
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # Immutable caching on content-hashed JS/CSS assets
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>
+
+# ─── BLOCK SENSITIVE FILES AT ROOT ──────────────────────────────────────────
+<FilesMatch "(\.env|\.git|\.htpasswd|\.DS_Store|Thumbs\.db|\.md|\.log)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# ─── CUSTOM ERROR PAGES ─────────────────────────────────────────────────────
+ErrorDocument 404 /index.html
+ErrorDocument 403 /index.html

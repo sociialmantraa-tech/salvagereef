@@ -1,8 +1,9 @@
-# ============================================================
-# SalvageReef — Backend .htaccess
-# Place at: public_html/backend/.htaccess
-# Apache 2.4 | cPanel / GoDaddy / HostGator / Namecheap
-# ============================================================
+# =============================================================================
+# SalvageReef — Backend .htaccess (public_html/backend/)
+# API Routing, CORS, PHP Config, Security
+# Compatible: cPanel / GoDaddy / HostGator / Namecheap / LiteSpeed
+# Last Updated: October 2026
+# =============================================================================
 
 Options -Indexes
 ServerSignature Off
@@ -12,7 +13,9 @@ ServerSignature Off
   LayoutEngine Off
 </IfModule>
 
-# ── FORCE HTTPS ───────────────────────────────────────────────────────────────
+AcceptPathInfo On
+
+# ─── FORCE HTTPS ON API ──────────────────────────────────────────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{HTTPS} off
@@ -20,59 +23,96 @@ ServerSignature Off
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# ── ROUTE ALL API REQUESTS TO server.php ─────────────────────────────────────
+# ─── ROUTE ALL API REQUESTS TO server.php ────────────────────────────────────
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /backend/
 
-  # Let real files and directories through
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # Let real files and directories pass through (uploads, static files)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Explicit API path routing (catches /backend/api/v1/*)
+  RewriteRule ^api/v1/(.*)$ server.php/api/v1/$1 [QSA,L]
+  RewriteRule ^api/(.*)$ server.php/api/$1 [QSA,L]
 
   # Route everything else to server.php
-  RewriteRule ^ server.php [QSA,L]
-
-  # Explicit API path routing
-  RewriteRule ^api/ server.php [QSA,L]
+  RewriteRule ^(.*)$ server.php/$1 [QSA,L]
 </IfModule>
 
-# ── CORS HEADERS FOR API ──────────────────────────────────────────────────────
+# ─── CORS HEADERS FOR API ────────────────────────────────────────────────────
 <IfModule mod_headers.c>
-  # IMPORTANT: Set your exact domain below before going live
-  # Header always set Access-Control-Allow-Origin "https://yourdomain.com"
+  # Allow requests from the production domain (update before going live)
+  # Header always set Access-Control-Allow-Origin "https://salvagereef.com"
   Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-App-Timestamp, X-App-Signature"
+  Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With, X-App-Timestamp, X-App-Signature, Cache-Control, Pragma"
   Header always set Access-Control-Allow-Credentials "true"
   Header always set Access-Control-Max-Age "86400"
+
+  # Ensure no caching on all API responses
+  Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+  Header always set Pragma "no-cache"
+  Header always set Expires "0"
 </IfModule>
 
-# ── BLOCK SENSITIVE FILES ──────────────────────────────────────────────────────
-<FilesMatch "\.(env|sqlite|log|bak|md|sh|sql)$">
-  Order allow,deny
-  Deny from all
+# ─── BLOCK SENSITIVE FILES ───────────────────────────────────────────────────
+# Never serve .env, .sqlite, .log, .bak, .md, .sh, .sql, composer files
+<FilesMatch "\.(env|sqlite|log|bak|md|sh|sql|lock)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
 </FilesMatch>
 
-<FilesMatch "composer\.(json|lock)$">
-  Order allow,deny
-  Deny from all
+<FilesMatch "^composer\.(json|lock|phar)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
 </FilesMatch>
 
-# ── PHP ERROR DISPLAY (PRODUCTION: OFF) ───────────────────────────────────────
+# Block access to logs/ and database/ directories
+<IfModule mod_rewrite.c>
+  RewriteRule ^logs/ - [F,L]
+  RewriteRule ^database/ - [F,L]
+</IfModule>
+
+# ─── PHP CONFIGURATION (PRODUCTION) ─────────────────────────────────────────
+# Supports both mod_php8 and generic mod_php (LiteSpeed, CloudLinux)
 <IfModule mod_php8.c>
   php_flag display_errors Off
   php_flag log_errors On
   php_value error_reporting 32767
-  php_value upload_max_filesize 10M
-  php_value post_max_size 12M
-  php_value max_execution_time 60
+  php_value upload_max_filesize 20M
+  php_value post_max_size 25M
+  php_value max_execution_time 120
   php_value memory_limit 256M
+  php_value max_input_vars 5000
+  php_value session.gc_maxlifetime 7200
 </IfModule>
+
 <IfModule mod_php.c>
   php_flag display_errors Off
   php_flag log_errors On
   php_value error_reporting 32767
-  php_value upload_max_filesize 10M
-  php_value post_max_size 12M
-  php_value max_execution_time 60
+  php_value upload_max_filesize 20M
+  php_value post_max_size 25M
+  php_value max_execution_time 120
   php_value memory_limit 256M
+  php_value max_input_vars 5000
+  php_value session.gc_maxlifetime 7200
+</IfModule>
+
+# ─── ADDITIONAL SECURITY ────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set X-Frame-Options "DENY"
 </IfModule>
