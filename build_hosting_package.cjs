@@ -245,7 +245,7 @@ try {
 
   // Create ZIP using PowerShell Compress-Archive
   execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*' -DestinationPath '.\\${fullZipName}' -Force"`,
+    `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting/public_html/*' -DestinationPath '${fullZipName}' -Force"`,
     { cwd: ROOT, stdio: 'pipe' }
   );
   
@@ -266,15 +266,16 @@ try {
   const hadDb = fs.existsSync(dbFile);
   if (hadDb) fs.renameSync(dbFile, dbTempMove);
   
-  execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*' -DestinationPath '.\\${updateZipName}' -Force"`,
-    { cwd: ROOT, stdio: 'pipe' }
-  );
-  
-  if (hadDb) fs.renameSync(dbTempMove, dbFile);
-  
-  const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);
-  success(`Created ${updateZipName} (${updateZipSize} KB)`);
+  try {
+    execSync(
+      `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting/public_html/*' -DestinationPath '${updateZipName}' -Force"`,
+      { cwd: ROOT, stdio: 'pipe' }
+    );
+    const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);
+    success(`Created ${updateZipName} (${updateZipSize} KB)`);
+  } finally {
+    if (hadDb && fs.existsSync(dbTempMove)) fs.renameSync(dbTempMove, dbFile);
+  }
 
 } catch (zipErr) {
   warn(`ZIP creation failed: ${zipErr.message}`);
