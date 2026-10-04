@@ -428,11 +428,12 @@ if ($envFile) {
 }
 
 // ─── DATABASE CONNECTION ──────────────────────────────────────────────────────
-// Supports BOTH SQLite (zero-config, automatic on GoDaddy cPanel) and MySQL/MariaDB.
+// Priority 1: Primary cPanel Production MySQL Database (scrab / scrab_user / scrabRoot@123)
+// Priority 2: Fallback to SQLite automatically if MySQL connection fails or PDO driver is unavailable.
 $pdo = null;
-$dbConnection = $_SR_ENV['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: 'sqlite';
+$dbConnection = $_SR_ENV['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: 'mysql';
 
-if ($dbConnection === 'mysql') {
+if ($dbConnection === 'mysql' || $dbConnection === 'auto') {
     $dbHost = $_SR_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1';
     $dbPort = $_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
     $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'scrab';
@@ -446,7 +447,7 @@ if ($dbConnection === 'mysql') {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
     } catch (Exception $e) {
-        srWriteLog(SR_LOG_ERROR, 'ERROR', "MySQL Connection failed: " . $e->getMessage() . " — Falling back to SQLite.");
+        srWriteLog(SR_LOG_ERROR, 'ERROR', "MySQL Connection failed ({$dbUser}@{$dbHost}:{$dbPort}/{$dbName}): " . $e->getMessage() . " — Falling back to SQLite.");
         $pdo = null;
     }
 }
