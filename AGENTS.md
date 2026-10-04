@@ -46,4 +46,6 @@
 - **User Password Reveal Rule**: Password reveal must authenticate against the logged-in admin's/executive's database password via `POST /api/v1/admin/users/{id}/reveal-password`.
 - **Instant Page Loading Rule (No Static HTML Preloader Overlays)**: Never include fixed HTML preloader overlays (`app-preloader`) in `index.html` or blocking loading state overlays in `App.tsx`. React must mount `<div id="root"></div>` directly so pages render instantly (0ms delay) on browser load and reload without getting trapped behind dark loading screens.
 - **Indian Standard Time (IST UTC+5:30) Rule**: All backend API dates, timestamps, and database operations must strictly enforce `Asia/Kolkata` (`+05:30`). All frontend date renderings must format timestamps using `formatDateTime()` from `src/utils/dateUtils.ts`.
+- **Top 3 Bidders Live Feed Rule**: Public live auction pages (`/auctions/:slug`) must strictly display ONLY the top 3 highest bidders (`H1`, `H2`, `H3`) in the live bidding widget history list while maintaining total bid count in the header counter badge.
+
 
