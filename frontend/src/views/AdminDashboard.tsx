@@ -5334,17 +5334,23 @@ export default function AdminDashboard() {
                         <td className="p-3.5 text-slate-500 font-medium">
                           {new Date(bid.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="p-3.5 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            bid.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : bid.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200'
-                            : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                          }`}>
-                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
-                          </span>
+                        <td className="p-3.5 text-center whitespace-nowrap align-middle">
+                          {bid.status === 'approved' ? (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap leading-none shadow-2xs">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Approved
+                            </span>
+                          ) : bid.status === 'rejected' ? (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-900 border border-red-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap leading-none shadow-2xs">
+                              <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" /> Rejected
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 animate-pulse inline-flex items-center justify-center gap-1.5 whitespace-nowrap leading-none shadow-2xs">
+                              <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" /> Pending
+                            </span>
+                          )}
                         </td>
-                        <td className="p-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                        <td className="p-3.5 text-right whitespace-nowrap align-middle">
+                          <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap shrink-0">
                             {/* If pending: show both Approve and Reject */}
                             {bid.status === 'pending' && (
                               <>
