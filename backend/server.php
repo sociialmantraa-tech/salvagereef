@@ -431,24 +431,53 @@ if ($envFile) {
 // Priority 1: Primary cPanel Production MySQL Database (scrab / scrab_user / scrabRoot@123)
 // Priority 2: Fallback to SQLite automatically if MySQL connection fails or PDO driver is unavailable.
 $pdo = null;
+$mysqlConnError = null;
+$_SR_CONNECTED_MYSQL_INFO = null;
 $forcedSqliteOnly = isset($_SR_ENV['DB_CONNECTION']) && $_SR_ENV['DB_CONNECTION'] === 'sqlite_forced';
 
 if (!$forcedSqliteOnly) {
-    $dbHost = !empty($_SR_ENV['DB_HOST']) ? $_SR_ENV['DB_HOST'] : (getenv('DB_HOST') ?: '127.0.0.1');
-    $dbPort = !empty($_SR_ENV['DB_PORT']) ? $_SR_ENV['DB_PORT'] : (getenv('DB_PORT') ?: '3306');
-    $dbName = (!empty($_SR_ENV['DB_DATABASE']) && !str_contains($_SR_ENV['DB_DATABASE'], '.sqlite')) ? $_SR_ENV['DB_DATABASE'] : 'scrab';
-    $dbUser = !empty($_SR_ENV['DB_USERNAME']) ? $_SR_ENV['DB_USERNAME'] : 'scrab_user';
-    $dbPass = !empty($_SR_ENV['DB_PASSWORD']) ? $_SR_ENV['DB_PASSWORD'] : 'scrabRoot@123';
+    if (!extension_loaded('pdo_mysql')) {
+        $mysqlConnError = "PHP extension 'pdo_mysql' is not loaded on this server.";
+        srWriteLog(SR_LOG_ERROR, 'ERROR', $mysqlConnError . " — Falling back to SQLite.");
+    } else {
+        $envHost = !empty($_SR_ENV['DB_HOST']) ? $_SR_ENV['DB_HOST'] : (getenv('DB_HOST') ?: 'localhost');
+        $dbPort  = !empty($_SR_ENV['DB_PORT']) ? $_SR_ENV['DB_PORT'] : (getenv('DB_PORT') ?: '3306');
+        $envName = (!empty($_SR_ENV['DB_DATABASE']) && !str_contains($_SR_ENV['DB_DATABASE'], '.sqlite')) ? $_SR_ENV['DB_DATABASE'] : 'scrab';
+        $envUser = !empty($_SR_ENV['DB_USERNAME']) ? $_SR_ENV['DB_USERNAME'] : 'scrab_user';
+        $dbPass  = !empty($_SR_ENV['DB_PASSWORD']) ? $_SR_ENV['DB_PASSWORD'] : 'scrabRoot@123';
 
-    try {
-        $pdo = new PDO("mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-    } catch (Exception $e) {
-        srWriteLog(SR_LOG_ERROR, 'ERROR', "MySQL Connection failed ({$dbUser}@{$dbHost}:{$dbPort}/{$dbName}): " . $e->getMessage() . " — Falling back to SQLite.");
-        $pdo = null;
+        // Multi-host & multi-credential auto-discovery for GoDaddy cPanel environment
+        $hostsToTry = array_values(array_unique(['localhost', '127.0.0.1', $envHost]));
+        $namesToTry = array_values(array_unique([$envName, 'scrab', 'md1ofov5ad9b_scrab', 'salvagereef']));
+        $usersToTry = array_values(array_unique([$envUser, 'scrab_user', 'md1ofov5ad9b_scrab_user']));
+
+        $attempts = [];
+        foreach ($hostsToTry as $h) {
+            foreach ($namesToTry as $n) {
+                foreach ($usersToTry as $u) {
+                    try {
+                        $dsn = "mysql:host={$h};port={$dbPort};dbname={$n};charset=utf8mb4";
+                        $conn = new PDO($dsn, $u, $dbPass, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                            PDO::ATTR_EMULATE_PREPARES => false,
+                            PDO::ATTR_TIMEOUT => 3,
+                        ]);
+                        $conn->query("SELECT 1");
+                        $pdo = $conn;
+                        $_SR_CONNECTED_MYSQL_INFO = ['host' => $h, 'dbname' => $n, 'user' => $u];
+                        break 3;
+                    } catch (Exception $e) {
+                        $attempts[] = "{$u}@{$h}/{$n}: " . $e->getMessage();
+                    }
+                }
+            }
+        }
+
+        if (!$pdo && !empty($attempts)) {
+            $mysqlConnError = implode(' | ', array_slice($attempts, 0, 3));
+            srWriteLog(SR_LOG_ERROR, 'ERROR', "MySQL Connection failed attempts: " . $mysqlConnError . " — Falling back to SQLite.");
+        }
     }
 }
 
@@ -4606,6 +4635,7 @@ if ($method === 'GET' && $uri === '/api/v1/system/status') {
 
 // 19-db. Live Database Connection Health & Info: GET /api/v1/system/db-status
 if ($method === 'GET' && $uri === '/api/v1/system/db-status') {
+    global $mysqlConnError, $_SR_CONNECTED_MYSQL_INFO;
     $dbType = $pdo ? $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) : 'sqlite';
     $dbName = '';
     $dbHost = '';
@@ -4621,8 +4651,8 @@ if ($method === 'GET' && $uri === '/api/v1/system/db-status') {
             $tableCount = count($tables);
         } catch (Exception $e) {}
     } else {
-        $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'salvagereef';
-        $dbHost = ($_SR_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1') . ':' . ($_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306');
+        $dbName = $_SR_CONNECTED_MYSQL_INFO['dbname'] ?? ($_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'scrab');
+        $dbHost = ($_SR_CONNECTED_MYSQL_INFO['host'] ?? ($_SR_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost')) . ':' . ($_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306');
         try {
             $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
             $tableCount = count($tables);
@@ -4646,6 +4676,7 @@ if ($method === 'GET' && $uri === '/api/v1/system/db-status') {
         'table_count' => $tableCount,
         'total_users' => $totalUsers,
         'total_auctions' => $totalAuctions,
+        'mysql_last_error' => $mysqlConnError,
         'status_text' => 'CONNECTED & OPERATIONAL',
         'timestamp' => date('Y-m-d H:i:s T'),
     ]);

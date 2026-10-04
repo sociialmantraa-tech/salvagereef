@@ -148,29 +148,26 @@ if (!fs.existsSync(dbPlaceholder)) {
 }
 success('Configured backend/database/ with database.sqlite and salvagereef_mysql.sql');
 
-// Create pre-configured .env.production template in deploy backend
+// Create pre-configured .env and .env.production templates in deploy backend
 const envProductionContent = `# SalvageReef Production Environment Configuration
-# GoDaddy cPanel MySQL & SQLite Connection Settings
+# GoDaddy cPanel MySQL Connection Settings (Database: scrab)
 
-# Option A: MySQL Connection (cPanel Database: scrab)
 DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
+DB_HOST=localhost
 DB_PORT=3306
 DB_DATABASE=scrab
 DB_USERNAME=scrab_user
 DB_PASSWORD=scrabRoot@123
-
-# Option B: Fallback SQLite Connection (Zero-Config)
-# DB_CONNECTION=sqlite
-# DB_DATABASE=backend/database/database.sqlite
 
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://salvagereef.com
 `;
 fs.writeFileSync(path.join(DEPLOY_BACKEND, '.env.production'), envProductionContent);
+fs.writeFileSync(path.join(DEPLOY_BACKEND, '.env'), envProductionContent);
 fs.writeFileSync(path.join(BACKEND, '.env.production'), envProductionContent);
-success('Generated backend/.env.production template with cPanel MySQL (scrab/scrab_user) & SQLite options');
+fs.writeFileSync(path.join(BACKEND, '.env'), envProductionContent);
+success('Generated backend/.env and .env.production with cPanel MySQL (scrab/scrab_user)');
 
 // Copy backend logs directory (empty)
 ensureDir(path.join(DEPLOY_BACKEND, 'logs'));
@@ -245,7 +242,7 @@ try {
 
   // Create ZIP using PowerShell Compress-Archive
   execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting/public_html/*' -DestinationPath '${fullZipName}' -Force"`,
+    `powershell -NoProfile -Command "Compress-Archive -Path '.\\\\deploy_hosting\\\\public_html\\\\*' -DestinationPath '.\\\\${fullZipName}' -Force"`,
     { cwd: ROOT, stdio: 'pipe' }
   );
   
@@ -268,7 +265,7 @@ try {
   
   try {
     execSync(
-      `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting/public_html/*' -DestinationPath '${updateZipName}' -Force"`,
+      `powershell -NoProfile -Command "Compress-Archive -Path '.\\\\deploy_hosting\\\\public_html\\\\*' -DestinationPath '.\\\\${updateZipName}' -Force"`,
       { cwd: ROOT, stdio: 'pipe' }
     );
     const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);

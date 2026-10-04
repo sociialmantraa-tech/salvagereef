@@ -7208,14 +7208,19 @@ export default function AdminDashboard() {
                 {dbHealth.driver === 'sqlite' ? (
                   <div className="mt-4 p-4 bg-amber-950/70 border border-amber-500/50 rounded-2xl flex items-start gap-3 text-xs text-amber-200">
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
+                    <div className="space-y-1 w-full">
                       <div className="font-black text-amber-300 text-xs">
                         ⚡ Active Engine: SQLite 3 (Zero-Config Embedded Database)
                       </div>
                       <p className="text-[11px] text-amber-200/90 leading-relaxed">
                         The backend is currently running on the self-contained SQLite 3 database (<code>database.sqlite</code>).
-                        If you want to connect to your cPanel MySQL Database (<code>Database: scrab</code> | <code>User: scrab_user</code>), simply copy <code>public_html/backend/.env.production</code> to <code>public_html/backend/.env</code> in your cPanel File Manager and enter your MySQL user password!
+                        If you want to connect to your cPanel MySQL Database (<code>Database: scrab</code> | <code>User: scrab_user</code>), verify <code>public_html/backend/.env</code> in your cPanel File Manager!
                       </p>
+                      {dbHealth.mysql_last_error && (
+                        <div className="mt-2 p-2.5 bg-red-950/80 border border-red-500/40 rounded-xl text-[11px] text-red-200 font-mono break-all leading-tight">
+                          <span className="font-bold text-red-300">MySQL Connection Attempt Trace:</span> {dbHealth.mysql_last_error}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
