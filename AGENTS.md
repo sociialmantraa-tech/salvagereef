@@ -1,4 +1,4 @@
-# Project Guidelines & Standards
+# Project Guidelines & Standards — SalvageReef
 
 ## Admin Synchronization & Real-time Consistency
 - **Single Source of Truth**: All administrative changes (rates, categories, orders, scrap pickup requests, user records, content, settings) must be persisted directly to the central backend database via API.
@@ -8,6 +8,11 @@
 ## Zero Hardcoded Mock Data in Frontend (Strict Rule)
 - **No Mock Interceptors or Artificial Normalizers**: Never create functions (like `normalizeAdminUsers`) that inject hardcoded mock names, emails, or IDs (e.g., hardcoding "Neelkanth Sharma" or mock desk admins). Frontend must render 100% genuine database records directly from the backend API.
 - **No Mock Re-injection**: Deleted items must NEVER be re-injected by fallback initial states or client-side mock mappers.
+
+## Permanent Zero-Maintenance Auto-Healing Safeguards (Critical Rule)
+- **Zero Empty Pages Guarantee**: The public `/auctions` and `/classifieds` pages must NEVER show empty list cards ("No Auctions Found" / "No Classifieds Found") even if no manual administrative actions are performed for months.
+- **Auto-Renewal of Past Unawarded Auctions**: Open auctions whose `end_time` passes into the past without an admin explicitly confirming a winner (`winner_confirmed = 0`) must have their `end_time` automatically extended to `+7 days` and remain marked `status = 'live'`.
+- **Auto-Seeding Safeguard**: The function `ensureActiveContentAutoSeeded($pdo)` in `backend/server.php` must run on backend API startup to guarantee at least 3 live auctions and 3 active classifieds are always available in the database.
 
 ## Deletion & Database Integrity Standards
 - **Precise Schema & Column Validation**: Always verify table schemas before writing database queries (e.g., `personal_access_tokens` uses `tokenable_id`, not `user_id`).
@@ -20,13 +25,14 @@
 - All forms and network requests must feature clear feedback (loading indicators, error alerts, success confirmations).
 - Maintain robust, bug-free, and production-ready code.
 
-## System Architecture & Credentials Reference
+## System Architecture, Database & Credentials Reference
 - **Master Documentation**: See [`PROJECT_SYSTEM_ARCHITECTURE.md`](file:///c:/Coding/Project/Business&Portfolio/Work/scrab/PROJECT_SYSTEM_ARCHITECTURE.md) for full database schemas, API routes, and deployment instructions.
-- **SQLite Database Path**: `backend/database/database.sqlite` (Public deploy: `deploy_hosting/public_html/backend/database/database.sqlite`)
+- **Production Domain**: `https://salvagereef.com`
+- **SQLite Database Path**: `backend/database/database.sqlite` (Deploy path: `deploy_hosting/public_html/backend/database/database.sqlite`)
 - **Master Admin Credentials**: Login ID `SR-ADMIN` | Email `admin@salvagereef.com` | Password `sociial123`
 - **Executive Desk Admin**: Login ID `SR-EXEC-1` | Email `executive@salvagereef.com` | Password `execadmin123`
 - **Read-Only Desk Admin**: Login ID `SR-DESK-1` | Email `inspector@salvagereef.com` | Password `deskadmin123`
 - **Verified Seller**: Login ID `SR-SELLER-1` | Email `seller@salvagereef.com` | Password `SellerPass@2026`
 - **Verified Bidder**: Login ID `SR-BIDDER-1` | Email `bidder@salvagereef.com` | Password `BidderPass@2026`
-- **Zero-Maintenance Safeguards**: `ensureActiveContentAutoSeeded($pdo)` runs on backend startup to renew unawarded past auctions and seed minimum 3 active auctions & classifieds automatically.
-
+- **Pending Seller**: Login ID `SR-SELLER-2` | Email `rajesh@rajeshmetals.com` | Password `Rajesh@2026`
+- **Build Package Generator**: `node build_hosting_package.cjs` -> outputs `salvagereef_UPDATE_SAFE_NO_DATABASE.zip` and `salvagereef_FULL_UPLOAD.zip`.
