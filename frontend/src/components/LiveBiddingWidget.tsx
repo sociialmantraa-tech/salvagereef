@@ -835,11 +835,13 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         </form>
       )}
 
-      {/* LIVE RECENT BIDS HISTORY TABLE (MASKED BIDDER NAMES) */}
+      {/* TOP 3 BIDDERS (H1 / H2 / H3) */}
       <div className="pt-4 border-t border-slate-200">
         <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span>Bid History ({bids.length})</span>
-          <span className="text-[10px] text-slate-400 font-semibold font-mono">Live Stream</span>
+          <span className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-[#D48B1C]" /> Top 3 Bidders (H1 / H2 / H3)
+          </span>
+          <span className="text-[10px] text-slate-400 font-semibold font-mono">Total Bids: {bids.length}</span>
         </h4>
 
         {bids.length === 0 ? (
@@ -847,41 +849,47 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             No bids placed yet. Be the first bidder!
           </p>
         ) : (
-          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-            {bids.map((b, idx) => (
-              <div
-                key={b.id || idx}
-                className={`flex justify-between items-center p-3 rounded-xl text-xs border transition-all ${
-                  idx === 0
-                    ? 'bg-[#D48B1C]/10 border-[#D48B1C]/40 font-bold shadow-sm'
-                    : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {idx === 0 && <Trophy className="w-4 h-4 text-[#D48B1C] shrink-0" />}
-                  <div>
-                    {/* ENFORCES FIRST 2 + *** + LAST 2 MASKING (e.g. Ne***ma) */}
-                    <span className="font-bold text-slate-900 block font-mono">
-                      {formatBidderName(b.user?.name || b.bidder_name, user?.role === 'admin')}
+          <div className="space-y-2">
+            {bids.slice(0, 3).map((b, idx) => {
+              let rankBadge = { label: 'H1 - Highest Bid', style: 'bg-amber-100 text-amber-900 border-amber-300' };
+              if (idx === 1) rankBadge = { label: 'H2 - 2nd Highest', style: 'bg-slate-100 text-slate-700 border-slate-300' };
+              if (idx === 2) rankBadge = { label: 'H3 - 3rd Highest', style: 'bg-[#D48B1C]/10 text-[#D48B1C] border-[#D48B1C]/30' };
+
+              return (
+                <div
+                  key={b.id || idx}
+                  className={`flex justify-between items-center p-3 rounded-xl text-xs border transition-all ${
+                    idx === 0
+                      ? 'bg-amber-500/10 border-amber-500/40 font-bold shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black text-[10px] shrink-0">
+                      H{idx + 1}
+                    </div>
+                    <div>
+                      {/* ENFORCES FIRST 2 + *** + LAST 2 MASKING (e.g. Ne***ma) */}
+                      <span className="font-bold text-slate-900 block font-mono">
+                        {formatBidderName(b.user?.name || b.bidder_name, user?.role === 'admin')}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block font-sans">
+                        {b.created_at ? formatTimeOnly(b.created_at) : 'Just now'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="font-extrabold text-slate-900 text-sm font-mono block">
+                      ₹{Number(b.amount).toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block font-sans">
-                      {b.created_at ? formatTimeOnly(b.created_at) : 'Just now'}
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase border ${rankBadge.style}`}>
+                      {rankBadge.label}
                     </span>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <span className="font-extrabold text-slate-900 text-sm font-mono block">
-                    ₹{Number(b.amount).toLocaleString('en-IN')}
-                  </span>
-                  {idx === 0 && (
-                    <span className="text-[9px] bg-amber-200 text-amber-900 font-extrabold px-1.5 py-0.5 rounded uppercase">
-                      Highest Bid
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
