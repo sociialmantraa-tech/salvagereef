@@ -3018,7 +3018,7 @@ export default function AdminDashboard() {
               { id: 'add-product', label: 'Add New Lot / Classified', icon: PackagePlus, highlight: true },
               { id: 'categories-locations', label: 'Categories & Locations', icon: Layers, badge: storeCategories.length },
               { id: 'approvals', label: 'Buyer Tender Requests', icon: ShieldAlert, badge: interests.filter(i => i.status === 'pending').length },
-              { id: 'bid-approvals', label: 'Live Bids & Moderation', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined },
+              { id: 'bid-approvals', label: '⚡ Pending Bids & Moderation', icon: Gavel, badge: bidsList.filter(b => b.status === 'pending').length || undefined, highlight: bidsList.filter(b => b.status === 'pending').length > 0 },
               { id: 'auctions', label: 'Auction Lots & Top 3 Winners (H1/H2/H3)', icon: Trophy, badge: auctions.length },
               { id: 'classifieds', label: 'Classifieds', icon: Tag, badge: classifieds.length },
               { id: 'pages-editor', label: 'Pages Content & Colors', icon: Palette },
@@ -3117,6 +3117,73 @@ export default function AdminDashboard() {
 
 
 
+
+              {/* Prominent Action Alert Card for Pending Initial Bids */}
+              {bidsList.filter(b => b.status === 'pending').length > 0 && (
+                <div className="bg-amber-950/80 border-2 border-amber-500 rounded-3xl p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap border-b border-amber-800/80 pb-3">
+                    <div className="flex items-center gap-2.5 text-amber-300">
+                      <Gavel className="w-6 h-6 text-amber-400 shrink-0 animate-bounce" />
+                      <div>
+                        <h4 className="font-black text-sm text-white uppercase tracking-wider">
+                          ⚡ ACTION REQUIRED: {bidsList.filter(b => b.status === 'pending').length} INITIAL BID(S) AWAITING APPROVAL
+                        </h4>
+                        <p className="text-xs text-amber-200">
+                          Initial bids from new bidders require 1-time Admin Acceptance before being activated on live auctions.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('bid-approvals')}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl text-xs shadow-md border border-amber-300 transition-all shrink-0"
+                    >
+                      Open Full Moderation Desk →
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {bidsList.filter(b => b.status === 'pending').slice(0, 4).map((pb) => {
+                      const matchingAuction = auctions.find(a => String(a.id) === String(pb.auction_id));
+                      return (
+                        <div key={pb.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="text-xs font-black text-white truncate">
+                              {pb.user?.name || pb.bidder_name || 'Bidder #' + pb.user_id}
+                              <span className="text-[10px] text-amber-400 font-bold ml-1.5">
+                                ({pb.user?.company_name || 'Verified Corporate'})
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate">
+                              Lot: {matchingAuction?.title || 'Lot #' + pb.auction_id}
+                            </div>
+                            <div className="text-xs font-black text-emerald-400">
+                              Bid Amount: ₹{Number(pb.amount).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleApproveBid(pb.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow transition-all border border-emerald-400"
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectBid(pb.id)}
+                              className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white font-bold rounded-xl text-[11px] transition-all"
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Comprehensive Analytics Dashboard */}
               <AdminAnalyticsDashboard

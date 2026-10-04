@@ -2725,17 +2725,20 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $auction['pdf_url'] = $detectedPdf;
     $auction['pdf_document'] = $detectedPdf;
 
-    $stmtBids = $pdo->prepare("SELECT b.*, u.name as bidder_name FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? ORDER BY b.amount DESC LIMIT 10");
+    // Fetch ONLY APPROVED bids for public display
+    $stmtBids = $pdo->prepare("SELECT b.*, u.name as bidder_name FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? AND b.status = 'approved' ORDER BY b.amount DESC LIMIT 10");
     $stmtBids->execute([$auction['id']]);
-    $auction['bids'] = array_map(function($b) {
-        return ['id' => $b['id'], 'amount' => (float)$b['amount'], 'status' => $b['status'] ?? 'pending', 'user' => ['name' => $b['bidder_name']], 'created_at' => $b['created_at']];
-    }, $stmtBids->fetchAll());
+    $approvedBids = $stmtBids->fetchAll();
 
-    if (!empty($auction['bids'])) {
-        $highestBidInDb = (float)$auction['bids'][0]['amount'];
-        if ($highestBidInDb > (float)$auction['current_highest_bid']) {
-            $auction['current_highest_bid'] = $highestBidInDb;
-        }
+    $auction['bids'] = array_map(function($b) {
+        return ['id' => $b['id'], 'amount' => (float)$b['amount'], 'status' => 'approved', 'user' => ['name' => $b['bidder_name']], 'created_at' => $b['created_at']];
+    }, $approvedBids);
+
+    if (!empty($approvedBids)) {
+        $highestApprovedBid = (float)$approvedBids[0]['amount'];
+        $auction['current_highest_bid'] = $highestApprovedBid;
+    } else {
+        $auction['current_highest_bid'] = null;
     }
 
     $auction['group_children'] = [];
@@ -2746,6 +2749,20 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     }
 
     $user = getAuthUser($pdo);
+    $auction['user_pending_bid'] = null;
+    if ($user) {
+        $stmtPend = $pdo->prepare("SELECT * FROM bids WHERE auction_id = ? AND user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+        $stmtPend->execute([$auction['id'], $user['id']]);
+        $pendRow = $stmtPend->fetch();
+        if ($pendRow) {
+            $auction['user_pending_bid'] = [
+                'id' => $pendRow['id'],
+                'amount' => (float)$pendRow['amount'],
+                'status' => 'pending',
+                'created_at' => $pendRow['created_at']
+            ];
+        }
+    }
     $isUnlocked = true;
     if ($auction['auction_type'] === 'private') {
         if (!$user) {
@@ -2829,13 +2846,20 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
         $stmtInsert->execute([$auctionId, $user['id'], $bidAmount, $bidStatus, $now]);
         $bidId = (int)$pdo->lastInsertId();
 
-        // Update current highest bid and end_time (if extended by anti-sniping rule)
-        if ($timeExtended) {
-            $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
-            $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+        // Update current highest bid and end_time ONLY IF THE BID IS APPROVED!
+        if ($bidStatus === 'approved') {
+            if ($timeExtended) {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ?, end_time = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $newEndTime, $auctionId]);
+            } else {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
+                $stmtUpdate->execute([$bidAmount, $auctionId]);
+            }
         } else {
-            $stmtUpdate = $pdo->prepare("UPDATE auctions SET current_highest_bid = ? WHERE id = ?");
-            $stmtUpdate->execute([$bidAmount, $auctionId]);
+            if ($timeExtended) {
+                $stmtUpdate = $pdo->prepare("UPDATE auctions SET end_time = ? WHERE id = ?");
+                $stmtUpdate->execute([$newEndTime, $auctionId]);
+            }
         }
 
         $pdo->commit();
@@ -3159,7 +3183,7 @@ if ($method === 'PUT' && preg_match('#^/api/v1/(admin/)?bids/(\d+)/status$#', $u
     $bid = $stmtAuc->fetch();
     if ($bid && !empty($bid['auction_id'])) {
         $aucId = (int)$bid['auction_id'];
-        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND (status IS NULL OR status != 'rejected')");
+        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND status = 'approved'");
         $maxStmt->execute([$aucId]);
         $maxRow = $maxStmt->fetch();
         $newHighest = ($maxRow && $maxRow['max_amt']) ? (float)$maxRow['max_amt'] : null;
@@ -3192,7 +3216,7 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/(admin/)?bids/(\d+)$#', $uri, 
     // Recalculate highest bid on auction
     if ($bid && !empty($bid['auction_id'])) {
         $aucId = (int)$bid['auction_id'];
-        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND (status IS NULL OR status != 'rejected')");
+        $maxStmt = $pdo->prepare("SELECT MAX(amount) as max_amt FROM bids WHERE auction_id = ? AND status = 'approved'");
         $maxStmt->execute([$aucId]);
         $maxRow = $maxStmt->fetch();
         $newHighest = ($maxRow && $maxRow['max_amt']) ? (float)$maxRow['max_amt'] : null;
