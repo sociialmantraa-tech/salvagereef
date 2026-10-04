@@ -28,7 +28,7 @@
 ## System Architecture, Database & Credentials Reference
 - **Master Documentation**: See [`PROJECT_SYSTEM_ARCHITECTURE.md`](file:///c:/Coding/Project/Business&Portfolio/Work/scrab/PROJECT_SYSTEM_ARCHITECTURE.md) for full database schemas, API routes, and deployment instructions.
 - **Production Domain**: `https://salvagereef.com`
-- **cPanel Production MySQL Database**: Database `scrab` | User `scrab_user` | Host `127.0.0.1:3306`
+- **cPanel Production MySQL Database**: Database `scrab` | User `scrab_user` | Password `scrabRoot@123` | Host `127.0.0.1:3306`
 - **SQLite Database Path**: `backend/database/database.sqlite` (Deploy path: `deploy_hosting/public_html/backend/database/database.sqlite`)
 - **Master Admin Credentials**: Login ID `SR-ADMIN` | Email `admin@salvagereef.com` | Password `sociial123`
 - **Executive Desk Admin**: Login ID `SR-EXEC-1` | Email `executive@salvagereef.com` | Password `execadmin123`

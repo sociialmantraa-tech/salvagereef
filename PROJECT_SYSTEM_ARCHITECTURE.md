@@ -17,7 +17,7 @@
 - **Backend API**: PHP 8.x Single-File REST Engine (`backend/server.php`)
 - **Security & Headers Engine**: `backend/security_config.php`
 - **Database Engines**:
-  - **cPanel Production MySQL**: Database `scrab` | User `scrab_user` | Host `127.0.0.1:3306`
+  - **cPanel Production MySQL**: Database `scrab` | User `scrab_user` | Password `scrabRoot@123` | Host `127.0.0.1:3306`
   - **Zero-Config SQLite**: `backend/database/database.sqlite` (File mode `0666`)
   - **MySQL Dump Schema**: `salvagereef_mysql.sql`
 - **Web Server Compatibility**: Apache / LiteSpeed / GoDaddy cPanel FastCGI

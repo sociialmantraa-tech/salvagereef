@@ -437,7 +437,7 @@ if ($dbConnection === 'mysql') {
     $dbPort = $_SR_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
     $dbName = $_SR_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'scrab';
     $dbUser = $_SR_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'scrab_user';
-    $dbPass = $_SR_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
+    $dbPass = $_SR_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: 'scrabRoot@123';
 
     try {
         $pdo = new PDO("mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
