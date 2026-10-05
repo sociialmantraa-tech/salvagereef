@@ -1998,13 +1998,14 @@ export default function AdminDashboard() {
 
       const finalLotCode = productLotCode.trim() || `LOT-${Math.floor(1000 + Math.random() * 9000)}`;
       const combinedTitle = `${finalLotCode} | ${productTitle.trim()}`;
+      const catIdValue = productCategory === 'custom' ? 1 : (parseInt(productCategory, 10) || 1);
 
       const payload = {
         title: combinedTitle,
         lot_code: finalLotCode,
         description: productDescription || 'High quality salvage lot published by admin desk.',
         condition: productCondition.trim() || 'As is where is basis - Grade A commercial condition',
-        category_id: productCategory === 'custom' ? Date.now() : productCategory,
+        category_id: catIdValue,
         category_name: resolvedCategoryName,
         auction_type: productType,
         quantity: parseFloat(productQuantity),
@@ -2021,14 +2022,27 @@ export default function AdminDashboard() {
         pdf_url: uploadedPdfUrl,
       };
 
+      let realId = Date.now();
+      try {
+        const res = await api.post('/admin/auctions', payload);
+        const resData = res.data?.data || res.data;
+        if (resData?.id) {
+          realId = Number(resData.id);
+        }
+      } catch (err: any) {
+        console.error('Failed to post auction to backend API:', err);
+        showNotification(`⚠️ Warning: Server error persisting auction: ${err?.response?.data?.message || err?.message || 'Database error'}`);
+      }
+
       const newAuctionItem = {
-        id: Date.now(),
+        id: realId,
         title: combinedTitle,
         lot_code: finalLotCode,
         slug: productTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         description: productDescription || 'High quality salvage lot published by admin desk.',
         condition: productCondition.trim() || 'As is where is basis - Grade A commercial condition',
         category: resolvedCategoryName,
+        category_id: catIdValue,
         auction_type: productType,
         status: 'live',
         starting_price: parseFloat(productStartingPrice),
@@ -2045,13 +2059,7 @@ export default function AdminDashboard() {
         pdf_url: uploadedPdfUrl,
       };
 
-      setAuctionsPersisted((prev) => [newAuctionItem, ...prev]);
-
-      try {
-        await api.post('/admin/auctions', payload);
-      } catch (err) {
-        // Fallback — local state already updated
-      }
+      setAuctionsPersisted((prev: any[]) => [newAuctionItem, ...prev.filter((a: any) => String(a.id) !== String(realId))]);
 
       showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s)${uploadedPdfUrl ? ' and official Tender PDF' : ''} published successfully!`);
       setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`);

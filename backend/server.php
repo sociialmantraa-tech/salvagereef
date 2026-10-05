@@ -3878,8 +3878,32 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         jsonResponse(['message' => 'Auction lot updated successfully', 'id' => $body['id']]);
     }
 
-    if (empty($body['title']) || empty($body['category_id']) || empty($body['starting_price'])) {
-        jsonResponse(['message' => 'Title, category, and starting price required'], 422);
+    if (empty($body['title']) || empty($body['starting_price'])) {
+        jsonResponse(['message' => 'Title and starting price required'], 422);
+    }
+
+    // Safely resolve category_id
+    $rawCat = $body['category_id'] ?? $body['category'] ?? null;
+    $catId = 1;
+    if (is_numeric($rawCat) && (float)$rawCat > 0 && (float)$rawCat <= 2147483647) {
+        $catId = (int)$rawCat;
+    } else if (!empty($body['category_name'])) {
+        $cName = trim($body['category_name']);
+        $catStmt = $pdo->prepare("SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1");
+        $catStmt->execute([$cName]);
+        $foundCat = $catStmt->fetchColumn();
+        if ($foundCat) {
+            $catId = (int)$foundCat;
+        } else {
+            $cSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $cName)));
+            $insCat = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
+            try {
+                $insCat->execute([$cName, $cSlug]);
+                $catId = (int)$pdo->lastInsertId();
+            } catch (\Throwable $e) {
+                $catId = 1;
+            }
+        }
     }
 
     $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $body['title']))) . '-' . substr(md5(uniqid()), 0, 5);
@@ -3897,21 +3921,23 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
 
     $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
     $bidIncrement = !empty($body['bid_increment']) ? (float)$body['bid_increment'] : 1000;
+    $startingPrice = (float)$body['starting_price'];
+    $quantity = !empty($body['quantity']) ? (float)$body['quantity'] : 1;
 
     $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $body['title'],
         $slug,
         $body['description'] ?? '',
-        $body['category_id'],
+        $catId,
         $body['auction_type'] ?? 'public',
         $status,
-        $body['quantity'] ?? 1,
+        $quantity,
         $body['unit'] ?? 'lot',
-        $body['starting_price'],
+        $startingPrice,
         $emdAmount,
         $bidIncrement,
-        $body['starting_price'],
+        $startingPrice,
         $startTime,
         $endTime,
         $body['location_city'] ?? 'Mumbai',
@@ -3921,13 +3947,21 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         $pdfUrl
     ]);
 
-    $id = $pdo->lastInsertId();
+    $id = (int)$pdo->lastInsertId();
     foreach ($imagesList as $imgItem) {
         $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
             ->execute([$id, $imgItem['path'], $imgItem['primary']]);
     }
 
-    jsonResponse(['id' => (int)$id, 'slug' => $slug, 'title' => $body['title'], 'status' => $status], 201);
+    jsonResponse([
+        'success' => true,
+        'id' => $id,
+        'slug' => $slug,
+        'title' => $body['title'],
+        'status' => $status,
+        'category_id' => $catId,
+        'message' => 'Auction lot created and persisted to database successfully'
+    ], 201);
 }
 
 // 18c. Admin Users List: GET /api/v1/admin/users
@@ -4281,6 +4315,34 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/auctions/([^/]+)$#', $ur
         }
 
         if ($auctionId > 0) {
+            // Delete physical image files from disk
+            try {
+                $imgStmt = $pdo->prepare("SELECT image_path FROM auction_images WHERE auction_id = ?");
+                $imgStmt->execute([$auctionId]);
+                $aucImages = $imgStmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($aucImages as $aImg) {
+                    if (!empty($aImg) && str_starts_with($aImg, '/uploads/')) {
+                        $diskFile = dirname(__DIR__) . $aImg;
+                        if (file_exists($diskFile) && is_file($diskFile)) {
+                            @unlink($diskFile);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            // Delete physical tender PDF document from disk if present
+            try {
+                $pdfStmt = $pdo->prepare("SELECT pdf_url FROM auctions WHERE id = ?");
+                $pdfStmt->execute([$auctionId]);
+                $aucPdf = $pdfStmt->fetchColumn();
+                if (!empty($aucPdf) && str_starts_with($aucPdf, '/uploads/')) {
+                    $diskPdf = dirname(__DIR__) . $aucPdf;
+                    if (file_exists($diskPdf) && is_file($diskPdf)) {
+                        @unlink($diskPdf);
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             // Delete related child records first to satisfy foreign key constraints
             try { $pdo->prepare("DELETE FROM bids WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
             try { $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id = ?")->execute([$auctionId]); } catch (\Throwable $e) {}
@@ -4336,6 +4398,21 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/classifieds/([^/]+)$#', 
         }
 
         if ($clsId > 0) {
+            // Delete physical image files from disk
+            try {
+                $clsImgStmt = $pdo->prepare("SELECT image_path FROM classified_images WHERE classified_id = ?");
+                $clsImgStmt->execute([$clsId]);
+                $clsImages = $clsImgStmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($clsImages as $cImg) {
+                    if (!empty($cImg) && str_starts_with($cImg, '/uploads/')) {
+                        $diskFile = dirname(__DIR__) . $cImg;
+                        if (file_exists($diskFile) && is_file($diskFile)) {
+                            @unlink($diskFile);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             try { $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
             try { $pdo->prepare("DELETE FROM enquiry_or_interests WHERE classified_id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
             try { $pdo->prepare("DELETE FROM classifieds WHERE id = ?")->execute([$clsId]); } catch (\Throwable $e) {}
