@@ -4409,6 +4409,17 @@ if (in_array($method, ['DELETE', 'POST'], true) && preg_match('#^/api/v1/(admin/
 
         $targetEmail = strtolower($targetUser['email'] ?? '');
 
+        // 0. Unlink user physical KYC files from disk
+        $kycFiles = [$targetUser['cheque_file'] ?? null, $targetUser['pan_file'] ?? null, $targetUser['gst_file'] ?? null];
+        foreach ($kycFiles as $kFile) {
+            if (!empty($kFile) && str_starts_with($kFile, '/uploads/')) {
+                $fPath = dirname(__DIR__) . $kFile;
+                if (file_exists($fPath) && is_file($fPath)) {
+                    @unlink($fPath);
+                }
+            }
+        }
+
         // 1. Delete authentication tokens
         try {
             $pdo->prepare("DELETE FROM personal_access_tokens WHERE tokenable_id = ?")->execute([$targetId]);
@@ -4440,13 +4451,24 @@ if (in_array($method, ['DELETE', 'POST'], true) && preg_match('#^/api/v1/(admin/
             $pdo->prepare("DELETE FROM sell_scrap_requests WHERE user_id = ?")->execute([$targetId]);
         } catch (\Throwable $e) {}
 
-        // 6. Cascade delete classifieds and their images
+        // 6. Cascade delete classifieds, their database images, and physical image files on disk
         try {
             $clsStmt = $pdo->prepare("SELECT id FROM classifieds WHERE created_by = ?");
             $clsStmt->execute([$targetId]);
             $clsIds = $clsStmt->fetchAll(PDO::FETCH_COLUMN);
             if (!empty($clsIds)) {
                 $placeholders = implode(',', array_fill(0, count($clsIds), '?'));
+                $imgStmt = $pdo->prepare("SELECT image_path FROM classified_images WHERE classified_id IN ($placeholders)");
+                $imgStmt->execute($clsIds);
+                $imgPaths = $imgStmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($imgPaths as $iPath) {
+                    if (!empty($iPath) && str_starts_with($iPath, '/uploads/')) {
+                        $diskFile = dirname(__DIR__) . $iPath;
+                        if (file_exists($diskFile) && is_file($diskFile)) {
+                            @unlink($diskFile);
+                        }
+                    }
+                }
                 $pdo->prepare("DELETE FROM classified_images WHERE classified_id IN ($placeholders)")->execute($clsIds);
                 $pdo->prepare("DELETE FROM classifieds WHERE id IN ($placeholders)")->execute($clsIds);
             }
@@ -4467,6 +4489,17 @@ if (in_array($method, ['DELETE', 'POST'], true) && preg_match('#^/api/v1/(admin/
             $aucIds = $aucStmt->fetchAll(PDO::FETCH_COLUMN);
             if (!empty($aucIds)) {
                 $placeholders = implode(',', array_fill(0, count($aucIds), '?'));
+                $aucImgStmt = $pdo->prepare("SELECT image_path FROM auction_images WHERE auction_id IN ($placeholders)");
+                $aucImgStmt->execute($aucIds);
+                $aucImgPaths = $aucImgStmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($aucImgPaths as $aPath) {
+                    if (!empty($aPath) && str_starts_with($aPath, '/uploads/')) {
+                        $diskFile = dirname(__DIR__) . $aPath;
+                        if (file_exists($diskFile) && is_file($diskFile)) {
+                            @unlink($diskFile);
+                        }
+                    }
+                }
                 $pdo->prepare("DELETE FROM auction_images WHERE auction_id IN ($placeholders)")->execute($aucIds);
                 $pdo->prepare("DELETE FROM bids WHERE auction_id IN ($placeholders)")->execute($aucIds);
                 $pdo->prepare("DELETE FROM enquiry_or_interests WHERE auction_id IN ($placeholders)")->execute($aucIds);
