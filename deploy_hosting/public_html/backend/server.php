@@ -2205,9 +2205,9 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
 
 // 9a. Create or Update Auction: POST /api/v1/auctions OR /api/v1/admin/auctions
 if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin/auctions')) {
+    $user = getAuthUser($pdo);
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    // Extract PDF URL if provided explicitly or in legacy fields
     $pdfUrl = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
 
     $imagesList = [];
@@ -2245,57 +2245,90 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
         }
     }
 
-    if (!empty($body['id'])) {
-        $auctionId = (int)$body['id'];
-        $chk = $pdo->prepare("SELECT COUNT(*) FROM auctions WHERE id = ?");
-        $chk->execute([$auctionId]);
-        $exists = (int)$chk->fetchColumn() > 0;
+    // Safely resolve created_by user ID (must exist in users table for FK constraint)
+    $creatorId = !empty($body['created_by']) ? (int)$body['created_by'] : ($user['id'] ?? null);
+    if (!$creatorId) {
+        $creatorId = (int)($pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+    } else {
+        $uChk = $pdo->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
+        $uChk->execute([$creatorId]);
+        if ((int)$uChk->fetchColumn() === 0) {
+            $creatorId = (int)($pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+        }
+    }
 
-        if ($exists) {
-            $fields = [];
-            $params = [];
-            $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed', 'pdf_url'];
-            foreach ($allowed as $f) {
-                if ($f === 'pdf_url') {
-                    if ($pdfUrl !== null) {
-                        $fields[] = "$f = ?";
-                        $params[] = $pdfUrl;
-                    }
-                } elseif (isset($body[$f])) {
-                    $fields[] = "$f = ?";
-                    $params[] = $body[$f];
-                }
-            }
-            if (!empty($fields)) {
-                $params[] = $auctionId;
-                $pdo->prepare("UPDATE auctions SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
+    // Safely resolve category_id (must exist in categories table)
+    $catId = (int)($body['category_id'] ?? 1);
+    if ($catId <= 0 || $catId > 2147483647) {
+        $catId = 1;
+    }
+    if (!empty($body['category_name'])) {
+        $cName = trim($body['category_name']);
+        $catStmt = $pdo->prepare("SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1");
+        $catStmt->execute([$cName]);
+        $foundCat = $catStmt->fetchColumn();
+        if ($foundCat) {
+            $catId = (int)$foundCat;
+        } else {
+            $cSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $cName)));
+            $insCat = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
+            try {
+                $insCat->execute([$cName, $cSlug]);
+                $catId = (int)$pdo->lastInsertId();
+            } catch (\Throwable $e) {}
+        }
+    }
+    $cChk = $pdo->prepare("SELECT COUNT(*) FROM categories WHERE id = ?");
+    $cChk->execute([$catId]);
+    if ((int)$cChk->fetchColumn() === 0) {
+        $catId = (int)($pdo->query("SELECT id FROM categories ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+    }
+
+    $title = trim($body['title'] ?? '');
+    if (empty($title)) {
+        jsonResponse(['message' => 'Title is required', 'success' => false], 422);
+    }
+
+    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title)) . '-' . substr(md5(uniqid()), 0, 5);
+    $description = $body['description'] ?? 'High quality salvage lot published by admin desk.';
+    $condition = $body['condition'] ?? 'As is where is basis - Grade A commercial condition';
+    $auctionType = $body['auction_type'] ?? 'public';
+    $status = $body['status'] ?? 'live';
+    $quantity = (float)($body['quantity'] ?? 1);
+    $unit = $body['unit'] ?? 'lot';
+    $startingPrice = (float)($body['starting_price'] ?? 0);
+    $bidIncrement = (float)($body['bid_increment'] ?? 1000);
+    $locationCity = $body['location_city'] ?? ($body['location'] ?? 'Mumbai');
+    $locationState = $body['location_state'] ?? 'Maharashtra';
+    $startTime = !empty($body['start_time']) ? date('Y-m-d H:i:s', strtotime($body['start_time'])) : date('Y-m-d H:i:s');
+    $endTime = !empty($body['end_time']) ? date('Y-m-d H:i:s', strtotime($body['end_time'])) : date('Y-m-d H:i:s', time() + 7 * 86400);
+    $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
+
+    try {
+        if (!empty($body['id'])) {
+            $auctionId = (int)$body['id'];
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM auctions WHERE id = ?");
+            $chk->execute([$auctionId]);
+            $exists = (int)$chk->fetchColumn() > 0;
+
+            if ($exists) {
+                $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, condition = ?, category_id = ?, auction_type = ?, status = ?, quantity = ?, unit = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, location_city = ?, location_state = ?, start_time = ?, end_time = ?, pdf_url = COALESCE(?, pdf_url), updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmtUpd->execute([$title, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $pdfUrl, $auctionId]);
+                $newId = $auctionId;
+            } else {
+                $insStmt = $pdo->prepare("INSERT INTO auctions (id, title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, emd_amount, location_city, location_state, start_time, end_time, created_by, winner_confirmed, pdf_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+                $insStmt->execute([$auctionId, $title, $slug, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $startingPrice, $bidIncrement, $emdAmount, $locationCity, $locationState, $startTime, $endTime, $creatorId, $pdfUrl]);
+                $newId = $auctionId;
             }
         } else {
-            $title = trim($body['title'] ?? ('Test Lot #' . $auctionId));
-            $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title));
-            $description = $body['description'] ?? 'Test Lot Description';
-            $condition = $body['condition'] ?? 'Grade A';
-            $categoryId = (int)($body['category_id'] ?? 1);
-            $auctionType = $body['auction_type'] ?? 'public';
-            $status = $body['status'] ?? 'live';
-            $quantity = (float)($body['quantity'] ?? 1);
-            $unit = $body['unit'] ?? 'lot';
-            $startingPrice = (float)($body['starting_price'] ?? 750000);
-            $currentHighestBid = (float)($body['current_highest_bid'] ?? $startingPrice);
-            $bidIncrement = (float)($body['bid_increment'] ?? 1000);
-            $emdAmount = (float)($body['emd_amount'] ?? 50000);
-            $locationCity = $body['location_city'] ?? ($body['location'] ?? 'Mumbai');
-            $locationState = $body['location_state'] ?? 'Maharashtra';
-            $startTime = $body['start_time'] ?? date('Y-m-d H:i:s');
-            $endTime = $body['end_time'] ?? date('Y-m-d H:i:s', strtotime('+7 days'));
-
-            $insStmt = $pdo->prepare("INSERT INTO auctions (id, title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, emd_amount, location_city, location_state, start_time, end_time, created_by, winner_confirmed, pdf_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
-            $insStmt->execute([$auctionId, $title, $slug, $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $currentHighestBid, $bidIncrement, $emdAmount, $locationCity, $locationState, $startTime, $endTime, $pdfUrl]);
+            $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by, pdf_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+            $stmt->execute([$title, $slug, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $creatorId, $pdfUrl]);
+            $newId = (int)$pdo->lastInsertId();
         }
 
-        if (!empty($imagesList)) {
+        if (!empty($imagesList) && $newId > 0) {
             try {
-                $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+                $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$newId]);
                 foreach ($imagesList as $imgItem) {
                     $imgPath = $imgItem['path'];
                     if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
@@ -2303,50 +2336,18 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
                         if (!empty($savedPath)) $imgPath = $savedPath;
                     }
                     $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                        ->execute([$auctionId, $imgPath, $imgItem['primary']]);
+                        ->execute([$newId, $imgPath, $imgItem['primary']]);
                 }
             } catch (\Throwable $e) {}
         }
-        jsonResponse(['message' => 'Auction created/updated successfully', 'id' => $auctionId, 'success' => true]);
+
+        jsonResponse(['message' => 'Auction saved successfully', 'id' => $newId, 'data' => ['id' => $newId], 'success' => true]);
+    } catch (\Throwable $e) {
+        if (function_exists('srWriteLog')) {
+            srWriteLog(SR_LOG_ERROR, 'AUCTION_SAVE', "Save auction error: " . $e->getMessage());
+        }
+        jsonResponse(['message' => 'Failed to save auction in database: ' . $e->getMessage(), 'success' => false], 500);
     }
-
-    $title = trim($body['title'] ?? '');
-    if (empty($title)) jsonResponse(['message' => 'Title is required'], 422);
-
-    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title));
-    $description = $body['description'] ?? '';
-    $condition = $body['condition'] ?? 'As is where is basis - Grade A commercial condition';
-    $categoryId = (int)($body['category_id'] ?? 1);
-    $auctionType = $body['auction_type'] ?? 'public';
-    $status = $body['status'] ?? 'live';
-    $quantity = (float)($body['quantity'] ?? 1);
-    $unit = $body['unit'] ?? 'lot';
-    $startingPrice = (float)($body['starting_price'] ?? 0);
-    $bidIncrement = (float)($body['bid_increment'] ?? 1000);
-    $locationCity = $body['location_city'] ?? 'Mumbai';
-    $locationState = $body['location_state'] ?? 'Maharashtra';
-    $startTime = $body['start_time'] ?? date('Y-m-d H:i:s');
-    $endTime = $body['end_time'] ?? date('Y-m-d H:i:s', time() + 7 * 86400);
-    $createdBy = (int)($body['created_by'] ?? 1);
-    $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
-
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$title, $slug . '-' . time(), $description, $condition, $categoryId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $createdBy, $pdfUrl]);
-    $newId = (int)$pdo->lastInsertId();
-
-    foreach ($imagesList as $imgItem) {
-        try {
-            $imgPath = $imgItem['path'];
-            if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
-                $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
-                if (!empty($savedPath)) $imgPath = $savedPath;
-            }
-            $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                ->execute([$newId, $imgPath, $imgItem['primary']]);
-        } catch (\Throwable $e) {}
-    }
-
-    jsonResponse(['message' => 'Auction created successfully', 'id' => $newId, 'success' => true]);
 }
 
 // 9b. Edit Auction: PUT /api/v1/auctions/{id} OR POST /api/v1/admin/auctions/{id} OR PUT /api/v1/admin/auctions/{id}
@@ -3815,184 +3816,7 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/interests/(\d+)$#', $uri
     jsonResponse(['success' => true, 'message' => "Tender request #{$intId} deleted successfully."]);
 }
 
-// 18b. Admin Create Auction Lot: POST /api/v1/admin/auctions
-if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
-    $user = getAuthUser($pdo);
-    if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
-
-    $body = json_decode(file_get_contents('php://input'), true);
-
-    $pdfUrl = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
-
-    $imagesList = [];
-    if (!empty($body['images']) && is_array($body['images'])) {
-        foreach ($body['images'] as $idx => $img) {
-            $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
-            if ($path) {
-                if (preg_match('/\.pdf($|\?)/i', $path)) {
-                    if (empty($pdfUrl)) $pdfUrl = $path;
-                } else {
-                    $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
-                }
-            }
-        }
-    }
-    if (empty($imagesList) && !empty($body['image_url'])) {
-        $single = $body['image_url'];
-        if (preg_match('/\.pdf($|\?)/i', $single)) {
-            if (empty($pdfUrl)) $pdfUrl = $single;
-        } else {
-            $imagesList[] = ['path' => $single, 'primary' => 1];
-        }
-    }
-    if (empty($imagesList)) {
-        $imagesList[] = ['path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 'primary' => 1];
-    } else {
-        $hasPrimary = false;
-        foreach ($imagesList as $im) {
-            if (!empty($im['primary'])) { $hasPrimary = true; break; }
-        }
-        if (!$hasPrimary) {
-            $imagesList[0]['primary'] = 1;
-        }
-    }
-
-    if (!empty($body['id'])) {
-        // UPDATE Existing Auction Lot
-        $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, current_highest_bid = ?, location_city = ?, location_state = ?, auction_type = ?, status = ?, start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), pdf_url = COALESCE(?, pdf_url) WHERE id = ?");
-        $stmtUpd->execute([
-            $body['title'],
-            $body['description'] ?? '',
-            $body['starting_price'] ?? 100000,
-            $body['emd_amount'] ?? 0,
-            $body['bid_increment'] ?? 1000,
-            $body['current_highest_bid'] ?? $body['starting_price'] ?? 100000,
-            $body['location_city'] ?? 'Mumbai',
-            $body['location_state'] ?? 'Maharashtra',
-            $body['auction_type'] ?? 'public',
-            $body['status'] ?? 'live',
-            !empty($body['start_time']) ? date('Y-m-d H:i:s', strtotime($body['start_time'])) : null,
-            !empty($body['end_time']) ? date('Y-m-d H:i:s', strtotime($body['end_time'])) : null,
-            $pdfUrl,
-            $body['id']
-        ]);
-
-        if (!empty($imagesList)) {
-            $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$body['id']]);
-            foreach ($imagesList as $imgItem) {
-                $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                    ->execute([$body['id'], $imgItem['path'], $imgItem['primary']]);
-            }
-        }
-
-        jsonResponse(['message' => 'Auction lot updated successfully', 'id' => $body['id']]);
-    }
-
-    if (empty($body['title']) || empty($body['starting_price'])) {
-        jsonResponse(['message' => 'Title and starting price required'], 422);
-    }
-
-    // Safely resolve category_id
-    $rawCat = $body['category_id'] ?? $body['category'] ?? null;
-    $catId = 1;
-    if (is_numeric($rawCat) && (float)$rawCat > 0 && (float)$rawCat <= 2147483647) {
-        $catId = (int)$rawCat;
-    } else if (!empty($body['category_name'])) {
-        $cName = trim($body['category_name']);
-        $catStmt = $pdo->prepare("SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1");
-        $catStmt->execute([$cName]);
-        $foundCat = $catStmt->fetchColumn();
-        if ($foundCat) {
-            $catId = (int)$foundCat;
-        } else {
-            $cSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $cName)));
-            $insCat = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
-            try {
-                $insCat->execute([$cName, $cSlug]);
-                $catId = (int)$pdo->lastInsertId();
-            } catch (\Throwable $e) {
-                $catId = 1;
-            }
-        }
-    }
-
-    $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $body['title']))) . '-' . substr(md5(uniqid()), 0, 5);
-
-    $now = date('Y-m-d H:i:s');
-    $startTime = !empty($body['start_time']) ? date('Y-m-d H:i:s', strtotime($body['start_time'])) : $now;
-    $endTime = !empty($body['end_time']) ? date('Y-m-d H:i:s', strtotime($body['end_time'])) : date('Y-m-d H:i:s', strtotime('+7 days'));
-
-    $status = 'upcoming';
-    if ($now >= $startTime && $now < $endTime) {
-        $status = 'live';
-    } elseif ($now >= $endTime) {
-        $status = 'closed';
-    }
-
-    $emdAmount = !empty($body['emd_amount']) ? (float)$body['emd_amount'] : 0;
-    $bidIncrement = !empty($body['bid_increment']) ? (float)$body['bid_increment'] : 1000;
-    $startingPrice = (float)$body['starting_price'];
-    $quantity = !empty($body['quantity']) ? (float)$body['quantity'] : 1;
-
-    // Validate created_by user ID exists in users table to satisfy foreign key constraints
-    $creatorId = (int)($user['id'] ?? 1);
-    try {
-        $chkUser = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
-        $chkUser->execute([$creatorId]);
-        if ((int)$chkUser->fetchColumn() === 0) {
-            $firstUser = (int)$pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchColumn();
-            $creatorId = $firstUser > 0 ? $firstUser : 1;
-        }
-    } catch (\Throwable $e) {
-        $creatorId = 1;
-    }
-
-    $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([
-        $body['title'],
-        $slug,
-        $body['description'] ?? '',
-        $catId,
-        $body['auction_type'] ?? 'public',
-        $status,
-        $quantity,
-        $body['unit'] ?? 'lot',
-        $startingPrice,
-        $emdAmount,
-        $bidIncrement,
-        $startingPrice,
-        $startTime,
-        $endTime,
-        $body['location_city'] ?? 'Mumbai',
-        $body['location_state'] ?? 'Maharashtra',
-        !empty($body['is_group']) ? 1 : 0,
-        $creatorId,
-        $pdfUrl
-    ]);
-
-    $id = (int)$pdo->lastInsertId();
-    foreach ($imagesList as $imgItem) {
-        $imgPath = $imgItem['path'];
-        if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
-            $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
-            if (!empty($savedPath)) {
-                $imgPath = $savedPath;
-            }
-        }
-        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-            ->execute([$id, $imgPath, $imgItem['primary']]);
-    }
-
-    jsonResponse([
-        'success' => true,
-        'id' => $id,
-        'slug' => $slug,
-        'title' => $body['title'],
-        'status' => $status,
-        'category_id' => $catId,
-        'message' => 'Auction lot created and persisted to database successfully'
-    ], 201);
-}
+// 18b. Admin Create Auction Lot (Handled by Route 9a)
 
 // 18c. Admin Users List: GET /api/v1/admin/users
 if ($method === 'GET' && $uri === '/api/v1/admin/users') {

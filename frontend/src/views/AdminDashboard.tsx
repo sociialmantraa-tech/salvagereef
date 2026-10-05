@@ -2022,46 +2022,23 @@ export default function AdminDashboard() {
         pdf_url: uploadedPdfUrl,
       };
 
-      let realId = Date.now();
       try {
         const res = await api.post('/admin/auctions', payload);
         const resData = res.data?.data || res.data;
-        if (resData?.id) {
-          realId = Number(resData.id);
+        if (res.status === 200 || res.status === 201) {
+          showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s)${uploadedPdfUrl ? ' and official Tender PDF' : ''} published successfully!`);
+        } else {
+          throw new Error(resData?.message || 'Server error creating auction');
         }
       } catch (err: any) {
         console.error('Failed to post auction to backend API:', err);
-        showNotification(`⚠️ Warning: Server error persisting auction: ${err?.response?.data?.message || err?.message || 'Database error'}`);
+        const errMessage = err?.response?.data?.message || err?.message || 'Database connection error';
+        showNotification(`❌ Error publishing auction: ${errMessage}`);
+        return; // Abort without clearing form or faking state
       }
 
-      const newAuctionItem = {
-        id: realId,
-        title: combinedTitle,
-        lot_code: finalLotCode,
-        slug: productTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        description: productDescription || 'High quality salvage lot published by admin desk.',
-        condition: productCondition.trim() || 'As is where is basis - Grade A commercial condition',
-        category: resolvedCategoryName,
-        category_id: catIdValue,
-        auction_type: productType,
-        status: 'live',
-        starting_price: parseFloat(productStartingPrice),
-        emd_amount: parseFloat(productEmdAmount) || 0,
-        bid_increment: parseFloat(productBidIncrement) || 1000,
-        current_highest_bid: parseFloat(productStartingPrice),
-        location_city: resolvedCity,
-        location_state: resolvedState,
-        start_time: productStartTime,
-        end_time: productEndTime,
-        image_url: finalImageUrl,
-        images: finalImagesList,
-        primary_image: finalImagesList[0],
-        pdf_url: uploadedPdfUrl,
-      };
+      await fetchAdminData(true);
 
-      setAuctionsPersisted((prev: any[]) => [newAuctionItem, ...prev.filter((a: any) => String(a.id) !== String(realId))]);
-
-      showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s)${uploadedPdfUrl ? ' and official Tender PDF' : ''} published successfully!`);
       setProductLotCode(`LOT-${Math.floor(1000 + Math.random() * 9000)}`);
       setProductTitle('');
       setProductDescription('');
