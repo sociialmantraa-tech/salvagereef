@@ -3949,8 +3949,15 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
 
     $id = (int)$pdo->lastInsertId();
     foreach ($imagesList as $imgItem) {
+        $imgPath = $imgItem['path'];
+        if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
+            $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
+            if (!empty($savedPath)) {
+                $imgPath = $savedPath;
+            }
+        }
         $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-            ->execute([$id, $imgItem['path'], $imgItem['primary']]);
+            ->execute([$id, $imgPath, $imgItem['primary']]);
     }
 
     jsonResponse([
@@ -4202,9 +4209,14 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         $pdo->prepare("UPDATE users SET is_verified = CASE WHEN is_verified = 1 THEN 0 ELSE 1 END, is_active = 1 WHERE id = ?")->execute([$targetId]);
     }
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, role, is_verified, is_active FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
+    if ($updatedUser) {
+        $updatedUser['id'] = (int)$updatedUser['id'];
+        $updatedUser['is_verified'] = (int)$updatedUser['is_verified'];
+        $updatedUser['is_active'] = (int)$updatedUser['is_active'];
+    }
 
     $statusMsg = ($updatedUser && (int)$updatedUser['is_verified'] === 1) 
         ? "User #{$targetId} verified and approved successfully." 
@@ -4224,9 +4236,14 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     $targetId = (int)$m[1];
     $pdo->prepare("UPDATE users SET is_verified = -1, is_active = 0 WHERE id = ?")->execute([$targetId]);
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, role, is_verified, is_active FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
+    if ($updatedUser) {
+        $updatedUser['id'] = (int)$updatedUser['id'];
+        $updatedUser['is_verified'] = (int)$updatedUser['is_verified'];
+        $updatedUser['is_active'] = (int)$updatedUser['is_active'];
+    }
 
     jsonResponse(['success' => true, 'message' => "User #{$targetId} registration rejected.", 'user' => $updatedUser, 'is_verified' => -1]);
 }
