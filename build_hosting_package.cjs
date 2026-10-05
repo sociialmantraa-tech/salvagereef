@@ -250,7 +250,7 @@ try {
   });
 
   // 1. Create salvagereef_FULL_UPLOAD.zip
-  const psFullCmd = `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*', '.\\deploy_hosting\\public_html\\.htaccess' -DestinationPath '.\\${fullZipName}' -Force"`;
+  const psFullCmd = `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting\\public_html\\*' -DestinationPath '${fullZipName}' -Force"`;
   execSync(psFullCmd, { cwd: ROOT, stdio: 'pipe' });
   
   if (fs.existsSync(fullZipPath)) {
@@ -266,7 +266,7 @@ try {
   if (hadDb) fs.renameSync(dbFile, dbTempMove);
 
   try {
-    const psUpdateCmd = `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*', '.\\deploy_hosting\\public_html\\.htaccess' -DestinationPath '.\\${updateZipName}' -Force"`;
+    const psUpdateCmd = `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting\\public_html\\*' -DestinationPath '${updateZipName}' -Force"`;
     execSync(psUpdateCmd, { cwd: ROOT, stdio: 'pipe' });
 
     if (fs.existsSync(updateZipPath)) {
