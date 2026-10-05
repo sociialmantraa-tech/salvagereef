@@ -19,6 +19,8 @@ backend/bootstrap/cache/*.php
 
 # Archives & Temp
 *.zip
+!salvagereef_FULL_UPLOAD.zip
+!salvagereef_UPDATE_SAFE_NO_DATABASE.zip
 *.log
 .DS_Store
 Thumbs.db
