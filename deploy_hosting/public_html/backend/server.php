@@ -2832,6 +2832,12 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
     $user = getAuthUser($pdo);
     if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
 
+    if (empty($user['is_verified']) || $user['is_verified'] == 0 || $user['is_verified'] === '0') {
+        jsonResponse([
+            'message' => 'Account Verification Pending Admin Approval: Bidding authority is restricted until your KYC verification is approved by Admin.'
+        ], 403);
+    }
+
     $body = json_decode(file_get_contents('php://input'), true);
     $bidAmount = (float)($body['amount'] ?? 0);
 
@@ -4131,7 +4137,11 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         $chequeFile,
         $panFile,
         $gstFile,
-        isset($body['is_verified']) ? ($body['is_verified'] ? 1 : 0) : null,
+        isset($body['is_verified'])
+            ? (($body['is_verified'] === -1 || $body['is_verified'] === '-1' || $body['is_verified'] === 'rejected')
+                ? -1
+                : ($body['is_verified'] ? 1 : 0))
+            : null,
         isset($body['is_active']) ? ($body['is_active'] ? 1 : 0) : null,
         $targetId
     ]);
@@ -4149,8 +4159,11 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     $targetId = (int)$m[1];
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
     if (isset($body['is_verified'])) {
-        $val = $body['is_verified'] ? 1 : 0;
-        $pdo->prepare("UPDATE users SET is_verified = ?, is_active = 1 WHERE id = ?")->execute([$val, $targetId]);
+        $val = ($body['is_verified'] === -1 || $body['is_verified'] === '-1' || $body['is_verified'] === 'rejected')
+            ? -1
+            : ($body['is_verified'] ? 1 : 0);
+        $isActive = ($val === -1) ? 0 : 1;
+        $pdo->prepare("UPDATE users SET is_verified = ?, is_active = ? WHERE id = ?")->execute([$val, $isActive, $targetId]);
     } else {
         $pdo->prepare("UPDATE users SET is_verified = CASE WHEN is_verified = 1 THEN 0 ELSE 1 END, is_active = 1 WHERE id = ?")->execute([$targetId]);
     }
@@ -4159,8 +4172,81 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
 
-    $statusMsg = ($updatedUser && $updatedUser['is_verified']) ? "User #{$targetId} verified and approved successfully." : "User #{$targetId} verification revoked.";
+    $statusMsg = ($updatedUser && (int)$updatedUser['is_verified'] === 1) 
+        ? "User #{$targetId} verified and approved successfully." 
+        : (($updatedUser && (int)$updatedUser['is_verified'] === -1) 
+            ? "User #{$targetId} registration rejected." 
+            : "User #{$targetId} verification revoked.");
     jsonResponse(['success' => true, 'message' => $statusMsg, 'user' => $updatedUser, 'is_verified' => $updatedUser ? (int)$updatedUser['is_verified'] : 1]);
+}
+
+// 18c-4b. Admin Reject User: PUT/POST /api/v1/admin/users/{id}/reject
+if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/users/(\d+)/reject$#', $uri, $m)) {
+    $user = getAuthUser($pdo);
+    if (!isAdminUser($user)) {
+        jsonResponse(['message' => 'Admin required'], 403);
+    }
+
+    $targetId = (int)$m[1];
+    $pdo->prepare("UPDATE users SET is_verified = -1, is_active = 0 WHERE id = ?")->execute([$targetId]);
+
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, role, is_verified, is_active FROM users WHERE id = ?");
+    $stmtUpd->execute([$targetId]);
+    $updatedUser = $stmtUpd->fetch();
+
+    jsonResponse(['success' => true, 'message' => "User #{$targetId} registration rejected.", 'user' => $updatedUser, 'is_verified' => -1]);
+}
+
+// 18c-4c. User Resubmit KYC & Registration: POST /api/v1/user/resubmit-kyc
+if ($method === 'POST' && $uri === '/api/v1/user/resubmit-kyc') {
+    $authUser = getAuthUser($pdo);
+    if (!$authUser) {
+        jsonResponse(['message' => 'Unauthorized'], 401);
+    }
+
+    $body = getJsonBody();
+    $chequeFile = isset($body['cheque_file']) ? saveBase64Upload($body['cheque_file'], 'kyc', 'cheque') : null;
+    $panFile    = isset($body['pan_file']) ? saveBase64Upload($body['pan_file'], 'kyc', 'pan') : null;
+    $gstFile    = isset($body['gst_file']) ? saveBase64Upload($body['gst_file'], 'kyc', 'gst') : null;
+
+    $stmt = $pdo->prepare("UPDATE users SET 
+        name = COALESCE(?, name), 
+        company_name = COALESCE(?, company_name), 
+        phone = COALESCE(?, phone), 
+        city = COALESCE(?, city), 
+        state = COALESCE(?, state), 
+        cheque_file = COALESCE(?, cheque_file),
+        pan_file = COALESCE(?, pan_file),
+        gst_file = COALESCE(?, gst_file),
+        is_verified = 0, 
+        is_active = 1 
+    WHERE id = ?");
+    $stmt->execute([
+        $body['name'] ?? null,
+        $body['company_name'] ?? null,
+        $body['phone'] ?? null,
+        $body['city'] ?? null,
+        $body['state'] ?? null,
+        $chequeFile,
+        $panFile,
+        $gstFile,
+        $authUser['id']
+    ]);
+
+    $stmtUser = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmtUser->execute([$authUser['id']]);
+    $freshUser = $stmtUser->fetch();
+    if ($freshUser) {
+        unset($freshUser['password']);
+        $freshUser['is_verified'] = 0;
+        $freshUser['is_active'] = 1;
+    }
+
+    jsonResponse([
+        'success' => true, 
+        'message' => 'Verification details resubmitted successfully! Your account status is now Pending Admin Review.',
+        'user' => $freshUser
+    ]);
 }
 
 // 18c-5. Admin Toggle User Active: PUT /api/v1/admin/users/{id}/toggle-active

@@ -3685,11 +3685,15 @@ export default function AdminDashboard() {
 
                         {/* Status */}
                         <td className="p-3.5">
-                          {u.is_verified && u.is_active ? (
+                          {u.is_verified === -1 || u.is_verified === '-1' ? (
+                            <span className="bg-red-100 text-red-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-300 flex items-center gap-1 w-fit">
+                              <XCircle className="w-3 h-3 text-red-600" /> Rejected
+                            </span>
+                          ) : (u.is_verified === true || u.is_verified === 1 || u.is_verified === '1') && u.is_active ? (
                             <span className="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-emerald-300 flex items-center gap-1 w-fit">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active & Approved
                             </span>
-                          ) : !u.is_verified ? (
+                          ) : (!u.is_verified || u.is_verified === 0 || u.is_verified === '0') && u.is_active ? (
                             <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-amber-300 animate-pulse flex items-center gap-1 w-fit">
                               <Clock className="w-3 h-3 text-amber-700" /> Pending Approval
                             </span>
@@ -3727,8 +3731,8 @@ export default function AdminDashboard() {
                         <td className="p-3 border-l border-slate-100">
                           <div className="grid grid-cols-3 gap-1.5 min-w-[210px]">
 
-                            {/* Slot 1 — Approve (pending) | Revoke (approved non-admin) */}
-                            {!u.is_verified || !u.is_active ? (
+                            {/* Slot 1 — Approve (pending or rejected) | Revoke (approved non-admin) */}
+                            {u.is_verified !== 1 && u.is_verified !== '1' && u.is_verified !== true ? (
                               <button
                                 onClick={() => handleToggleUserApproval(u)}
                                 className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow inline-flex items-center justify-center gap-1 transition-colors"
@@ -3748,8 +3752,12 @@ export default function AdminDashboard() {
                               <span />
                             )}
 
-                            {/* Slot 2 — Reject (pending unverified users) | blank otherwise */}
-                            {!u.is_verified && !isTargetMaster ? (
+                            {/* Slot 2 — Reject (pending unverified users) | Static Rejected badge if already rejected */}
+                            {u.is_verified === -1 || u.is_verified === '-1' ? (
+                              <span className="px-2 py-1.5 bg-red-50 text-red-700 font-extrabold rounded-lg text-[10px] border border-red-200 inline-flex items-center justify-center gap-1 opacity-90 cursor-default" title="Account Registration Rejected">
+                                <XCircle className="w-3.5 h-3.5 text-red-600" /> Rejected
+                              </span>
+                            ) : (!u.is_verified || u.is_verified === 0 || u.is_verified === '0') && !isTargetMaster ? (
                               <button
                                 onClick={() =>
                                   setConfirmActionModal({
@@ -3768,11 +3776,11 @@ export default function AdminDashboard() {
                                     iconType: 'cross',
                                     onConfirm: async () => {
                                       try {
-                                        await api.put(`/admin/users/${u.id}`, { is_verified: false, is_active: false });
+                                        await api.put(`/admin/users/${u.id}`, { is_verified: -1, is_active: false });
                                       } catch {}
                                       setUsers((prev) =>
                                         prev.map((user) =>
-                                          user.id === u.id ? { ...user, is_verified: false, is_active: false } : user
+                                          user.id === u.id ? { ...user, is_verified: -1, is_active: false } : user
                                         )
                                       );
                                       showNotification(`Registration for "${u.name}" rejected.`);

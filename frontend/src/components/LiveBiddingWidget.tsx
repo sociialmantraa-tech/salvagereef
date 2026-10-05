@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { formatTimeOnly } from '../utils/dateUtils';
 import { getEcho } from '../services/echo';
 import api from '../services/api';
-import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck, Scale, FileText } from 'lucide-react';
+import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck, Scale, FileText, XCircle } from 'lucide-react';
 import { Auction, Bid } from '../types';
 import { formatBidderName } from '../utils/formatUtils';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
@@ -52,9 +52,20 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
   // Dynamic shortcut amount multipliers: 1x, 2x, 5x, 10x increment step
   const shortcutMultipliers = [1, 2, 5, 10];
+  const isVerified = user?.is_verified === true || user?.is_verified === 1 || user?.is_verified === '1';
+
   const shortcutAmounts = shortcutMultipliers.map((m) => incrementStep * m);
 
   const handleShortcutClick = (shortcutValue: number) => {
+    if (!isAuthenticated) {
+      setError('Please sign in or register to place a bid.');
+      return;
+    }
+    if (!isVerified) {
+      setError('Account Verification Pending Admin Approval: Bidding authority is restricted until your KYC verification is approved by Admin.');
+      return;
+    }
+
     const currentVal = Number(bidAmount);
     const targetWithStepFromHighest = effectiveHighest + shortcutValue;
 
@@ -267,6 +278,11 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
     if (!isAuthenticated) {
       setError('Please sign in or register to place a bid.');
+      return;
+    }
+
+    if (!isVerified) {
+      setError('Account Verification Pending Admin Approval: Bidding authority is restricted until your KYC verification is approved by Admin.');
       return;
     }
 
@@ -659,6 +675,60 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             >
               Register Account
             </Link>
+          </div>
+        </div>
+      ) : user?.is_verified === -1 || user?.is_verified === '-1' ? (
+        <div className="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300 p-5 rounded-2xl text-center space-y-3 shadow-md">
+          <div className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto shadow">
+            <XCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="bg-red-200 text-red-950 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full inline-block mb-1 border border-red-300">
+              Account Verification Rejected
+            </span>
+            <h4 className="font-extrabold text-slate-900 text-sm">Registration Declined by Admin</h4>
+            <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
+              Your registration application was reviewed and declined by the Admin Team. Please visit your Account Dashboard to update details and Register Again.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <Link
+              to="/dashboard"
+              className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow"
+            >
+              Go to Dashboard & Register Again
+            </Link>
+          </div>
+        </div>
+      ) : !isVerified ? (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 p-5 rounded-2xl text-center space-y-3 shadow-md">
+          <div className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto shadow">
+            <Clock className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <span className="bg-amber-200 text-amber-950 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full inline-block mb-1 border border-amber-300">
+              Account Verification Pending Admin Approval
+            </span>
+            <h4 className="font-extrabold text-slate-900 text-sm">Bidding Disabled Until Admin Approves Account</h4>
+            <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
+              Your submitted company details and KYC documents (PAN, GST, Bank Cheque) are currently being reviewed by our Admin Team. Bidding authority will be unlocked as soon as your account is approved.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <Link
+              to="/dashboard"
+              className="px-5 py-2.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow"
+            >
+              View Account Status
+            </Link>
+            <a
+              href="https://wa.me/919820123456?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs"
+            >
+              Contact Admin Desk
+            </a>
           </div>
         </div>
       ) : isOwner ? (

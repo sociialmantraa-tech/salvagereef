@@ -22,7 +22,7 @@ import {
   Globe,
 } from 'lucide-react';
 import SEOHead from '../components/SEOHead';
-import { compressAndSanitizeImage, isPdfDocument, formatBytes } from '../utils/imageCompressor';
+import { compressAndSanitizeImage, processUploadFile, isPdfDocument, formatBytes } from '../utils/imageCompressor';
 
 export interface CountryConfig {
   code: string;
@@ -374,45 +374,36 @@ export default function Register() {
     }
 
     try {
-      if (file.type.startsWith('image/')) {
-        // Compress & sanitize user image for crisp quality & fast load
-        const result = await compressAndSanitizeImage(file, 1600, 0.85);
-        if (fieldName === 'cheque_file') {
-          setChequeFileName(file.name);
-          setChequeFileSize(result.compressedSizeStr);
-        } else if (fieldName === 'pan_file') {
-          setPanFileName(file.name);
-          setPanFileSize(result.compressedSizeStr);
-        } else if (fieldName === 'gst_file') {
-          setGstFileName(file.name);
-          setGstFileSize(result.compressedSizeStr);
-        }
-        setFormData((prev) => ({ ...prev, [fieldName]: result.dataUrl }));
-      } else {
-        // PDF fallback: convert directly to base64
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (fieldName === 'cheque_file') {
-            setChequeFileName(file.name);
-            setChequeFileSize(formatBytes(file.size));
-          } else if (fieldName === 'pan_file') {
-            setPanFileName(file.name);
-            setPanFileSize(formatBytes(file.size));
-          } else if (fieldName === 'gst_file') {
-            setGstFileName(file.name);
-            setGstFileSize(formatBytes(file.size));
-          }
-          setFormData((prev) => ({ ...prev, [fieldName]: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
+      const result = await processUploadFile(file, 1600, 1600, 0.85);
+      if (fieldName === 'cheque_file') {
+        setChequeFileName(file.name);
+        setChequeFileSize(result.compressedSizeStr);
+      } else if (fieldName === 'pan_file') {
+        setPanFileName(file.name);
+        setPanFileSize(result.compressedSizeStr);
+      } else if (fieldName === 'gst_file') {
+        setGstFileName(file.name);
+        setGstFileSize(result.compressedSizeStr);
       }
+      setFormData((prev) => ({ ...prev, [fieldName]: result.dataUrl }));
       setErrors((prev) => ({ ...prev, [fieldName]: undefined }));
     } catch (err) {
       console.error('File compression error:', err);
       // Fallback
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, [fieldName]: reader.result as string }));
+        const rawData = reader.result as string;
+        if (fieldName === 'cheque_file') {
+          setChequeFileName(file.name);
+          setChequeFileSize(formatBytes(file.size));
+        } else if (fieldName === 'pan_file') {
+          setPanFileName(file.name);
+          setPanFileSize(formatBytes(file.size));
+        } else if (fieldName === 'gst_file') {
+          setGstFileName(file.name);
+          setGstFileSize(formatBytes(file.size));
+        }
+        setFormData((prev) => ({ ...prev, [fieldName]: rawData }));
       };
       reader.readAsDataURL(file);
     }

@@ -221,11 +221,16 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
             >
               View
             </Link>
-            {hasPdf && isAuthenticated && user && (
+            {hasPdf && (
               <button
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
+                  if (!isVerified) {
+                    setShowAuthModal(true);
+                    return;
+                  }
                   try {
                     const safeCode = displayCode || `LOT-${auction.id}`;
                     if (attachedPdfUrl) {

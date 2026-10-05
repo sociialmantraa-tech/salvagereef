@@ -133,6 +133,15 @@ export function compressAndSanitizeImage(
   quality = 0.82
 ): Promise<CompressionResult> {
   return new Promise(async (resolve, reject) => {
+    // Defensive Auto-Correction: If developer accidentally passes quality as 3rd arg (e.g. maxHeight <= 1)
+    if (typeof maxHeight === 'number' && maxHeight > 0 && maxHeight <= 1) {
+      quality = maxHeight;
+      maxHeight = 1200;
+    }
+    if (!maxWidth || maxWidth <= 1) maxWidth = 1200;
+    if (!maxHeight || maxHeight <= 1) maxHeight = 1200;
+    if (!quality || quality <= 0 || quality > 1) quality = 0.82;
+
     // 1. Strict MIME Type Security Check
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type.toLowerCase())) {
@@ -157,19 +166,40 @@ export function compressAndSanitizeImage(
 
     reader.onerror = () => reject(new Error('Failed to read image file.'));
     reader.onload = (event) => {
+      const originalDataUrl = event.target?.result as string;
       const img = new Image();
-      img.onerror = () => reject(new Error('Invalid or corrupted image content.'));
+      img.onerror = () => {
+        // Fallback to original Data URL if Image object fails loading
+        resolve({
+          dataUrl: originalDataUrl,
+          width: 800,
+          height: 600,
+          originalSizeStr: formatBytes(originalSizeBytes),
+          compressedSizeStr: formatBytes(originalSizeBytes),
+          originalSizeBytes,
+          compressedSizeBytes: originalSizeBytes,
+          fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+        });
+      };
+
       img.onload = () => {
         // Calculate new dimensions preserving aspect ratio
         let { width, height } = img;
+        if (width <= 0 || height <= 0) {
+          width = 800;
+          height = 600;
+        }
+
         if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
+          height = Math.max(1, Math.round((height * maxWidth) / width));
           width = maxWidth;
         }
         if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
+          width = Math.max(1, Math.round((width * maxHeight) / height));
           height = maxHeight;
         }
+        width = Math.max(1, width);
+        height = Math.max(1, height);
 
         // Create HTML5 Canvas (Sanitizes hidden metadata & script payloads)
         const canvas = document.createElement('canvas');
@@ -178,7 +208,16 @@ export function compressAndSanitizeImage(
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
-          return reject(new Error('Could not create canvas context.'));
+          return resolve({
+            dataUrl: originalDataUrl,
+            width,
+            height,
+            originalSizeStr: formatBytes(originalSizeBytes),
+            compressedSizeStr: formatBytes(originalSizeBytes),
+            originalSizeBytes,
+            compressedSizeBytes: originalSizeBytes,
+            fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+          });
         }
 
         // Clear canvas background
@@ -195,23 +234,27 @@ export function compressAndSanitizeImage(
         }
 
         // Calculate compressed size
-        const head = 'data:image/webp;base64,';
         const base64Length = dataUrl.length - (dataUrl.indexOf(',') + 1);
         const compressedSizeBytes = Math.round(base64Length * (3 / 4));
+
+        // Safeguard: if canvas produced an empty or corrupted dataUrl (less than 100 bytes), fallback to original dataUrl
+        if (compressedSizeBytes < 100 || !dataUrl.includes('base64,')) {
+          dataUrl = originalDataUrl;
+        }
 
         resolve({
           dataUrl,
           width,
           height,
           originalSizeStr: formatBytes(originalSizeBytes),
-          compressedSizeStr: formatBytes(compressedSizeBytes),
+          compressedSizeStr: formatBytes(compressedSizeBytes > 0 ? compressedSizeBytes : originalSizeBytes),
           originalSizeBytes,
-          compressedSizeBytes,
+          compressedSizeBytes: compressedSizeBytes > 0 ? compressedSizeBytes : originalSizeBytes,
           fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), // Sanitize filename
         });
       };
 
-      img.src = event.target?.result as string;
+      img.src = originalDataUrl;
     };
 
     reader.readAsDataURL(file);

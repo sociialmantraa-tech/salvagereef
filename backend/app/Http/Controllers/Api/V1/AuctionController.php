@@ -92,6 +92,11 @@ class AuctionController extends Controller
         ]);
 
         $user = $request->user();
+        if (empty($user->is_verified) || $user->is_verified == 0 || $user->is_verified === '0') {
+            return response()->json([
+                'message' => 'Account Verification Pending Admin Approval: Bidding authority is restricted until your KYC verification is approved by Admin.'
+            ], 403);
+        }
         $bidAmount = (float) $request->amount;
 
         return DB::transaction(function () use ($id, $user, $bidAmount) {

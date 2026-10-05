@@ -13,6 +13,7 @@ interface AuthState {
   register: (formData: any) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  updateUser: (updatedUser: Partial<User>) => void;
 }
 
 // 7 Days Session Expiry Helper
@@ -311,5 +312,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('salvagereef_token_exp');
       set({ user: null, token: null, isAuthenticated: false });
     }
+  },
+
+  updateUser: (updatedUser: Partial<User>) => {
+    const current = get().user;
+    if (!current) return;
+    const newObj = { ...current, ...updatedUser };
+    localStorage.setItem('salvagereef_user', JSON.stringify(newObj));
+    set({ user: newObj });
   },
 }));

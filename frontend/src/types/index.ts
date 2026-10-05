@@ -20,7 +20,7 @@ export interface User {
   gst_file?: string | null;
   city?: string | null;
   state?: string | null;
-  is_verified?: boolean;
+  is_verified?: boolean | number;
   is_active?: boolean;
 }
 

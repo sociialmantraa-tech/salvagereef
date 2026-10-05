@@ -232,52 +232,56 @@ const totalAssets = fs.existsSync(deployAssets) ? fs.readdirSync(deployAssets).l
 log('Generating ZIP packages...');
 
 try {
-  // Full upload ZIP (includes everything)
   const fullZipName = 'salvagereef_FULL_UPLOAD.zip';
   const fullZipPath = path.join(ROOT, fullZipName);
-  
-  // Remove old zips
-  [fullZipPath, path.join(ROOT, 'deploy_hosting', fullZipName)].forEach(f => {
-    if (fs.existsSync(f)) fs.unlinkSync(f);
-  });
-
-  // Create ZIP using PowerShell Compress-Archive
-  execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '.\\\\deploy_hosting\\\\public_html\\\\*' -DestinationPath '.\\\\${fullZipName}' -Force"`,
-    { cwd: ROOT, stdio: 'pipe' }
-  );
-  
-  const zipSize = (fs.statSync(fullZipPath).size / 1024).toFixed(1);
-  success(`Created ${fullZipName} (${zipSize} KB)`);
-
-  // Also copy to deploy_hosting/
-  fs.copyFileSync(fullZipPath, path.join(ROOT, 'deploy_hosting', fullZipName));
-  
-  // Update-safe ZIP (excludes database.sqlite so existing data is preserved)
   const updateZipName = 'salvagereef_UPDATE_SAFE_NO_DATABASE.zip';
   const updateZipPath = path.join(ROOT, updateZipName);
-  if (fs.existsSync(updateZipPath)) fs.unlinkSync(updateZipPath);
+
+  // Remove old zips
+  [
+    fullZipPath,
+    updateZipPath,
+    path.join(ROOT, 'deploy_hosting', fullZipName),
+    path.join(ROOT, 'deploy_hosting', updateZipName),
+  ].forEach(f => {
+    if (fs.existsSync(f)) {
+      try { fs.unlinkSync(f); } catch {}
+    }
+  });
+
+  // 1. Create salvagereef_FULL_UPLOAD.zip
+  const psFullCmd = `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*', '.\\deploy_hosting\\public_html\\.htaccess' -DestinationPath '.\\${fullZipName}' -Force"`;
+  execSync(psFullCmd, { cwd: ROOT, stdio: 'pipe' });
   
-  // Temporarily move database.sqlite outside deploy tree so it is completely excluded
+  if (fs.existsSync(fullZipPath)) {
+    const zipSize = (fs.statSync(fullZipPath).size / 1024).toFixed(1);
+    success(`Created ${fullZipName} (${zipSize} KB)`);
+    fs.copyFileSync(fullZipPath, path.join(ROOT, 'deploy_hosting', fullZipName));
+  }
+
+  // 2. Create salvagereef_UPDATE_SAFE_NO_DATABASE.zip (excludes database.sqlite)
   const dbFile = path.join(DEPLOY_BACKEND, 'database', 'database.sqlite');
   const dbTempMove = path.join(ROOT, 'temp_db_backup.sqlite');
   const hadDb = fs.existsSync(dbFile);
   if (hadDb) fs.renameSync(dbFile, dbTempMove);
-  
+
   try {
-    execSync(
-      `powershell -NoProfile -Command "Compress-Archive -Path '.\\\\deploy_hosting\\\\public_html\\\\*' -DestinationPath '.\\\\${updateZipName}' -Force"`,
-      { cwd: ROOT, stdio: 'pipe' }
-    );
-    const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);
-    success(`Created ${updateZipName} (${updateZipSize} KB)`);
+    const psUpdateCmd = `powershell -NoProfile -Command "Compress-Archive -Path '.\\deploy_hosting\\public_html\\*', '.\\deploy_hosting\\public_html\\.htaccess' -DestinationPath '.\\${updateZipName}' -Force"`;
+    execSync(psUpdateCmd, { cwd: ROOT, stdio: 'pipe' });
+
+    if (fs.existsSync(updateZipPath)) {
+      const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);
+      success(`Created ${updateZipName} (${updateZipSize} KB)`);
+      fs.copyFileSync(updateZipPath, path.join(ROOT, 'deploy_hosting', updateZipName));
+    }
   } finally {
-    if (hadDb && fs.existsSync(dbTempMove)) fs.renameSync(dbTempMove, dbFile);
+    if (hadDb && fs.existsSync(dbTempMove)) {
+      fs.renameSync(dbTempMove, dbFile);
+    }
   }
 
 } catch (zipErr) {
-  warn(`ZIP creation failed: ${zipErr.message}`);
-  warn('You can manually zip the deploy_hosting/public_html/ folder');
+  warn(`ZIP creation message: ${zipErr.message}`);
 }
 
 // ============================================================================

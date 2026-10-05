@@ -37,6 +37,8 @@ export default function PostListing() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submittedData, setSubmittedData] = useState<any | null>(null);
 
+  const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
+
   // Access Restriction: Open for EVERY registered user after login!
   if (!isAuthenticated) {
     return (
@@ -55,6 +57,40 @@ export default function PostListing() {
           <Link to="/register" className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs shadow transition-all">
             Register Free Account
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-gradient-to-br from-amber-50 to-orange-50/40 rounded-3xl border border-amber-300 shadow-xl text-center space-y-4">
+        <div className="w-16 h-16 bg-amber-100 text-[#D48B1C] rounded-2xl flex items-center justify-center mx-auto shadow-inner ring-4 ring-amber-200">
+          <Lock className="w-8 h-8 text-[#D48B1C]" />
+        </div>
+        <span className="bg-amber-200 text-amber-950 font-black text-[10px] uppercase px-3 py-1 rounded-full inline-block border border-amber-300">
+          Account Verification Pending Admin Approval
+        </span>
+        <h2 className="text-2xl font-extrabold text-slate-900">Posting Restricted Until Account Verification</h2>
+        <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-md mx-auto">
+          Your submitted profile details and KYC documents (PAN, GST, Bank Cheque) are currently under review by our Admin Team. Authority to post scrap listings will be activated immediately once Admin approves your account.
+        </p>
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center items-center">
+          <Link
+            to="/dashboard"
+            className="px-6 py-3 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-2"
+          >
+            <span>Go to Buyer Dashboard</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <a
+            href="https://wa.me/919820123456?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2"
+          >
+            <span>Contact Admin Desk</span>
+          </a>
         </div>
       </div>
     );

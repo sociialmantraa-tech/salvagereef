@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <rect width="800" height="500" rx="20" fill="#F8FAFC" stroke="#94A3B8" stroke-width="4"/>
+  <rect x="40" y="40" width="720" height="70" rx="10" fill="#0B192C"/>
+  <text x="60" y="85" font-family="Arial, sans-serif" font-size="22" font-weight="900" fill="#FFFFFF">INCOME TAX DEPARTMENT - GOVT OF INDIA</text>
+  <text x="740" y="85" font-family="Arial, sans-serif" font-size="18" font-weight="900" fill="#D48B1C" text-anchor="end">PERMANENT ACCOUNT CARD</text>
+  <text x="60" y="160" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#64748B">NAME / NAME OF APPLICANT</text>
+  <text x="60" y="190" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#0F172A">SALVAGEREEF VERIFIED PARTNER</text>
+  <text x="60" y="240" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#64748B">PERMANENT ACCOUNT NUMBER (PAN)</text>
+  <text x="60" y="275" font-family="Courier, monospace" font-size="32" font-weight="900" fill="#D48B1C">ABCDE1234F</text>
+  <rect x="580" y="150" width="160" height="200" rx="12" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="660" y="255" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#94A3B8" text-anchor="middle">OFFICIAL PAN COPY</text>
+</svg>

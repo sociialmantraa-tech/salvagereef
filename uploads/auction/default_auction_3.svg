@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bgGrad3)"/>
+  <rect x="50" y="50" width="700" height="500" rx="24" fill="none" stroke="#D48B1C" stroke-width="4" stroke-opacity="0.4"/>
+  <rect x="320" y="180" width="160" height="110" rx="16" fill="none" stroke="#D48B1C" stroke-width="5"/>
+  <circle cx="400" cy="235" r="30" fill="none" stroke="#E2E8F0" stroke-width="4"/>
+  <text x="400" y="380" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">USED 50 HP KIRLOSKAR DIESEL GENERATOR</text>
+  <text x="400" y="420" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#D48B1C" text-anchor="middle" letter-spacing="1">SOUNDPROOF CANOPY - VERIFIED AUCTION LOT</text>
+</svg>

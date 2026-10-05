@@ -68,6 +68,8 @@ export default function ClassifiedDetail() {
   const [activeImage, setActiveImage] = useState(0);
   const currentImg = images[activeImage] || images[0];
 
+  const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       <SEOHead
@@ -122,7 +124,7 @@ export default function ClassifiedDetail() {
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                     <button
                       onClick={() => {
-                        if (!isAuthenticated || !user) {
+                        if (!isVerified) {
                           setAuthModalType('document');
                           setShowAuthModal(true);
                           return;
@@ -133,7 +135,7 @@ export default function ClassifiedDetail() {
                     >
                       <ExternalLink className="w-4 h-4" /> Open Full PDF Document
                     </button>
-                    {isAuthenticated && user && (
+                    {isVerified && (
                       <button
                         onClick={() => {
                           const link = document.createElement('a');
@@ -242,12 +244,26 @@ export default function ClassifiedDetail() {
           <div className="space-y-3">
             <a
               href={`tel:${classified.creator?.phone || '7304481166'}`}
+              onClick={(e) => {
+                if (!isVerified) {
+                  e.preventDefault();
+                  setAuthModalType('general');
+                  setShowAuthModal(true);
+                }
+              }}
               className="w-full py-3 bg-[#D48B1C] hover:bg-[#B87514] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow"
             >
               <Phone className="w-4 h-4" /> Call Seller ({classified.creator?.phone || '7304481166'})
             </a>
             <a
               href={`mailto:${classified.creator?.email || 'salvagereef@gmail.com'}`}
+              onClick={(e) => {
+                if (!isVerified) {
+                  e.preventDefault();
+                  setAuthModalType('general');
+                  setShowAuthModal(true);
+                }
+              }}
               className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-700"
             >
               <Mail className="w-4 h-4 text-[#D48B1C]" /> Email Direct Inquiry

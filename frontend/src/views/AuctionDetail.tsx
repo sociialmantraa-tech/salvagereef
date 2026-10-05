@@ -168,9 +168,11 @@ export default function AuctionDetail() {
     ? nonPdfImages
     : ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
 
+  const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
+
   const handleDownloadPdf = async () => {
     if (!auction) return;
-    if (!isAuthenticated || !user) {
+    if (!isVerified) {
       setAuthModalType('pdf');
       setShowAuthModal(true);
       return;
@@ -196,7 +198,7 @@ export default function AuctionDetail() {
 
   const handleDownloadImages = async () => {
     if (!auction || !images.length) return;
-    if (!isAuthenticated || !user) {
+    if (!isVerified) {
       setAuthModalType('images');
       setShowAuthModal(true);
       return;
@@ -213,7 +215,7 @@ export default function AuctionDetail() {
   };
 
   const handleOpenAttachedPdf = (e: React.MouseEvent) => {
-    if (!isAuthenticated || !user) {
+    if (!isVerified) {
       e.preventDefault();
       setAuthModalType('document');
       setShowAuthModal(true);
@@ -225,7 +227,7 @@ export default function AuctionDetail() {
   };
 
   const handleDownloadSinglePhoto = (imgUrl: string, idx: number) => {
-    if (!isAuthenticated || !user) {
+    if (!isVerified) {
       setAuthModalType('images');
       setShowAuthModal(true);
       return;
@@ -270,8 +272,8 @@ export default function AuctionDetail() {
           <span className="text-slate-900 font-semibold truncate max-w-xs">{auction.title}</span>
         </nav>
 
-        {/* Global Download Actions - Only shown when user is logged in */}
-        {isAuthenticated && user && (
+        {/* Global Download Actions - Only shown when user is verified */}
+        {isVerified && (
           <div className="flex items-center gap-2 flex-wrap">
             {hasPdf && (
               <button
@@ -324,8 +326,8 @@ export default function AuctionDetail() {
                 }}
                 className="w-full h-full object-cover transition-transform duration-300"
               />
-              {/* Floating Action Controls on Image - Only when user is logged in */}
-              {isAuthenticated && user && (
+              {/* Floating Action Controls on Image - Only when user is verified */}
+              {isVerified && (
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleDownloadSinglePhoto(images[activeImage], activeImage)}
@@ -414,7 +416,7 @@ export default function AuctionDetail() {
                     <ExternalLink className="w-3.5 h-3.5" /> View
                   </button>
                 )}
-                {isAuthenticated && user && (
+                {isVerified && (
                   <button
                     onClick={handleDownloadPdf}
                     disabled={generatingPdf}
@@ -529,8 +531,8 @@ export default function AuctionDetail() {
               </div>
             </div>
 
-            {/* OFFICIAL LOT DOCUMENTS & MEDIA CENTER - Only shown when user is logged in */}
-            {isAuthenticated && user && (
+            {/* OFFICIAL LOT DOCUMENTS & MEDIA CENTER - Only shown when user is verified */}
+            {isVerified && (
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-[#0B192C] text-white rounded-2xl p-5 space-y-4 border border-slate-700 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 pb-3">
                   <div className="flex items-center gap-2.5">
