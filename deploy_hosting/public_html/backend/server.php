@@ -952,7 +952,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                 $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM auctions WHERE id = ?");
                 $checkStmt->execute([$auc['id']]);
                 if ((int)$checkStmt->fetchColumn() === 0) {
-                    $ins = $pdo->prepare("INSERT INTO auctions (id, title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, emd_amount, location_city, location_state, start_time, end_time, created_by, winner_confirmed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)");
+                    $ins = $pdo->prepare("INSERT INTO `auctions` (`id`, `title`, `slug`, `description`, `condition`, `category_id`, `auction_type`, `status`, `quantity`, `unit`, `starting_price`, `current_highest_bid`, `bid_increment`, `emd_amount`, `location_city`, `location_state`, `start_time`, `end_time`, `created_by`, `winner_confirmed`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)");
                     $ins->execute([
                         $auc['id'], $auc['title'], $auc['slug'], $auc['description'], $auc['condition'],
                         $auc['category_id'], $auc['auction_type'], $auc['status'], $auc['quantity'],
@@ -2307,35 +2307,35 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     try {
         if (!empty($body['id'])) {
             $auctionId = (int)$body['id'];
-            $chk = $pdo->prepare("SELECT COUNT(*) FROM auctions WHERE id = ?");
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM `auctions` WHERE `id` = ?");
             $chk->execute([$auctionId]);
             $exists = (int)$chk->fetchColumn() > 0;
 
             if ($exists) {
-                $stmtUpd = $pdo->prepare("UPDATE auctions SET title = ?, description = ?, condition = ?, category_id = ?, auction_type = ?, status = ?, quantity = ?, unit = ?, starting_price = ?, emd_amount = ?, bid_increment = ?, location_city = ?, location_state = ?, start_time = ?, end_time = ?, pdf_url = COALESCE(?, pdf_url), updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmtUpd = $pdo->prepare("UPDATE `auctions` SET `title` = ?, `description` = ?, `condition` = ?, `category_id` = ?, `auction_type` = ?, `status` = ?, `quantity` = ?, `unit` = ?, `starting_price` = ?, `emd_amount` = ?, `bid_increment` = ?, `location_city` = ?, `location_state` = ?, `start_time` = ?, `end_time` = ?, `pdf_url` = COALESCE(?, `pdf_url`), `updated_at` = CURRENT_TIMESTAMP WHERE `id` = ?");
                 $stmtUpd->execute([$title, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $pdfUrl, $auctionId]);
                 $newId = $auctionId;
             } else {
-                $insStmt = $pdo->prepare("INSERT INTO auctions (id, title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, current_highest_bid, bid_increment, emd_amount, location_city, location_state, start_time, end_time, created_by, winner_confirmed, pdf_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+                $insStmt = $pdo->prepare("INSERT INTO `auctions` (`id`, `title`, `slug`, `description`, `condition`, `category_id`, `auction_type`, `status`, `quantity`, `unit`, `starting_price`, `current_highest_bid`, `bid_increment`, `emd_amount`, `location_city`, `location_state`, `start_time`, `end_time`, `created_by`, `winner_confirmed`, `pdf_url`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
                 $insStmt->execute([$auctionId, $title, $slug, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $startingPrice, $bidIncrement, $emdAmount, $locationCity, $locationState, $startTime, $endTime, $creatorId, $pdfUrl]);
                 $newId = $auctionId;
             }
         } else {
-            $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, condition, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, current_highest_bid, bid_increment, location_city, location_state, start_time, end_time, created_by, pdf_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+            $stmt = $pdo->prepare("INSERT INTO `auctions` (`title`, `slug`, `description`, `condition`, `category_id`, `auction_type`, `status`, `quantity`, `unit`, `starting_price`, `emd_amount`, `current_highest_bid`, `bid_increment`, `location_city`, `location_state`, `start_time`, `end_time`, `created_by`, `pdf_url`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
             $stmt->execute([$title, $slug, $description, $condition, $catId, $auctionType, $status, $quantity, $unit, $startingPrice, $emdAmount, $startingPrice, $bidIncrement, $locationCity, $locationState, $startTime, $endTime, $creatorId, $pdfUrl]);
             $newId = (int)$pdo->lastInsertId();
         }
 
         if (!empty($imagesList) && $newId > 0) {
             try {
-                $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$newId]);
+                $pdo->prepare("DELETE FROM `auction_images` WHERE `auction_id` = ?")->execute([$newId]);
                 foreach ($imagesList as $imgItem) {
                     $imgPath = $imgItem['path'];
                     if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
                         $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
                         if (!empty($savedPath)) $imgPath = $savedPath;
                     }
-                    $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
+                    $pdo->prepare("INSERT INTO `auction_images` (`auction_id`, `image_path`, `is_primary`) VALUES (?, ?, ?)")
                         ->execute([$newId, $imgPath, $imgItem['primary']]);
                 }
             } catch (\Throwable $e) {}
@@ -2363,17 +2363,17 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     foreach ($allowed as $f) {
         if ($f === 'pdf_url') {
             if ($pdfUrlFromEdit !== null) {
-                $fields[] = "$f = ?";
+                $fields[] = "`$f` = ?";
                 $params[] = $pdfUrlFromEdit;
             }
         } elseif (isset($body[$f])) {
-            $fields[] = "$f = ?";
+            $fields[] = "`$f` = ?";
             $params[] = $body[$f];
         }
     }
     if (!empty($fields)) {
         $params[] = $auctionId;
-        $pdo->prepare("UPDATE auctions SET " . implode(', ', $fields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute($params);
+        $pdo->prepare("UPDATE `auctions` SET " . implode(', ', $fields) . ", `updated_at` = CURRENT_TIMESTAMP WHERE `id` = ?")->execute($params);
     }
 
     $imagesList = [];
