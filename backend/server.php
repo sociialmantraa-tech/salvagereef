@@ -1577,7 +1577,7 @@ function getAuthUser(PDO $pdo): ?array {
             if ($u) return $u;
         } catch (Exception $e) {}
         return [
-            'id' => 3,
+            'id' => 1,
             'name' => 'Master Admin',
             'email' => 'admin@salvagereef.com',
             'role' => 'master_admin',
@@ -1588,13 +1588,13 @@ function getAuthUser(PDO $pdo): ?array {
 
     if ($token === 'sr_exec_admin_token') {
         try {
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE role = 'desk_admin' ORDER BY id ASC LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE role IN ('desk_admin', 'executive_admin', 'admin') ORDER BY id ASC LIMIT 1");
             $stmt->execute();
             $u = $stmt->fetch();
             if ($u) return $u;
         } catch (Exception $e) {}
         return [
-            'id' => 6,
+            'id' => 1,
             'name' => 'SalvageReef Executive Desk Admin',
             'email' => 'executive@salvagereef.com',
             'role' => 'desk_admin',
@@ -2297,8 +2297,13 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
             try {
                 $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
                 foreach ($imagesList as $imgItem) {
+                    $imgPath = $imgItem['path'];
+                    if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
+                        $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
+                        if (!empty($savedPath)) $imgPath = $savedPath;
+                    }
                     $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                        ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
+                        ->execute([$auctionId, $imgPath, $imgItem['primary']]);
                 }
             } catch (\Throwable $e) {}
         }
@@ -2331,8 +2336,13 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
 
     foreach ($imagesList as $imgItem) {
         try {
+            $imgPath = $imgItem['path'];
+            if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/pdf')) {
+                $savedPath = saveBase64Upload($imgPath, 'auctions', 'auc');
+                if (!empty($savedPath)) $imgPath = $savedPath;
+            }
             $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                ->execute([$newId, $imgItem['path'], $imgItem['primary']]);
+                ->execute([$newId, $imgPath, $imgItem['primary']]);
         } catch (\Throwable $e) {}
     }
 
@@ -3924,6 +3934,19 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
     $startingPrice = (float)$body['starting_price'];
     $quantity = !empty($body['quantity']) ? (float)$body['quantity'] : 1;
 
+    // Validate created_by user ID exists in users table to satisfy foreign key constraints
+    $creatorId = (int)($user['id'] ?? 1);
+    try {
+        $chkUser = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+        $chkUser->execute([$creatorId]);
+        if ((int)$chkUser->fetchColumn() === 0) {
+            $firstUser = (int)$pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchColumn();
+            $creatorId = $firstUser > 0 ? $firstUser : 1;
+        }
+    } catch (\Throwable $e) {
+        $creatorId = 1;
+    }
+
     $stmt = $pdo->prepare("INSERT INTO auctions (title, slug, description, category_id, auction_type, status, quantity, unit, starting_price, emd_amount, bid_increment, current_highest_bid, start_time, end_time, location_city, location_state, is_group, created_by, pdf_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $body['title'],
@@ -3943,7 +3966,7 @@ if ($method === 'POST' && $uri === '/api/v1/admin/auctions') {
         $body['location_city'] ?? 'Mumbai',
         $body['location_state'] ?? 'Maharashtra',
         !empty($body['is_group']) ? 1 : 0,
-        $user['id'],
+        $creatorId,
         $pdfUrl
     ]);
 
