@@ -148,15 +148,43 @@ export default function AuctionDetail() {
     );
   }
 
-  // Official Tender / Specification PDF Document
-  const attachedPdfUrl =
-    auction.pdf_url ||
-    auction.pdf_document ||
-    (auction as any).attachment_url ||
-    auction.images?.find((img) => isPdfDocument(img.image_path))?.image_path ||
-    (isPdfDocument((auction as any).image_url) ? (auction as any).image_url : null);
+  // Official Tender / Specification PDF Documents (Multiple supported)
+  const attachedPdfUrls: string[] = (() => {
+    const list: string[] = [];
+    const add = (url?: string | null) => {
+      if (!url) return;
+      const clean = String(url).trim();
+      if (clean && !list.includes(clean)) list.push(clean);
+    };
 
-  const hasPdf = Boolean(attachedPdfUrl);
+    if (auction.pdf_urls && Array.isArray(auction.pdf_urls)) {
+      auction.pdf_urls.forEach(add);
+    }
+    if (auction.pdf_url) {
+      try {
+        const parsed = JSON.parse(auction.pdf_url);
+        if (Array.isArray(parsed)) parsed.forEach(add);
+        else add(auction.pdf_url);
+      } catch {
+        add(auction.pdf_url);
+      }
+    }
+    add(auction.pdf_document);
+    add((auction as any).attachment_url);
+    if (auction.images && Array.isArray(auction.images)) {
+      auction.images.forEach((img) => {
+        const path = typeof img === 'string' ? img : img.image_path;
+        if (path && isPdfDocument(path)) add(path);
+      });
+    }
+    if ((auction as any).image_url && isPdfDocument((auction as any).image_url)) {
+      add((auction as any).image_url);
+    }
+    return list;
+  })();
+
+  const attachedPdfUrl = attachedPdfUrls[0] || null;
+  const hasPdf = attachedPdfUrls.length > 0;
 
   // Gallery Photos (JPG, WebP, PNG only - PDF documents excluded from photo slider)
   const rawImagePaths = auction.images && auction.images.length > 0
@@ -170,7 +198,7 @@ export default function AuctionDetail() {
 
   const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async (specificUrl?: string, docIndex?: number) => {
     if (!auction) return;
     if (!isVerified) {
       setAuthModalType('pdf');
@@ -181,8 +209,10 @@ export default function AuctionDetail() {
     setPdfSuccess(false);
     try {
       const lotCode = (auction as any).lot_code || `LOT-${auction.id}`;
-      if (attachedPdfUrl) {
-        await downloadSingleImage(attachedPdfUrl, `${lotCode}_tender_document.pdf`);
+      const targetUrl = specificUrl || attachedPdfUrl;
+      if (targetUrl) {
+        const suffix = typeof docIndex === 'number' ? `_doc_${docIndex + 1}` : '_tender_document';
+        await downloadSingleImage(targetUrl, `${lotCode}${suffix}.pdf`);
       } else {
         await downloadAuctionPdf(auction);
       }
@@ -390,15 +420,15 @@ export default function AuctionDetail() {
 
           {/* Dedicated Official Tender PDF Document Box (Shown ONLY when PDF is uploaded) */}
           {hasPdf && (
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 rounded-3xl border border-slate-700/80 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 rounded-3xl border border-emerald-900/60 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-lg shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shrink-0">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded">
-                      Official Tender PDF
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded">
+                      Official Tender PDF{attachedPdfUrls.length > 1 ? `s (${attachedPdfUrls.length})` : ''}
                     </span>
                     <span className="text-xs font-semibold text-slate-300">Tender Document & Material Specifications</span>
                   </div>
@@ -408,22 +438,22 @@ export default function AuctionDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                {attachedPdfUrl && (
+                {attachedPdfUrls.length > 0 && (
                   <button
                     onClick={handleOpenAttachedPdf}
                     className="flex-1 sm:flex-initial px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl border border-slate-600 transition-all flex items-center justify-center gap-1.5"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" /> View
+                    <ExternalLink className="w-3.5 h-3.5" /> View {attachedPdfUrls.length > 1 ? `(${attachedPdfUrls.length})` : 'PDF'}
                   </button>
                 )}
                 {isVerified && (
                   <button
                     onClick={handleDownloadPdf}
                     disabled={generatingPdf}
-                    className="flex-1 sm:flex-initial px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                    className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                   >
                     {generatingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    <span>Download PDF</span>
+                    <span>Download Dossier</span>
                   </button>
                 )}
               </div>
@@ -536,24 +566,71 @@ export default function AuctionDetail() {
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-[#0B192C] text-white rounded-2xl p-5 space-y-4 border border-slate-700 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-white text-sm uppercase tracking-wider">
                         Official Lot Documents & Media
                       </h3>
-                      <p className="text-[11px] text-slate-300 font-medium">Download Specifications, Pricing & Photos</p>
+                      <p className="text-[11px] text-slate-300 font-medium">Download Specifications, Official Tender PDFs & Photos</p>
                     </div>
                   </div>
+                  {attachedPdfUrls.length > 0 && (
+                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> {attachedPdfUrls.length} Attached PDF{attachedPdfUrls.length > 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
+
+                {/* If multiple PDFs attached, list each distinct PDF document for 1-click download */}
+                {attachedPdfUrls.length > 1 && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-extrabold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                      📄 Attached Tender & Inspection PDF Documents ({attachedPdfUrls.length}):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {attachedPdfUrls.map((pdfPath, pIdx) => {
+                        const rawName = pdfPath.split('/').pop() || `document_${pIdx + 1}.pdf`;
+                        const displayName = rawName.length > 32 ? rawName.slice(0, 30) + '...' : rawName;
+                        return (
+                          <div
+                            key={pIdx}
+                            className="p-3 bg-slate-800/90 hover:bg-slate-800 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-2 transition-all shadow-xs"
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <div className="w-7 h-7 rounded-lg bg-emerald-600/30 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="truncate">
+                                <span className="text-xs font-bold text-white block truncate" title={rawName}>
+                                  Document #{pIdx + 1}
+                                </span>
+                                <span className="text-[10px] text-slate-400 truncate block">
+                                  {displayName}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdf(pdfPath, pIdx)}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 active:scale-95 shadow-xs"
+                            >
+                              <Download className="w-3 h-3" /> Download
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Action 1: Download Complete PDF Dossier */}
                   <button
-                    onClick={handleDownloadPdf}
+                    onClick={() => handleDownloadPdf()}
                     disabled={generatingPdf}
-                    className="p-3.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white rounded-xl font-extrabold text-xs shadow-lg transition-all flex items-center justify-between group active:scale-95 disabled:opacity-50"
+                    className="p-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl font-extrabold text-xs shadow-lg transition-all flex items-center justify-between group active:scale-95 disabled:opacity-50"
                   >
                     <div className="flex items-center gap-2.5 text-left">
                       {generatingPdf ? (
@@ -561,13 +638,13 @@ export default function AuctionDetail() {
                       ) : pdfSuccess ? (
                         <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
                       ) : (
-                        <FileText className="w-5 h-5 text-red-200 shrink-0 group-hover:scale-110 transition-transform" />
+                        <FileText className="w-5 h-5 text-emerald-200 shrink-0 group-hover:scale-110 transition-transform" />
                       )}
                       <div>
                         <span className="block text-white font-bold leading-tight">
-                          {generatingPdf ? 'Generating PDF...' : pdfSuccess ? 'PDF Downloaded!' : 'Download Lot PDF Dossier'}
+                          {generatingPdf ? 'Generating PDF...' : pdfSuccess ? 'PDF Downloaded!' : (attachedPdfUrls.length === 1 ? 'Download Tender PDF Document' : 'Download Lot PDF Dossier')}
                         </span>
-                        <span className="text-[10px] text-red-200 font-normal">Full Specs, Pricing & Photos</span>
+                        <span className="text-[10px] text-emerald-200 font-normal">Full Specs, Pricing & Photos</span>
                       </div>
                     </div>
                     <Download className="w-4 h-4 text-white/80 shrink-0 ml-2" />
@@ -597,7 +674,7 @@ export default function AuctionDetail() {
                 </div>
 
                 <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-slate-700/60">
-                  📄 The generated PDF is an official specification document containing complete commercial terms, reserve pricing, EMD requirements, physical yard location, and verified visual inspection photographs.
+                  📄 The official tender document and generated PDF contains complete commercial terms, reserve pricing, EMD requirements, physical yard location, and verified visual inspection photographs.
                 </p>
               </div>
             )}

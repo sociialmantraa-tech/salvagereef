@@ -575,11 +575,16 @@ export default function AdminDashboard() {
     const combinedTitle = code ? `${code} | ${rawTitle}` : rawTitle;
 
     let finalImageUrl = editingAuction.image_url;
-    let finalPdfUrl = editingAuction.pdf_url;
+    let finalPdfUrls: string[] = Array.isArray(editingAuction.pdf_urls) ? [...editingAuction.pdf_urls] : [];
+    if (editingAuction.pdf_url && !finalPdfUrls.includes(editingAuction.pdf_url)) {
+      finalPdfUrls.unshift(editingAuction.pdf_url);
+    }
     if (isPdfDocument(finalImageUrl)) {
-      if (!finalPdfUrl) finalPdfUrl = finalImageUrl;
+      if (!finalPdfUrls.includes(finalImageUrl)) finalPdfUrls.push(finalImageUrl);
       finalImageUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
     }
+    finalPdfUrls = finalPdfUrls.filter(Boolean);
+    const finalPdfUrl = finalPdfUrls[0] || null;
 
     // Resolve category ID if category is name string
     let resolvedCatId = editingAuction.category_id;
@@ -603,7 +608,8 @@ export default function AdminDashboard() {
       image_url: finalImageUrl,
       images: [{ id: Date.now(), image_path: finalImageUrl, is_primary: true }],
       primary_image: { image_path: finalImageUrl },
-      pdf_url: finalPdfUrl || null,
+      pdf_url: finalPdfUrl,
+      pdf_urls: finalPdfUrls,
       status: selectedStatus,
     };
 
@@ -798,13 +804,13 @@ export default function AdminDashboard() {
     fileName: string;
     sizeStr: string;
   }>>([]);
-  const [lotPdfFile, setLotPdfFile] = useState<{
+  const [lotPdfFiles, setLotPdfFiles] = useState<Array<{
     id: string;
     file?: File;
     dataUrl: string;
     fileName: string;
     sizeStr: string;
-  } | null>(null);
+  }>>([]);
   const [compressingLot, setCompressingLot] = useState<boolean>(false);
   const [processingLotPdf, setProcessingLotPdf] = useState<boolean>(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
@@ -1968,27 +1974,29 @@ export default function AdminDashboard() {
         uploadedLotUrls.push('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80');
       }
 
-      // ── Upload official tender PDF document (for download only) ─────────────
-      let uploadedPdfUrl: string | null = null;
-      if (lotPdfFile) {
-        if (lotPdfFile.file) {
+      // ── Upload official tender PDF documents (Multiple supported) ─────────────
+      const uploadedPdfUrls: string[] = [];
+      for (const pdfItem of lotPdfFiles) {
+        if (pdfItem.file) {
           try {
             const formData = new FormData();
-            formData.append('file', lotPdfFile.file);
+            formData.append('file', pdfItem.file);
             formData.append('type', 'auction_document');
             const uploadRes = await uploadFile('/admin/upload', formData);
             if (uploadRes?.url) {
-              uploadedPdfUrl = uploadRes.url;
-            } else if (lotPdfFile.dataUrl) {
-              uploadedPdfUrl = lotPdfFile.dataUrl;
+              uploadedPdfUrls.push(uploadRes.url);
+            } else if (pdfItem.dataUrl) {
+              uploadedPdfUrls.push(pdfItem.dataUrl);
             }
           } catch {
-            uploadedPdfUrl = lotPdfFile.dataUrl;
+            if (pdfItem.dataUrl) uploadedPdfUrls.push(pdfItem.dataUrl);
           }
-        } else if (lotPdfFile.dataUrl) {
-          uploadedPdfUrl = lotPdfFile.dataUrl;
+        } else if (pdfItem.dataUrl) {
+          uploadedPdfUrls.push(pdfItem.dataUrl);
         }
       }
+
+      const uploadedPdfUrl = uploadedPdfUrls[0] || null;
 
       const finalImageUrl = uploadedLotUrls[0];
       const finalImagesList = uploadedLotUrls.map((url, idx) => ({
@@ -2021,13 +2029,14 @@ export default function AdminDashboard() {
         image_url: finalImageUrl,
         images: uploadedLotUrls,
         pdf_url: uploadedPdfUrl,
+        pdf_urls: uploadedPdfUrls,
       };
 
       try {
         const res = await api.post('/admin/auctions', payload);
         const resData = res.data?.data || res.data;
         if (res.status === 200 || res.status === 201) {
-          showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s)${uploadedPdfUrl ? ' and official Tender PDF' : ''} published successfully!`);
+          showNotification(`✓ Auction Lot [${finalLotCode}] "${productTitle}" with ${uploadedLotUrls.length} image(s)${uploadedPdfUrls.length > 0 ? ` and ${uploadedPdfUrls.length} Official PDF Document(s)` : ''} published successfully!`);
         } else {
           throw new Error(resData?.message || 'Server error creating auction');
         }
@@ -2045,13 +2054,13 @@ export default function AdminDashboard() {
       setProductDescription('');
       setProductCondition('As is where is basis - Grade A commercial condition');
       setProductEmdAmount('50000');
-      setProductStartTime(getLocalDateTimeString(new Date()));
-      setProductEndTime(getFutureDateTimeString(7, 18, 0));
+      setProductStartTime(toLocalInputString(new Date()));
+      setProductEndTime(toLocalInputString(new Date(Date.now() + 7 * 86400000)));
       setCustomCategoryName('');
       setCustomProductState('');
       setCustomProductCity('');
       setLotFiles([]);
-      setLotPdfFile(null);
+      setLotPdfFiles([]);
       setActiveTab('auctions');
     } finally {
       setSubmittingProduct(false);
@@ -4418,94 +4427,104 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Section 2: Dedicated Official Tender / Inspection PDF Document (Download Only) */}
+                  {/* Section 2: Dedicated Official Tender / Inspection PDF Documents (Download Only - Multiple Supported) */}
                   <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-slate-800 space-y-3 shadow-md">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                       <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-red-400" />
+                        <FileText className="w-4 h-4 text-emerald-400" />
                         <h4 className="text-xs font-bold text-slate-100">
-                          Official Tender / Inspection PDF Document (Optional - Download Only)
+                          Official Tender / Inspection PDF Documents (Optional - Multiple Supported)
                         </h4>
                       </div>
-                      <span className="text-[10px] text-red-400 bg-red-950/80 px-2 py-0.5 rounded border border-red-800/60 font-mono font-bold">
-                        PDF ONLY
+                      <span className="text-[10px] text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/60 font-mono font-bold">
+                        {lotPdfFiles.length > 0 ? `${lotPdfFiles.length} PDF(S) ATTACHED` : 'PDF ONLY'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400 font-medium">
-                      Upload the official tender notice, weight sheet, or material inspection report. When uploaded, a download button will be shown on the auction card and detail page.
+                      Upload official tender notices, weight sheets, or material inspection reports. Multiple PDF documents can be attached and downloaded by buyers on the auction page.
                     </p>
 
-                    {lotPdfFile ? (
-                      <div className="bg-slate-800/90 border border-slate-700 p-3.5 rounded-xl flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 truncate">
-                          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow">
-                            <FileText className="w-5 h-5" />
+                    {lotPdfFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {lotPdfFiles.map((pdf, idx) => (
+                          <div key={pdf.id || idx} className="bg-slate-800/90 border border-emerald-900/40 p-3 rounded-xl flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 truncate">
+                              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="truncate">
+                                <span className="text-xs font-bold text-white block truncate" title={pdf.fileName}>
+                                  {pdf.fileName}
+                                </span>
+                                <span className="text-[10px] text-emerald-400 font-mono">
+                                  Document #{idx + 1} &bull; {pdf.sizeStr}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <a
+                                href={pdf.dataUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-lg border border-slate-600 transition-colors"
+                              >
+                                Preview ↗
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => setLotPdfFiles((prev) => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 bg-slate-700 hover:bg-rose-600 text-slate-300 hover:text-white rounded-lg transition-colors"
+                                title="Remove PDF Document"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="truncate">
-                            <span className="text-xs font-bold text-white block truncate" title={lotPdfFile.fileName}>
-                              {lotPdfFile.fileName}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              PDF Document &bull; {lotPdfFile.sizeStr}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <a
-                            href={lotPdfFile.dataUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-lg border border-slate-600 transition-colors"
-                          >
-                            Preview ↗
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => setLotPdfFile(null)}
-                            className="p-1.5 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white rounded-lg transition-colors"
-                            title="Remove PDF Document"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ) : (
-                      <label className="border-2 border-dashed border-slate-700 hover:border-red-500 bg-slate-950/60 hover:bg-red-950/20 rounded-xl p-4 text-center transition-all cursor-pointer flex flex-col items-center justify-center space-y-1">
-                        <div className="w-9 h-9 bg-red-900/40 text-red-400 rounded-xl flex items-center justify-center shadow-inner">
-                          {processingLotPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                        </div>
-                        <div className="text-xs font-bold text-slate-200">
-                          {processingLotPdf ? 'Processing PDF Document...' : 'Click to Upload Official Tender Document (PDF)'}
-                        </div>
-                        <p className="text-[10px] text-slate-400">
-                          Accepts .pdf files up to 25MB. PDF is strictly for download, never shown as front image.
-                        </p>
-                        <input
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            setProcessingLotPdf(true);
-                            try {
+                    )}
+
+                    <label className="border-2 border-dashed border-emerald-900/60 hover:border-emerald-500 bg-slate-950/60 hover:bg-emerald-950/20 rounded-xl p-4 text-center transition-all cursor-pointer flex flex-col items-center justify-center space-y-1">
+                      <div className="w-9 h-9 bg-emerald-900/40 text-emerald-400 rounded-xl flex items-center justify-center shadow-inner">
+                        {processingLotPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                      </div>
+                      <div className="text-xs font-bold text-slate-200">
+                        {processingLotPdf ? 'Processing PDF Document(s)...' : (lotPdfFiles.length > 0 ? '+ Upload Another PDF Document (PDF)' : 'Click to Upload Official Tender / Inspection PDF(s)')}
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Accepts multiple .pdf files up to 25MB each. PDFs are strictly for download.
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length === 0) return;
+                          setProcessingLotPdf(true);
+                          try {
+                            const newItems = [];
+                            for (const file of files) {
                               const res = await processUploadFile(file);
-                              setLotPdfFile({
-                                id: `pdf-${Date.now()}`,
+                              newItems.push({
+                                id: `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                                 file,
                                 dataUrl: res.dataUrl,
                                 fileName: res.fileName,
                                 sizeStr: res.compressedSizeStr,
                               });
-                            } catch (err: any) {
-                              alert(err.message || 'Failed to upload PDF');
-                            } finally {
-                              setProcessingLotPdf(false);
                             }
-                          }}
-                        />
-                      </label>
-                    )}
+                            setLotPdfFiles((prev) => [...prev, ...newItems]);
+                          } catch (err: any) {
+                            alert(err.message || 'Failed to upload PDF');
+                          } finally {
+                            setProcessingLotPdf(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -5633,11 +5652,25 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => {
                                   const categoryVal = typeof auc.category === 'object' && auc.category ? auc.category.name : (auc.category_name || auc.category || '');
+                                  let existingPdfs: string[] = [];
+                                  if (Array.isArray(auc.pdf_urls) && auc.pdf_urls.length > 0) {
+                                    existingPdfs = auc.pdf_urls;
+                                  } else if (auc.pdf_url) {
+                                    try {
+                                      const parsed = JSON.parse(auc.pdf_url);
+                                      if (Array.isArray(parsed)) existingPdfs = parsed;
+                                      else existingPdfs = [auc.pdf_url];
+                                    } catch {
+                                      existingPdfs = [auc.pdf_url];
+                                    }
+                                  }
                                   setEditingAuction({
                                     ...auc,
                                     category: categoryVal,
                                     start_time: auc.start_time ? toDbDateTimeString(auc.start_time) : '',
                                     end_time: auc.end_time ? toDbDateTimeString(auc.end_time) : '',
+                                    pdf_urls: existingPdfs,
+                                    pdf_url: existingPdfs[0] || null,
                                   });
                                 }}
                                 className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition-all active:scale-95 shrink-0 border border-slate-700 shadow-sm"
@@ -8695,82 +8728,123 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Right Column: Official Tender PDF Document (Download Only) */}
+                  {/* Right Column: Official Tender PDF Documents (Download Only - Multiple Supported) */}
                   <div className="space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
                     <div className="flex items-center justify-between">
                       <label className="block text-slate-200 font-bold text-xs flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-red-400" /> Official Tender PDF Document (Download Only)
+                        <FileText className="w-3.5 h-3.5 text-emerald-400" /> Official Tender PDF Documents (Multiple)
                       </label>
-                      <span className="text-[9px] bg-red-950 text-red-300 font-bold px-1.5 py-0.5 rounded border border-red-800">
-                        PDF Download
+                      <span className="text-[9px] bg-emerald-950 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-800">
+                        {(() => {
+                          const currentPdfs = Array.isArray(editingAuction.pdf_urls) && editingAuction.pdf_urls.length > 0
+                            ? editingAuction.pdf_urls
+                            : (editingAuction.pdf_url ? [editingAuction.pdf_url] : []);
+                          return currentPdfs.length > 0 ? `${currentPdfs.length} Attached` : 'PDF Download';
+                        })()}
                       </span>
                     </div>
 
-                    {/* Check if PDF is currently attached */}
+                    {/* Check and display list of attached PDFs */}
                     {(() => {
-                      const currentPdf = editingAuction.pdf_url || (isPdfDocument(editingAuction.image_url) ? editingAuction.image_url : null);
-                      if (currentPdf) {
+                      let currentPdfs: string[] = [];
+                      if (Array.isArray(editingAuction.pdf_urls) && editingAuction.pdf_urls.length > 0) {
+                        currentPdfs = editingAuction.pdf_urls;
+                      } else if (editingAuction.pdf_url) {
+                        try {
+                          const parsed = JSON.parse(editingAuction.pdf_url);
+                          if (Array.isArray(parsed)) currentPdfs = parsed;
+                          else currentPdfs = [editingAuction.pdf_url];
+                        } catch {
+                          currentPdfs = [editingAuction.pdf_url];
+                        }
+                      } else if (isPdfDocument(editingAuction.image_url)) {
+                        currentPdfs = [editingAuction.image_url];
+                      }
+
+                      if (currentPdfs.length > 0) {
                         return (
-                          <div className="bg-slate-900 border border-red-900/60 p-3 rounded-xl space-y-2">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shadow shrink-0">
-                                <FileText className="w-4 h-4" />
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {currentPdfs.map((pdfUrl, idx) => (
+                              <div key={idx} className="bg-slate-900 border border-emerald-900/60 p-2.5 rounded-xl space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow shrink-0">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="truncate flex-1 min-w-0">
+                                    <span className="text-xs font-bold text-slate-200 block truncate" title={pdfUrl}>
+                                      Tender PDF #{idx + 1}
+                                    </span>
+                                    <span className="text-[10px] text-emerald-400 font-mono block truncate">
+                                      {pdfUrl.startsWith('data:') ? 'Base64 Uploaded File' : pdfUrl.split('/').pop()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  <a
+                                    href={pdfUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2.5 py-1 bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-colors"
+                                  >
+                                    Preview ↗
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedList = currentPdfs.filter((_, i) => i !== idx);
+                                      const updated = {
+                                        ...editingAuction,
+                                        pdf_urls: updatedList,
+                                        pdf_url: updatedList[0] || null,
+                                      };
+                                      if (isPdfDocument(updated.image_url) && updatedList.length === 0) {
+                                        updated.image_url = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                                      }
+                                      setEditingAuction(updated);
+                                    }}
+                                    className="px-2.5 py-1 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded-lg text-[10px] font-bold border border-slate-700 transition-colors"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
                               </div>
-                              <div className="truncate">
-                                <span className="text-xs font-bold text-slate-200 block truncate">
-                                  Tender Document Attached
-                                </span>
-                                <span className="text-[10px] text-red-400 font-mono">
-                                  Official PDF &bull; Download Enabled
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 pt-1">
-                              <a
-                                href={currentPdf}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1 bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white rounded-lg text-[10px] font-bold border border-red-500/40 transition-colors"
-                              >
-                                Preview PDF ↗
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = { ...editingAuction, pdf_url: null };
-                                  if (isPdfDocument(updated.image_url)) {
-                                    updated.image_url = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-                                  }
-                                  setEditingAuction(updated);
-                                }}
-                                className="px-3 py-1 bg-slate-800 hover:bg-red-900/50 text-slate-300 hover:text-red-300 rounded-lg text-[10px] font-bold border border-slate-700 transition-colors"
-                              >
-                                Remove PDF Document
-                              </button>
-                            </div>
+                            ))}
                           </div>
                         );
                       }
                       return (
                         <div className="text-[11px] text-slate-400 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                          ℹ️ No PDF uploaded yet. The PDF download button will only be shown to buyers once an official PDF document is attached.
+                          ℹ️ No PDF uploaded yet. The PDF download button will only be shown to buyers once official PDF documents are attached.
                         </div>
                       );
                     })()}
 
                     <div>
                       <label className="block text-slate-300 font-bold mb-1 text-xs">
-                        {editingAuction.pdf_url || isPdfDocument(editingAuction.image_url) ? 'Replace PDF Document:' : 'Upload Official Tender Document (PDF):'}
+                        + Attach More / Replace PDF Document(s):
                       </label>
                       <input
                         type="file"
+                        multiple
                         accept="application/pdf,.pdf"
                         onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) {
                             try {
-                              const res = await processUploadFile(file);
-                              const updated = { ...editingAuction, pdf_url: res.dataUrl };
+                              const newUrls: string[] = [];
+                              for (const file of files) {
+                                const res = await processUploadFile(file);
+                                newUrls.push(res.dataUrl);
+                              }
+                              const existingList: string[] = Array.isArray(editingAuction.pdf_urls)
+                                ? [...editingAuction.pdf_urls]
+                                : (editingAuction.pdf_url ? [editingAuction.pdf_url] : []);
+                              const merged = [...existingList, ...newUrls];
+                              const updated = {
+                                ...editingAuction,
+                                pdf_urls: merged,
+                                pdf_url: merged[0] || null,
+                              };
                               if (isPdfDocument(updated.image_url)) {
                                 updated.image_url = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
                               }
@@ -8779,8 +8853,9 @@ export default function AdminDashboard() {
                               alert(err.message || 'PDF upload failed');
                             }
                           }
+                          e.target.value = '';
                         }}
-                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer"
+                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
                       />
                     </div>
                   </div>

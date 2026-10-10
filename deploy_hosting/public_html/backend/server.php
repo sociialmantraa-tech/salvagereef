@@ -2160,13 +2160,22 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
     foreach ($items as &$item) {
         $rawImgs = $imgsByAuction[$item['id']] ?? (!empty($item['primary_image_url']) ? [['image_path' => $item['primary_image_url'], 'is_primary' => 1]] : []);
         $cleanImages = [];
-        $detectedPdf = !empty($item['pdf_url']) ? $item['pdf_url'] : null;
+        $detectedPdfs = [];
+        $rawPdf = !empty($item['pdf_url']) ? $item['pdf_url'] : null;
+        if (!empty($rawPdf)) {
+            $dec = json_decode($rawPdf, true);
+            if (is_array($dec)) {
+                $detectedPdfs = array_values(array_filter($dec));
+            } else {
+                $detectedPdfs = [$rawPdf];
+            }
+        }
 
         foreach ($rawImgs as $row) {
             $path = is_array($row) ? ($row['image_path'] ?? '') : (string)$row;
             if (preg_match('/\.pdf($|\?)/i', $path)) {
-                if (empty($detectedPdf)) {
-                    $detectedPdf = $path;
+                if (!in_array($path, $detectedPdfs)) {
+                    $detectedPdfs[] = $path;
                 }
             } else {
                 $cleanImages[] = $row;
@@ -2175,8 +2184,8 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
 
         $primaryImg = $item['primary_image_url'] ?? null;
         if (!empty($primaryImg) && preg_match('/\.pdf($|\?)/i', $primaryImg)) {
-            if (empty($detectedPdf)) {
-                $detectedPdf = $primaryImg;
+            if (!in_array($primaryImg, $detectedPdfs)) {
+                $detectedPdfs[] = $primaryImg;
             }
             $primaryImg = null;
         }
@@ -2192,8 +2201,9 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
             }
         }
 
-        $item['pdf_url'] = $detectedPdf;
-        $item['pdf_document'] = $detectedPdf;
+        $item['pdf_urls'] = $detectedPdfs;
+        $item['pdf_url'] = !empty($detectedPdfs[0]) ? $detectedPdfs[0] : null;
+        $item['pdf_document'] = $item['pdf_url'];
         $item['primary_image_url'] = $primaryImg;
         $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
         $item['images'] = $cleanImages;
@@ -2209,7 +2219,25 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     $user = getAuthUser($pdo);
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    $pdfUrl = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+    $collectedPdfUrls = [];
+    if (!empty($body['pdf_urls']) && is_array($body['pdf_urls'])) {
+        foreach ($body['pdf_urls'] as $p) {
+            if (!empty($p) && is_string($p)) $collectedPdfUrls[] = trim($p);
+        }
+    }
+    if (empty($collectedPdfUrls) && !empty($body['pdf_url'])) {
+        $dec = json_decode($body['pdf_url'], true);
+        if (is_array($dec)) {
+            $collectedPdfUrls = array_values(array_filter($dec));
+        } else {
+            $collectedPdfUrls[] = trim($body['pdf_url']);
+        }
+    }
+    if (empty($collectedPdfUrls) && !empty($body['pdf_document'])) {
+        $collectedPdfUrls[] = trim($body['pdf_document']);
+    }
+
+    $pdfUrl = !empty($collectedPdfUrls) ? (count($collectedPdfUrls) === 1 ? $collectedPdfUrls[0] : json_encode($collectedPdfUrls)) : null;
 
     $imagesList = [];
     if (!empty($body['images']) && is_array($body['images'])) {
@@ -2217,7 +2245,10 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
             $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
             if ($path) {
                 if (preg_match('/\.pdf($|\?)/i', $path)) {
-                    if (empty($pdfUrl)) $pdfUrl = $path;
+                    if (!in_array($path, $collectedPdfUrls)) {
+                        $collectedPdfUrls[] = $path;
+                        $pdfUrl = count($collectedPdfUrls) === 1 ? $collectedPdfUrls[0] : json_encode($collectedPdfUrls);
+                    }
                 } else {
                     $imagesList[] = ['path' => $path, 'primary' => ($idx === 0 ? 1 : 0)];
                 }
@@ -2228,7 +2259,10 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
         $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
         if ($single) {
             if (preg_match('/\.pdf($|\?)/i', $single)) {
-                if (empty($pdfUrl)) $pdfUrl = $single;
+                if (!in_array($single, $collectedPdfUrls)) {
+                    $collectedPdfUrls[] = $single;
+                    $pdfUrl = count($collectedPdfUrls) === 1 ? $collectedPdfUrls[0] : json_encode($collectedPdfUrls);
+                }
             } else {
                 $imagesList[] = ['path' => $single, 'primary' => 1];
             }
@@ -2356,7 +2390,25 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     $auctionId = (int)$m[2];
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    $pdfUrlFromEdit = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+    $collectedEditPdfs = [];
+    if (isset($body['pdf_urls']) && is_array($body['pdf_urls'])) {
+        foreach ($body['pdf_urls'] as $p) {
+            if (!empty($p) && is_string($p)) $collectedEditPdfs[] = trim($p);
+        }
+        $pdfUrlFromEdit = !empty($collectedEditPdfs) ? (count($collectedEditPdfs) === 1 ? $collectedEditPdfs[0] : json_encode($collectedEditPdfs)) : null;
+    } elseif (!empty($body['pdf_url'])) {
+        $dec = json_decode($body['pdf_url'], true);
+        if (is_array($dec)) {
+            $collectedEditPdfs = array_values(array_filter($dec));
+            $pdfUrlFromEdit = !empty($collectedEditPdfs) ? (count($collectedEditPdfs) === 1 ? $collectedEditPdfs[0] : json_encode($collectedEditPdfs)) : null;
+        } else {
+            $pdfUrlFromEdit = trim($body['pdf_url']);
+        }
+    } elseif (!empty($body['pdf_document'])) {
+        $pdfUrlFromEdit = trim($body['pdf_document']);
+    } else {
+        $pdfUrlFromEdit = null;
+    }
 
     // Resolve category ID if passed as category object or string name
     if (!empty($body['category'])) {
@@ -2391,7 +2443,7 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     $allowed = ['title', 'description', 'condition', 'category_id', 'auction_type', 'status', 'quantity', 'unit', 'starting_price', 'emd_amount', 'current_highest_bid', 'bid_increment', 'location_city', 'location_state', 'start_time', 'end_time', 'winner_confirmed', 'pdf_url'];
     foreach ($allowed as $f) {
         if ($f === 'pdf_url') {
-            if ($pdfUrlFromEdit !== null) {
+            if ($pdfUrlFromEdit !== null || array_key_exists('pdf_url', $body) || array_key_exists('pdf_urls', $body)) {
                 $fields[] = "`$f` = ?";
                 $params[] = $pdfUrlFromEdit;
             }
@@ -2789,11 +2841,22 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $stmtImg->execute([$auction['id']]);
     $rawImgs = $stmtImg->fetchAll();
     $cleanImgs = [];
-    $detectedPdf = !empty($auction['pdf_url']) ? $auction['pdf_url'] : null;
+    $detectedPdfs = [];
+    $rawPdf = !empty($auction['pdf_url']) ? $auction['pdf_url'] : null;
+    if (!empty($rawPdf)) {
+        $dec = json_decode($rawPdf, true);
+        if (is_array($dec)) {
+            $detectedPdfs = array_values(array_filter($dec));
+        } else {
+            $detectedPdfs = [$rawPdf];
+        }
+    }
     foreach ($rawImgs as $img) {
         $path = $img['image_path'] ?? '';
         if (preg_match('/\.pdf($|\?)/i', $path)) {
-            if (empty($detectedPdf)) $detectedPdf = $path;
+            if (!in_array($path, $detectedPdfs)) {
+                $detectedPdfs[] = $path;
+            }
         } else {
             $cleanImgs[] = $img;
         }
@@ -2809,8 +2872,9 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $auction['images'] = $cleanImgs;
     $auction['primary_image_url'] = $cleanImgs[0]['image_path'] ?? 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80';
     $auction['primary_image'] = ['image_path' => $auction['primary_image_url']];
-    $auction['pdf_url'] = $detectedPdf;
-    $auction['pdf_document'] = $detectedPdf;
+    $auction['pdf_urls'] = $detectedPdfs;
+    $auction['pdf_url'] = !empty($detectedPdfs[0]) ? $detectedPdfs[0] : null;
+    $auction['pdf_document'] = $auction['pdf_url'];
 
     // Fetch ONLY APPROVED bids for public display
     $stmtBids = $pdo->prepare("SELECT b.*, u.name as bidder_name FROM bids b JOIN users u ON b.user_id = u.id WHERE b.auction_id = ? AND b.status = 'approved' ORDER BY b.amount DESC LIMIT 10");

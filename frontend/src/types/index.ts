@@ -87,6 +87,7 @@ export interface Auction {
   images?: AuctionImage[];
   primary_image?: AuctionImage;
   pdf_url?: string | null;
+  pdf_urls?: string[];
   pdf_document?: string | null;
   bids?: Bid[];
   creator?: User;
