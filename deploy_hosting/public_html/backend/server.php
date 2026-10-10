@@ -1644,6 +1644,11 @@ function isAdminUser(?array $user): bool {
         || ($user['email'] ?? '') === 'admin@salvagereef.com';
 }
 
+function isMasterAdmin(?array $user): bool {
+    if (!$user) return false;
+    return ($user['role'] ?? '') === 'master_admin' || strtolower($user['email'] ?? '') === 'admin@salvagereef.com';
+}
+
 // ─── GLOBAL RATE LIMIT CHECK (every request) ─────────────────────────────────
 enforceGlobalRateLimit($pdo);
 

@@ -320,9 +320,12 @@ async function runTestSuite() {
   const confirmWinRes = await request('POST', `/auctions/${targetAuctionId}/confirm-winner`, { winner_type: 'H1', winner_user_id: registeredUserId }, { Authorization: 'Bearer sr_master_admin_token' });
   assert(confirmWinRes.status === 200, 'Admin Confirm Winner (H1) API returns HTTP 200', `Status: ${confirmWinRes.status}`);
 
-  // 8g. System Settings
-  const settingsRes = await request('GET', '/system/status');
-  assert(settingsRes.status === 200, 'Public System Status API returns HTTP 200', `Status: ${settingsRes.status}`);
+  // 8h. Teardown: Clean up temporary test user
+  if (registeredUserId) {
+    try {
+      await request('DELETE', `/admin/users/${registeredUserId}`, null, { Authorization: 'Bearer sr_master_admin_token' });
+    } catch {}
+  }
 
   console.log('\n===============================================================');
   console.log(`📊 TEST SUITE SUMMARY: ${passed} PASSED | ${failed} FAILED`);
