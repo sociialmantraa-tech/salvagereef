@@ -279,6 +279,40 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 
 ---
 
+### Protocol L: Multi-PDF Tender Documents & Website Emerald Theme Consistency
+1. **Multi-PDF Upload in Admin Panel:**
+   - In **Client A (Admin)** -> **Add Auction Lot**:
+     - Attach multiple `.pdf` specification documents (tender notice, weight sheet, material lab inspection report).
+     - Verify: The upload dropzone and document list render with website **Emerald (`#059669`) / Navy Slate (`#0B192C`) / Amber (`#D48B1C`)** theme styling with **ZERO red colors**.
+     - Verify: Attached document list displays document count, individual filenames, size badges, preview (`↗`) links, and individual remove (`✕`) buttons.
+   - Click **"Publish Auction Lot Now"**.
+2. **Multi-PDF Download on Public Auction Detail Page:**
+   - In **Client B (Logged-in Bidder)**, navigate to the newly published auction `/auctions/:slug`:
+     - Verify: Top notification banner uses website Emerald theme (no red buttons).
+     - Verify: Under *"Official Lot Documents & Media"*, every attached PDF document is rendered in the download grid with a 1-click download button.
+     - Verify: *"Download Lot PDF Dossier"* button uses brand emerald gradient (`from-emerald-600 to-teal-700`).
+3. **Multi-PDF Management in Edit Auction Modal:**
+   - In **Client A (Admin)**, click **"Edit"** on an existing auction:
+     - Verify: Existing attached PDFs are listed with Preview and Remove options.
+     - Verify: Admin can attach additional PDFs using the multi-file selector.
+
+---
+
+### Protocol M: Auction Edit Datetime Persistence in IST & Manual Status Close Option
+1. **IST Datetime Integrity on Edit:**
+   - In **Client A (Admin)**, open an active auction in the Edit Auction modal.
+   - Verify: Start time and End time input fields display exact Indian Standard Time (`Asia/Kolkata` UTC+5:30) values without any -5.5-hour timezone degradation.
+   - Adjust the title or starting price and click **"Save Auction Changes Live"**.
+   - Verify: The auction remains active/live and does NOT prematurely close due to timezone shifting.
+2. **Explicit Manual Close Control:**
+   - In the Edit Auction modal, select **Status: "⛔ Closed / Bidding Ended"** (or click the quick `⛔ Close Auction` action button).
+   - Save changes.
+   - Verify on **Client B (Bidder)** and **Client E (Guest)**:
+     - The auction status badge instantly updates to **CLOSED**.
+     - Bidding form is disabled with a clear notification: *"Bidding has concluded for this auction lot."*
+
+---
+
 ## 3. Comprehensive Test Cases & Verification Matrix
 
 | Test ID | Module / Feature | Step-by-Step Action | Expected Output | Status |
@@ -322,23 +356,28 @@ To validate that SalvageReef operates with 100% real-time consistency and cross-
 | **TC-37** | MySQL Live Connection & Fallback | Live server connects to MySQL `scrab` with graceful SQLite fallback | All queries execute via MySQL; if server disconnects, seamless SQLite fallback prevents 500 error | **PASS (100%)** |
 | **TC-38** | Apache PATH_INFO & SPA Deep Link | Direct refresh on `/auctions`, `/register`, `/admin` and `/backend/server.php/api/v1/*` | Apache handles `AcceptPathInfo On`; SPA routes load `index.html` without 404 | **PASS (100%)** |
 | **TC-39** | Real-Time Scrap Ticker Sync | Admin updates scrap rates in settings; public homepage ticker checked | Live prices (HMS, Copper, Aluminium, Brass) update dynamically with % delta | **PASS (100%)** |
+| **TC-40** | Multi-PDF Tender Upload & Zero Red Theme | Upload multiple PDFs in Add/Edit auction forms; verify styling | Multiple PDFs uploaded; emerald theme applied with ZERO red styling | **PASS (100%)** |
+| **TC-41** | Public Multi-PDF Download Grid | Buyer views auction with multiple attached PDFs on `/auctions/:slug` | All attached PDFs listed with 1-click preview and download buttons | **PASS (100%)** |
+| **TC-42** | Auction Edit IST Datetime Integrity | Admin edits auction; verify start/end time in IST format | No 5.5-hour timezone shift occurs; auction remains active and open for bidding | **PASS (100%)** |
+| **TC-43** | Manual Auction Close Option in Edit Modal | Admin selects `⛔ Closed / Bidding Ended` in Edit Modal and saves | Auction status transitions to `closed`; bidding form disabled across all browsers | **PASS (100%)** |
 
 ---
 
 ## 4. How to Execute Automated Test Suite
 
-To run the automated backend test suite at any time, execute:
+To run the automated backend test suite against the live website at any time, execute:
 
 ```powershell
-node test_full_system.js
+node test_full_system.js --live
 ```
 
-### Expected Suite Summary:
+### Live Suite Result:
 ```
 ===============================================================
-📊 TEST SUITE SUMMARY: 39 PASSED | 0 FAILED
+📊 TEST SUITE SUMMARY: 46 PASSED | 0 FAILED
 ===============================================================
 🎉 ALL TESTS COMPLETED WITH 100% SUCCESS!
 ```
+
 
 
