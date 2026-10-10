@@ -71,3 +71,98 @@ export const formatTimeOnly = (dateInput?: string | number | Date | null): strin
     return String(dateInput);
   }
 };
+
+/**
+ * Safely parse any date input (MySQL string, ISO string, or Date) as Indian Standard Time (IST UTC+5:30)
+ */
+export const parseIstDate = (dateInput?: string | number | Date | null): Date => {
+  if (!dateInput) return new Date();
+  if (dateInput instanceof Date) return dateInput;
+  let str = String(dateInput).trim();
+  if (!str) return new Date();
+
+  // If already contains timezone (Z or +HH:mm), parse directly
+  if (/Z|[+-]\d{2}:\d{2}$/.test(str)) {
+    return new Date(str);
+  }
+
+  // SQLite / MySQL 'YYYY-MM-DD HH:mm:ss' or 'YYYY-MM-DD HH:mm'
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+    str = str.replace(' ', 'T') + (str.length === 16 ? ':00' : '') + '+05:30';
+    return new Date(str);
+  }
+
+  // ISO without timezone 'YYYY-MM-DDTHH:mm:ss' or 'YYYY-MM-DDTHH:mm'
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+    str = str + (str.length === 16 ? ':00' : '') + '+05:30';
+    return new Date(str);
+  }
+
+  return new Date(str);
+};
+
+/**
+ * Convert any date input into 'YYYY-MM-DDTHH:mm' string for HTML datetime-local input fields in IST
+ */
+export const toLocalInputString = (dateInput?: string | number | Date | null): string => {
+  if (!dateInput) return '';
+  const d = parseIstDate(dateInput);
+  if (isNaN(d.getTime())) return '';
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const map: Record<string, string> = {};
+  parts.forEach((p) => {
+    map[p.type] = p.value;
+  });
+
+  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
+};
+
+/**
+ * Convert any date or datetime-local input string into MySQL 'YYYY-MM-DD HH:mm:ss' format in IST
+ */
+export const toDbDateTimeString = (dateInput?: string | number | Date | null): string => {
+  if (!dateInput) return '';
+  const str = String(dateInput).trim();
+
+  // If already standard datetime-local 'YYYY-MM-DDTHH:mm'
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(str)) {
+    return `${str.replace('T', ' ')}:00`;
+  }
+
+  // If already standard MySQL string 'YYYY-MM-DD HH:mm:ss'
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/.test(str)) {
+    return str;
+  }
+
+  const d = parseIstDate(dateInput);
+  if (isNaN(d.getTime())) return '';
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const map: Record<string, string> = {};
+  parts.forEach((p) => {
+    map[p.type] = p.value;
+  });
+
+  return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+};
+

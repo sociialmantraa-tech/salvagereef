@@ -876,11 +876,12 @@ function ensureActiveContentAutoSeeded($pdo) {
         $plus7DaysIso = date('Y-m-d H:i:s', strtotime('+7 days'));
         $minus1HourIso = date('Y-m-d H:i:s', strtotime('-1 hour'));
 
-        // Step 1: Auto-renew unawarded auctions whose end_time has passed
+        // Step 1: Auto-renew unawarded open live auctions whose end_time has passed
         $stmtRenew = $pdo->prepare("UPDATE auctions 
                     SET status = 'live', 
                         end_time = ? 
-                    WHERE (winner_confirmed IS NULL OR winner_confirmed = 0) 
+                    WHERE status = 'live'
+                      AND (winner_confirmed IS NULL OR winner_confirmed = 0) 
                       AND (end_time IS NULL OR end_time < ?)");
         $stmtRenew->execute([$plus7DaysIso, $nowIso]);
 
@@ -2356,6 +2357,34 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
     $pdfUrlFromEdit = !empty($body['pdf_url']) ? trim($body['pdf_url']) : (!empty($body['pdf_document']) ? trim($body['pdf_document']) : null);
+
+    // Resolve category ID if passed as category object or string name
+    if (!empty($body['category'])) {
+        if (is_array($body['category']) && !empty($body['category']['id'])) {
+            $body['category_id'] = (int)$body['category']['id'];
+        } elseif (is_string($body['category']) && !is_numeric($body['category'])) {
+            $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE LOWER(name) = ? OR LOWER(slug) = ? LIMIT 1");
+            $stmtCat->execute([strtolower(trim($body['category'])), strtolower(trim($body['category']))]);
+            $foundCatId = $stmtCat->fetchColumn();
+            if ($foundCatId) {
+                $body['category_id'] = (int)$foundCatId;
+            }
+        }
+    }
+
+    // Normalize start_time and end_time to IST Y-m-d H:i:s
+    if (!empty($body['start_time'])) {
+        $ts = strtotime($body['start_time']);
+        if ($ts !== false) {
+            $body['start_time'] = date('Y-m-d H:i:s', $ts);
+        }
+    }
+    if (!empty($body['end_time'])) {
+        $ts = strtotime($body['end_time']);
+        if ($ts !== false) {
+            $body['end_time'] = date('Y-m-d H:i:s', $ts);
+        }
+    }
 
     $fields = [];
     $params = [];

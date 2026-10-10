@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { formatTimeOnly } from '../utils/dateUtils';
+import { formatTimeOnly, parseIstDate } from '../utils/dateUtils';
 import { getEcho } from '../services/echo';
 import api from '../services/api';
 import { Gavel, Clock, Trophy, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Lock, ShieldCheck, Scale, FileText, XCircle } from 'lucide-react';
@@ -147,13 +147,12 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     if (!auction?.end_time) return;
 
     const calculateTime = () => {
-      const end = new Date(auction.end_time!).getTime();
-      const now = new Date().getTime();
+      const end = parseIstDate(auction.end_time).getTime();
+      const now = Date.now();
       const diff = end - now;
 
       if (diff <= 0) {
         setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isClosed: true });
-        setAuction((prev) => ({ ...prev, status: 'closed' }));
         return;
       }
 

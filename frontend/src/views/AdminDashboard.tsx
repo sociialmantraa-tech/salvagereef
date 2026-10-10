@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
-import { formatDateTime } from '../utils/dateUtils';
+import { formatDateTime, toLocalInputString, toDbDateTimeString, parseIstDate } from '../utils/dateUtils';
 import { getUserEffectiveDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
 import { 
   Gavel, 
@@ -546,39 +546,15 @@ export default function AdminDashboard() {
   // Edit Auction Modal State & Handler
   const [editingAuction, setEditingAuction] = useState<any | null>(null);
 
-  // Helper to format Date for datetime-local input (YYYY-MM-DDTHH:mm)
-  const getLocalDateTimeString = (d: Date = new Date()) => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
-  const getFutureDateTimeString = (daysAhead = 7, hour = 18, minute = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
-    d.setHours(hour, minute, 0, 0);
-    return getLocalDateTimeString(d);
-  };
-
-  const formatForDateTimeLocal = (dateStr?: string | null) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return getLocalDateTimeString(d);
-    } catch {
-      return '';
-    }
-  };
-
   const extendEditingAuctionEndTime = (addMinutes: number) => {
     if (!editingAuction) return;
-    const currentEnd = editingAuction.end_time ? new Date(editingAuction.end_time).getTime() : Date.now();
+    const currentEnd = editingAuction.end_time ? parseIstDate(editingAuction.end_time).getTime() : Date.now();
     const baseTime = currentEnd > Date.now() ? currentEnd : Date.now();
-    const newEndTime = new Date(baseTime + addMinutes * 60 * 1000).toISOString();
+    const newEndTime = toDbDateTimeString(new Date(baseTime + addMinutes * 60 * 1000));
     setEditingAuction({
       ...editingAuction,
       end_time: newEndTime,
-      status: (editingAuction.status === 'closed' || editingAuction.status === 'completed') ? 'live' : editingAuction.status,
+      status: (editingAuction.status === 'completed' || editingAuction.status === 'cancelled') ? 'live' : editingAuction.status,
     });
   };
 
@@ -587,14 +563,12 @@ export default function AdminDashboard() {
     if (!editingAuction) return;
 
     const resolvedStartTime = editingAuction.start_time
-      ? new Date(editingAuction.start_time).toISOString()
-      : new Date().toISOString();
+      ? toDbDateTimeString(editingAuction.start_time)
+      : toDbDateTimeString(new Date());
 
     const resolvedEndTime = editingAuction.end_time
-      ? new Date(editingAuction.end_time).toISOString()
-      : new Date(Date.now() + 7 * 86400000).toISOString();
-
-    const isEndTimeInFuture = new Date(resolvedEndTime).getTime() > Date.now();
+      ? toDbDateTimeString(editingAuction.end_time)
+      : toDbDateTimeString(new Date(Date.now() + 7 * 86400000));
 
     const code = editingAuction.lot_code ? editingAuction.lot_code.trim() : (editingAuction.title?.includes('|') ? editingAuction.title.split('|')[0].trim() : `LOT-#${editingAuction.id}`);
     const rawTitle = editingAuction.title?.includes('|') ? editingAuction.title.split('|').slice(1).join('|').trim() : (editingAuction.title || '');
@@ -607,20 +581,55 @@ export default function AdminDashboard() {
       finalImageUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
     }
 
+    // Resolve category ID if category is name string
+    let resolvedCatId = editingAuction.category_id;
+    if (editingAuction.category) {
+      const catName = typeof editingAuction.category === 'object' ? editingAuction.category.name : editingAuction.category;
+      const matched = storeCategories.find(c => c.name.toLowerCase() === String(catName).toLowerCase());
+      if (matched) resolvedCatId = matched.id;
+    }
+
+    // Respect exact admin selected status (live, closed, upcoming, completed, cancelled)
+    const selectedStatus = editingAuction.status || 'live';
+
     const updatedAuction = {
       ...editingAuction,
       title: combinedTitle,
       lot_code: code,
+      category_id: resolvedCatId,
+      category_name: typeof editingAuction.category === 'object' ? editingAuction.category.name : (editingAuction.category || 'Scrap Metals'),
       start_time: resolvedStartTime,
       end_time: resolvedEndTime,
       image_url: finalImageUrl,
       images: [{ id: Date.now(), image_path: finalImageUrl, is_primary: true }],
       primary_image: { image_path: finalImageUrl },
       pdf_url: finalPdfUrl || null,
-      status: (isEndTimeInFuture && (editingAuction.status === 'closed' || editingAuction.status === 'completed') && !editingAuction.winner_confirmed)
-        ? 'live'
-        : editingAuction.status,
+      status: selectedStatus,
     };
+
+    // Save to backend database first before updating local state
+    let saveSuccess = false;
+    try {
+      const putRes = await api.put(`/admin/auctions/${updatedAuction.id}`, updatedAuction);
+      if (putRes.status === 200 || putRes.status === 201 || putRes.data?.success) {
+        saveSuccess = true;
+      }
+    } catch {
+      try {
+        const postRes = await api.post('/admin/auctions', updatedAuction);
+        if (postRes.status === 200 || postRes.status === 201 || postRes.data?.success) {
+          saveSuccess = true;
+        }
+      } catch (err: any) {
+        showNotification('Failed to update auction on server. Please check connection.', 'error');
+        return;
+      }
+    }
+
+    if (!saveSuccess) {
+      showNotification('Failed to persist auction update to server database.', 'error');
+      return;
+    }
 
     setAuctionsPersisted((prev) =>
       prev.map((a) => (a.id === updatedAuction.id ? { ...updatedAuction } : a))
@@ -637,15 +646,7 @@ export default function AdminDashboard() {
     // Broadcast real-time update event so all customer windows & timers update live immediately!
     broadcastRealtimeEvent('auction_updated', updatedAuction);
 
-    try {
-      await api.put(`/admin/auctions/${updatedAuction.id}`, updatedAuction);
-    } catch {
-      try {
-        await api.post('/admin/auctions', updatedAuction);
-      } catch {}
-    }
-
-    showNotification(`✓ Auction "${updatedAuction.title}" date, time & specs updated live across all browsers!`);
+    showNotification(`✓ Auction "${updatedAuction.title}" updated live (Status: ${selectedStatus.toUpperCase()}) across all browsers!`);
     setEditingAuction(null);
   };
 
@@ -5630,7 +5631,15 @@ export default function AdminDashboard() {
                                 <span>{auc.winner_confirmed ? 'Change Winner (H1/H2/H3)' : 'Select Winner (H1/H2/H3)'}</span>
                               </button>
                               <button
-                                onClick={() => setEditingAuction({ ...auc })}
+                                onClick={() => {
+                                  const categoryVal = typeof auc.category === 'object' && auc.category ? auc.category.name : (auc.category_name || auc.category || '');
+                                  setEditingAuction({
+                                    ...auc,
+                                    category: categoryVal,
+                                    start_time: auc.start_time ? toDbDateTimeString(auc.start_time) : '',
+                                    end_time: auc.end_time ? toDbDateTimeString(auc.end_time) : '',
+                                  });
+                                }}
                                 className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition-all active:scale-95 shrink-0 border border-slate-700 shadow-sm"
                                 title="Edit Auction"
                               >
@@ -8348,10 +8357,11 @@ export default function AdminDashboard() {
                     onChange={(e) => setEditingAuction({ ...editingAuction, status: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 h-11"
                   >
-                    <option value="live">Live Bidding Active</option>
-                    <option value="upcoming">Upcoming Auction</option>
-                    <option value="completed">Completed / Awarded</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="live">🟢 Live Bidding Active</option>
+                    <option value="upcoming">⏳ Upcoming Auction</option>
+                    <option value="closed">⛔ Closed / Bidding Ended</option>
+                    <option value="completed">🏆 Completed / Awarded</option>
+                    <option value="cancelled">❌ Cancelled</option>
                   </select>
                 </div>
               </div>
@@ -8458,12 +8468,36 @@ export default function AdminDashboard() {
                       <Clock className="w-3.5 h-3.5" />
                     </span>
                     <span className="font-extrabold text-slate-900 text-xs sm:text-sm uppercase tracking-wider">
-                      Live Auction Date & Bidding Duration Settings
+                      Live Auction Date, Bidding Duration & Status Control
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setEditingAuction({ ...editingAuction, status: 'closed' })}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all active:scale-95 shadow-xs flex items-center gap-1 ${
+                        editingAuction.status === 'closed'
+                          ? 'bg-red-600 text-white border-red-700 ring-2 ring-red-400'
+                          : 'bg-red-100 hover:bg-red-200 text-red-900 border-red-300'
+                      }`}
+                      title="Instantly Close this auction and end bidding"
+                    >
+                      ⛔ Close Auction
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingAuction({ ...editingAuction, status: 'live' })}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all active:scale-95 shadow-xs flex items-center gap-1 ${
+                        editingAuction.status === 'live'
+                          ? 'bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-400'
+                          : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-300'
+                      }`}
+                      title="Set status to Live Bidding"
+                    >
+                      🟢 Set Live
+                    </button>
                     <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Real-Time Multi-Browser Sync
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> IST (+05:30)
                     </span>
                   </div>
                 </div>
@@ -8473,14 +8507,14 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="block text-slate-900 font-extrabold text-xs flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-[#D48B1C]" /> Bidding Launch Start Time *
+                        <Calendar className="w-3.5 h-3.5 text-[#D48B1C]" /> Bidding Launch Start Time (IST) *
                       </span>
                       <span className="text-[10px] text-slate-500 font-bold">Start Date & Time</span>
                     </label>
                     <input
                       type="datetime-local"
                       required
-                      value={formatForDateTimeLocal(editingAuction.start_time)}
+                      value={toLocalInputString(editingAuction.start_time)}
                       onClick={(e) => {
                         try { (e.target as any).showPicker?.(); } catch {}
                       }}
@@ -8488,7 +8522,7 @@ export default function AdminDashboard() {
                         const val = e.target.value;
                         setEditingAuction({
                           ...editingAuction,
-                          start_time: val ? new Date(val).toISOString() : editingAuction.start_time,
+                          start_time: val ? toDbDateTimeString(val) : editingAuction.start_time,
                         });
                       }}
                       className="w-full p-2.5 bg-white border-2 border-amber-300 focus:border-[#D48B1C] rounded-xl font-black text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#D48B1C]/30 shadow-xs cursor-pointer"
@@ -8500,7 +8534,7 @@ export default function AdminDashboard() {
                         onClick={() => {
                           setEditingAuction({
                             ...editingAuction,
-                            start_time: new Date().toISOString(),
+                            start_time: toDbDateTimeString(new Date()),
                           });
                         }}
                         className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded text-[10px] border border-amber-300 transition-all active:scale-95"
@@ -8514,25 +8548,23 @@ export default function AdminDashboard() {
                   <div className="space-y-1">
                     <label className="block text-slate-900 font-extrabold text-xs flex items-center justify-between">
                       <span className="flex items-center gap-1.5 text-emerald-800">
-                        <Clock className="w-3.5 h-3.5 text-emerald-600" /> Bidding Close End Time *
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" /> Bidding Close End Time (IST) *
                       </span>
                       <span className="text-[10px] text-emerald-700 font-bold">Auction Expiry Time</span>
                     </label>
                     <input
                       type="datetime-local"
                       required
-                      value={formatForDateTimeLocal(editingAuction.end_time)}
+                      value={toLocalInputString(editingAuction.end_time)}
                       onClick={(e) => {
                         try { (e.target as any).showPicker?.(); } catch {}
                       }}
                       onChange={(e) => {
                         const val = e.target.value;
-                        const newEndIso = val ? new Date(val).toISOString() : editingAuction.end_time;
-                        const isFuture = val ? new Date(val).getTime() > Date.now() : true;
+                        const newEndDb = val ? toDbDateTimeString(val) : editingAuction.end_time;
                         setEditingAuction({
                           ...editingAuction,
-                          end_time: newEndIso,
-                          status: isFuture && (editingAuction.status === 'closed' || editingAuction.status === 'completed') ? 'live' : editingAuction.status,
+                          end_time: newEndDb,
                         });
                       }}
                       className="w-full p-2.5 bg-white border-2 border-emerald-400 focus:border-emerald-600 rounded-xl font-black text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-xs cursor-pointer"
@@ -8582,8 +8614,8 @@ export default function AdminDashboard() {
                       type="button"
                       onClick={() => {
                         const now = new Date();
-                        const start = new Date(now.getTime() - 60000).toISOString();
-                        const end = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+                        const start = toDbDateTimeString(new Date(now.getTime() - 60000));
+                        const end = toDbDateTimeString(new Date(now.getTime() + 10 * 60 * 1000));
                         setEditingAuction({
                           ...editingAuction,
                           start_time: start,

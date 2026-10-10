@@ -4,6 +4,7 @@ import { Auction } from '../types';
 import { Calendar, Clock, FileText } from 'lucide-react';
 import { isPdfDocument } from '../utils/imageCompressor';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatDateTime, parseIstDate } from '../utils/dateUtils';
 import AuthRequiredModal from './AuthRequiredModal';
 
 interface AuctionCardProps {
@@ -50,16 +51,6 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
 
   const hasPdf = Boolean(attachedPdfUrl);
 
-  const formatDateTime = (dateStr?: string) => {
-    if (!dateStr) return '31 Jul 2026 16:00 PM';
-    const d = new Date(dateStr);
-    return (
-      d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
-      ' ' +
-      d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-    );
-  };
-
   // Timer values for "3D 1H 12M 44S" cyan blocks
   const [days, setDays] = useState<string>('3D');
   const [hours, setHours] = useState<string>('1H');
@@ -70,8 +61,8 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     if (!auction?.end_time) return;
 
     const updateTimer = () => {
-      const target = new Date(auction.end_time!).getTime();
-      const now = new Date().getTime();
+      const target = parseIstDate(auction.end_time).getTime();
+      const now = Date.now();
       const diff = target - now;
 
       if (diff <= 0) {
