@@ -166,3 +166,20 @@ export const toDbDateTimeString = (dateInput?: string | number | Date | null): s
   return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
 };
 
+/**
+ * Convenient alias to format a date into 'YYYY-MM-DDTHH:mm' input string for datetime-local
+ */
+export const getLocalDateTimeString = (dateInput?: string | number | Date | null): string => {
+  return toLocalInputString(dateInput || new Date());
+};
+
+/**
+ * Generate future datetime-local string (e.g. +7 days at 18:00 IST)
+ */
+export const getFutureDateTimeString = (days: number = 7, hours: number = 18, minutes: number = 0): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hours, minutes, 0, 0);
+  return toLocalInputString(d);
+};
+

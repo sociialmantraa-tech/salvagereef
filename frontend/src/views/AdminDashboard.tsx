@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
-import { formatDateTime, toLocalInputString, toDbDateTimeString, parseIstDate } from '../utils/dateUtils';
+import { formatDateTime, toLocalInputString, toDbDateTimeString, parseIstDate, getLocalDateTimeString, getFutureDateTimeString } from '../utils/dateUtils';
 import { getUserEffectiveDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
 import { 
   Gavel, 
