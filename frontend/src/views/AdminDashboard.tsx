@@ -308,21 +308,49 @@ export default function AdminDashboard() {
     return [];
   });
 
-  const [auctions, setAuctions] = useState<any[]>(() => INITIAL_AUCTIONS);
+  const [auctions, setAuctions] = useState<any[]>(() => {
+    try {
+      const s = localStorage.getItem('sr_admin_auctions');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
 
   const setAuctionsPersisted = (updater: any) => {
     setAuctions((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      return Array.isArray(next) && next.length > 0 ? next : (prev.length > 0 ? prev : INITIAL_AUCTIONS);
+      const finalVal = Array.isArray(next) ? next : [];
+      try {
+        localStorage.setItem('sr_admin_auctions', JSON.stringify(finalVal));
+        localStorage.setItem('sr_auctions', JSON.stringify(finalVal));
+      } catch {}
+      return finalVal;
     });
   };
 
-  const [classifieds, setClassifieds] = useState<any[]>(() => INITIAL_CLASSIFIEDS);
+  const [classifieds, setClassifieds] = useState<any[]>(() => {
+    try {
+      const s = localStorage.getItem('sr_admin_classifieds');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
 
   const setClassifiedsPersisted = (updater: any) => {
     setClassifieds((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      return Array.isArray(next) && next.length > 0 ? next : (prev.length > 0 ? prev : INITIAL_CLASSIFIEDS);
+      const finalVal = Array.isArray(next) ? next : [];
+      try {
+        localStorage.setItem('sr_admin_classifieds', JSON.stringify(finalVal));
+        localStorage.setItem('sr_classifieds', JSON.stringify(finalVal));
+      } catch {}
+      return finalVal;
     });
   };
 
@@ -1684,28 +1712,28 @@ export default function AdminDashboard() {
         }
       }
       if (auctionsRes?.data) {
-        const fetchedAuctions = Array.isArray(auctionsRes.data) ? auctionsRes.data : (auctionsRes.data?.data || []);
-        if (Array.isArray(fetchedAuctions) && fetchedAuctions.length > 0) {
+        const fetchedAuctions = Array.isArray(auctionsRes.data) ? auctionsRes.data : (auctionsRes.data?.data ?? []);
+        if (Array.isArray(fetchedAuctions)) {
           setAuctionsPersisted(fetchedAuctions);
         }
       } else {
         // Fallback to public auctions endpoint
         api.get('/auctions').then((res) => {
-          const list = res.data?.data || res.data;
-          if (Array.isArray(list) && list.length > 0) setAuctionsPersisted(list);
+          const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
+          if (Array.isArray(list)) setAuctionsPersisted(list);
         }).catch(() => {});
       }
 
       if (classifiedsRes?.data) {
-        const fetchedClassifieds = Array.isArray(classifiedsRes.data) ? classifiedsRes.data : (classifiedsRes.data?.data || []);
-        if (Array.isArray(fetchedClassifieds) && fetchedClassifieds.length > 0) {
+        const fetchedClassifieds = Array.isArray(classifiedsRes.data) ? classifiedsRes.data : (classifiedsRes.data?.data ?? []);
+        if (Array.isArray(fetchedClassifieds)) {
           setClassifiedsPersisted(fetchedClassifieds);
         }
       } else {
         // Fallback to public classifieds endpoint
         api.get('/classifieds').then((res) => {
-          const list = res.data?.data || res.data;
-          if (Array.isArray(list) && list.length > 0) setClassifiedsPersisted(list);
+          const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
+          if (Array.isArray(list)) setClassifiedsPersisted(list);
         }).catch(() => {});
       }
 
@@ -2374,6 +2402,7 @@ export default function AdminDashboard() {
 
       // Perform backend deletion
       api.delete(`/admin/auctions/${id}`)
+        .catch(() => api.post(`/admin/auctions/${id}/delete`))
         .then(() => {
           broadcastRealtimeEvent('auction_deleted', { id });
           showNotification(`✓ Auction lot "${name}" removed & deleted permanently from database!`);
@@ -2399,6 +2428,7 @@ export default function AdminDashboard() {
       }
 
       api.delete(`/admin/classifieds/${id}`)
+        .catch(() => api.post(`/admin/classifieds/${id}/delete`))
         .then(() => {
           broadcastRealtimeEvent('classified_deleted', { id });
           showNotification(`✓ Classified listing "${name}" removed & deleted permanently from database!`);
@@ -7752,7 +7782,7 @@ export default function AdminDashboard() {
                 onDeleteAuction={(id) => {
                   const targetAuc = auctions.find((a) => String(a.id) === String(id));
                   setAuctionsPersisted((prev) => prev.filter((a) => String(a.id) !== String(id)));
-                  api.delete(`/admin/auctions/${id}`).catch(() => {});
+                  api.delete(`/admin/auctions/${id}`).catch(() => api.post(`/admin/auctions/${id}/delete`));
                   broadcastRealtimeEvent('auction_deleted', { id });
                   showNotification(`✓ Auction lot "${targetAuc?.title || id}" deleted permanently by AI Copilot!`);
                   fetchAdminData(true);
@@ -7771,7 +7801,7 @@ export default function AdminDashboard() {
                 onDeleteClassified={(id) => {
                   const targetCls = classifieds.find((c) => String(c.id) === String(id));
                   setClassifiedsPersisted((prev) => prev.filter((c) => String(c.id) !== String(id)));
-                  api.delete(`/admin/classifieds/${id}`).catch(() => {});
+                  api.delete(`/admin/classifieds/${id}`).catch(() => api.post(`/admin/classifieds/${id}/delete`));
                   broadcastRealtimeEvent('classified_deleted', { id });
                   showNotification(`✓ Classified "${targetCls?.title || id}" deleted by AI Copilot!`);
                   fetchAdminData(true);

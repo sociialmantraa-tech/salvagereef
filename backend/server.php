@@ -877,82 +877,85 @@ function ensureActiveContentAutoSeeded($pdo) {
         $minus1HourIso = date('Y-m-d H:i:s', strtotime('-1 hour'));
 
         // Step 1: Auto-renew unawarded open live auctions whose end_time has passed
-        $stmtRenew = $pdo->prepare("UPDATE auctions 
-                    SET status = 'live', 
-                        end_time = ? 
-                    WHERE status = 'live'
-                      AND (winner_confirmed IS NULL OR winner_confirmed = 0) 
-                      AND (end_time IS NULL OR end_time < ?)");
-        $stmtRenew->execute([$plus7DaysIso, $nowIso]);
+        try {
+            $stmtRenew = $pdo->prepare("UPDATE `auctions` 
+                        SET `status` = 'live', 
+                            `end_time` = ? 
+                        WHERE `status` = 'live'
+                          AND (`winner_confirmed` IS NULL OR `winner_confirmed` = 0) 
+                          AND (`end_time` IS NULL OR `end_time` < ?)");
+            $stmtRenew->execute([$plus7DaysIso, $nowIso]);
+        } catch (\Throwable $e) {}
 
-        // Step 2: Ensure at least 3 live auctions exist
-        $liveCount = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
+        // Initial Seed Safeguard: Only seeds during fresh database installation when total rows = 0
+        // Never re-seeds if rows were intentionally deleted by admin.
+        $seedFlag = __DIR__ . '/logs/.initial_content_seeded.flag';
+        if (!file_exists($seedFlag)) {
+            $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();
+            $totalClassifieds = (int)$pdo->query("SELECT COUNT(*) FROM classifieds")->fetchColumn();
 
-        if ($liveCount < 3) {
-            $seedAuctions = [
-                [
-                    'id' => 101,
-                    'title' => 'Server Rack E-Waste Scrap Boards & Green Motherboards Lot',
-                    'slug' => 'server-rack-e-waste-scrap-boards-lot',
-                    'description' => 'High grade industrial server motherboards, RAM scrap, expansion cards, and gold-plated connector scrap from datacenter decommissioning. Cleaned and packaged in wooden crates.',
-                    'condition' => 'Scrap / Recyclable',
-                    'category_id' => 4,
-                    'auction_type' => 'public',
-                    'status' => 'live',
-                    'quantity' => 15,
-                    'unit' => 'MT',
-                    'starting_price' => 750000,
-                    'current_highest_bid' => 4150000,
-                    'bid_increment' => 10000,
-                    'emd_amount' => 50000,
-                    'location_city' => 'Mumbai',
-                    'location_state' => 'Maharashtra',
-                    'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
-                ],
-                [
-                    'id' => 102,
-                    'title' => 'Heavy Melting Steel Scrap (HMS 1 & 2) - 50 Tons Industrial Grade',
-                    'slug' => 'heavy-melting-steel-scrap-hms-1-2-50-tons',
-                    'description' => 'Heavy industrial structural steel cut pieces, I-beam scrap, and steel plate cuttings. Zero non-metallic impurities. Direct yard loading available.',
-                    'condition' => 'Heavy Scrap Grade A',
-                    'category_id' => 2,
-                    'auction_type' => 'public',
-                    'status' => 'live',
-                    'quantity' => 50,
-                    'unit' => 'MT',
-                    'starting_price' => 1800000,
-                    'current_highest_bid' => 9200000,
-                    'bid_increment' => 25000,
-                    'emd_amount' => 100000,
-                    'location_city' => 'Pune',
-                    'location_state' => 'Maharashtra',
-                    'image' => 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800'
-                ],
-                [
-                    'id' => 103,
-                    'title' => 'Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy',
-                    'slug' => 'used-50-hp-kirloskar-diesel-generator-set',
-                    'description' => '50 HP soundproof diesel generator unit in excellent working condition. Decommissioned from textile mill standby line. Includes alternator and control panel.',
-                    'condition' => 'Used / Working Condition',
-                    'category_id' => 3,
-                    'auction_type' => 'public',
-                    'status' => 'live',
-                    'quantity' => 1,
-                    'unit' => 'lot',
-                    'starting_price' => 240000,
-                    'current_highest_bid' => 240000,
-                    'bid_increment' => 5000,
-                    'emd_amount' => 20000,
-                    'location_city' => 'Bhiwandi',
-                    'location_state' => 'Maharashtra',
-                    'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
-                ]
-            ];
+            if ($totalAuctions === 0) {
+                $seedAuctions = [
+                    [
+                        'id' => 101,
+                        'title' => 'Server Rack E-Waste Scrap Boards & Green Motherboards Lot',
+                        'slug' => 'server-rack-e-waste-scrap-boards-lot',
+                        'description' => 'High grade industrial server motherboards, RAM scrap, expansion cards, and gold-plated connector scrap from datacenter decommissioning. Cleaned and packaged in wooden crates.',
+                        'condition' => 'Scrap / Recyclable',
+                        'category_id' => 4,
+                        'auction_type' => 'public',
+                        'status' => 'live',
+                        'quantity' => 15,
+                        'unit' => 'MT',
+                        'starting_price' => 750000,
+                        'current_highest_bid' => 4150000,
+                        'bid_increment' => 10000,
+                        'emd_amount' => 50000,
+                        'location_city' => 'Mumbai',
+                        'location_state' => 'Maharashtra',
+                        'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
+                    ],
+                    [
+                        'id' => 102,
+                        'title' => 'Heavy Melting Steel Scrap (HMS 1 & 2) - 50 Tons Industrial Grade',
+                        'slug' => 'heavy-melting-steel-scrap-hms-1-2-50-tons',
+                        'description' => 'Heavy industrial structural steel cut pieces, I-beam scrap, and steel plate cuttings. Zero non-metallic impurities. Direct yard loading available.',
+                        'condition' => 'Heavy Scrap Grade A',
+                        'category_id' => 2,
+                        'auction_type' => 'public',
+                        'status' => 'live',
+                        'quantity' => 50,
+                        'unit' => 'MT',
+                        'starting_price' => 1800000,
+                        'current_highest_bid' => 9200000,
+                        'bid_increment' => 25000,
+                        'emd_amount' => 100000,
+                        'location_city' => 'Pune',
+                        'location_state' => 'Maharashtra',
+                        'image' => 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800'
+                    ],
+                    [
+                        'id' => 103,
+                        'title' => 'Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy',
+                        'slug' => 'used-50-hp-kirloskar-diesel-generator-set',
+                        'description' => '50 HP soundproof diesel generator unit in excellent working condition. Decommissioned from textile mill standby line. Includes alternator and control panel.',
+                        'condition' => 'Used / Working Condition',
+                        'category_id' => 3,
+                        'auction_type' => 'public',
+                        'status' => 'live',
+                        'quantity' => 1,
+                        'unit' => 'lot',
+                        'starting_price' => 240000,
+                        'current_highest_bid' => 240000,
+                        'bid_increment' => 5000,
+                        'emd_amount' => 20000,
+                        'location_city' => 'Bhiwandi',
+                        'location_state' => 'Maharashtra',
+                        'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
+                    ]
+                ];
 
-            foreach ($seedAuctions as $auc) {
-                $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM auctions WHERE id = ?");
-                $checkStmt->execute([$auc['id']]);
-                if ((int)$checkStmt->fetchColumn() === 0) {
+                foreach ($seedAuctions as $auc) {
                     $ins = $pdo->prepare("INSERT INTO `auctions` (`id`, `title`, `slug`, `description`, `condition`, `category_id`, `auction_type`, `status`, `quantity`, `unit`, `starting_price`, `current_highest_bid`, `bid_increment`, `emd_amount`, `location_city`, `location_state`, `start_time`, `end_time`, `created_by`, `winner_confirmed`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)");
                     $ins->execute([
                         $auc['id'], $auc['title'], $auc['slug'], $auc['description'], $auc['condition'],
@@ -964,69 +967,59 @@ function ensureActiveContentAutoSeeded($pdo) {
                     $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auc['id']]);
                     $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")
                         ->execute([$auc['id'], $auc['image']]);
-                } else {
-                    $pdo->prepare("UPDATE auctions SET status = 'live', end_time = ?, winner_confirmed = 0 WHERE id = ?")
-                        ->execute([$plus7DaysIso, $auc['id']]);
                 }
             }
-        }
 
-        // Step 3: Ensure at least 3 active classifieds exist
-        $classifiedCount = (int)$pdo->query("SELECT COUNT(*) FROM classifieds WHERE status = 'available' OR status = 'active'")->fetchColumn();
+            if ($totalClassifieds === 0) {
+                $seedClassifieds = [
+                    [
+                        'id' => 1,
+                        'title' => 'Server Rack E-Waste Scrap Boards & Green Motherboards',
+                        'slug' => 'server-rack-e-waste-scrap-boards-green-motherboards',
+                        'description' => 'Direct seller offering tested server PCB green scrap, telecom equipment boards, and RAM modules. Bulk quantity available.',
+                        'category_id' => 4,
+                        'price' => 95000,
+                        'quantity' => 250,
+                        'unit' => 'kg',
+                        'location_city' => 'Mumbai',
+                        'location_state' => 'Maharashtra',
+                        'status' => 'available',
+                        'created_by' => 1,
+                        'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
+                    ],
+                    [
+                        'id' => 2,
+                        'title' => 'Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy',
+                        'slug' => 'used-50-hp-kirloskar-diesel-generator-set-classified',
+                        'description' => 'Industrial grade 50 HP DG Set in silent enclosure. Ready for dispatch with full maintenance records.',
+                        'category_id' => 3,
+                        'price' => 240000,
+                        'quantity' => 1,
+                        'unit' => 'nos',
+                        'location_city' => 'Pune',
+                        'location_state' => 'Maharashtra',
+                        'status' => 'available',
+                        'created_by' => 1,
+                        'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
+                    ],
+                    [
+                        'id' => 3,
+                        'title' => 'Mixed Brass Shell & Valve Scrap - 3 Tons Lot',
+                        'slug' => 'mixed-brass-shell-valve-scrap-3-tons-lot',
+                        'description' => 'Clean brass valve scrap, plumbing pipe fittings, and yellow brass borings. Inspection welcome at warehouse.',
+                        'category_id' => 1,
+                        'price' => 1250000,
+                        'quantity' => 3,
+                        'unit' => 'MT',
+                        'location_city' => 'Bhiwandi',
+                        'location_state' => 'Maharashtra',
+                        'status' => 'available',
+                        'created_by' => 1,
+                        'image' => 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800'
+                    ]
+                ];
 
-        if ($classifiedCount < 3) {
-            $seedClassifieds = [
-                [
-                    'id' => 1,
-                    'title' => 'Server Rack E-Waste Scrap Boards & Green Motherboards',
-                    'slug' => 'server-rack-e-waste-scrap-boards-green-motherboards',
-                    'description' => 'Direct seller offering tested server PCB green scrap, telecom equipment boards, and RAM modules. Bulk quantity available.',
-                    'category_id' => 4,
-                    'price' => 95000,
-                    'quantity' => 250,
-                    'unit' => 'kg',
-                    'location_city' => 'Mumbai',
-                    'location_state' => 'Maharashtra',
-                    'status' => 'available',
-                    'created_by' => 1,
-                    'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
-                ],
-                [
-                    'id' => 2,
-                    'title' => 'Used 50 HP Kirloskar Diesel Generator Set with Acoustic Canopy',
-                    'slug' => 'used-50-hp-kirloskar-diesel-generator-set-classified',
-                    'description' => 'Industrial grade 50 HP DG Set in silent enclosure. Ready for dispatch with full maintenance records.',
-                    'category_id' => 3,
-                    'price' => 240000,
-                    'quantity' => 1,
-                    'unit' => 'nos',
-                    'location_city' => 'Pune',
-                    'location_state' => 'Maharashtra',
-                    'status' => 'available',
-                    'created_by' => 1,
-                    'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
-                ],
-                [
-                    'id' => 3,
-                    'title' => 'Mixed Brass Shell & Valve Scrap - 3 Tons Lot',
-                    'slug' => 'mixed-brass-shell-valve-scrap-3-tons-lot',
-                    'description' => 'Clean brass valve scrap, plumbing pipe fittings, and yellow brass borings. Inspection welcome at warehouse.',
-                    'category_id' => 1,
-                    'price' => 1250000,
-                    'quantity' => 3,
-                    'unit' => 'MT',
-                    'location_city' => 'Bhiwandi',
-                    'location_state' => 'Maharashtra',
-                    'status' => 'available',
-                    'created_by' => 1,
-                    'image' => 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800'
-                ]
-            ];
-
-            foreach ($seedClassifieds as $cls) {
-                $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM classifieds WHERE id = ?");
-                $checkStmt->execute([$cls['id']]);
-                if ((int)$checkStmt->fetchColumn() === 0) {
+                foreach ($seedClassifieds as $cls) {
                     $ins = $pdo->prepare("INSERT INTO classifieds (id, title, slug, description, category_id, price, quantity, unit, location_city, location_state, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $ins->execute([
                         $cls['id'], $cls['title'], $cls['slug'], $cls['description'],
@@ -1036,10 +1029,10 @@ function ensureActiveContentAutoSeeded($pdo) {
                     $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$cls['id']]);
                     $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, 1)")
                         ->execute([$cls['id'], $cls['image']]);
-                } else {
-                    $pdo->prepare("UPDATE classifieds SET status = 'available' WHERE id = ?")->execute([$cls['id']]);
                 }
             }
+
+            @file_put_contents($seedFlag, date('Y-m-d H:i:s'));
         }
     } catch (\Throwable $e) {
         if (function_exists('srWriteLog')) {
@@ -4252,8 +4245,8 @@ if ($method === 'PUT' && preg_match('#^/api/v1/admin/users/(\d+)/toggle-active$#
     jsonResponse(['success' => true, 'message' => 'User active status updated']);
 }
 
-// 18d. Admin Delete Auction: DELETE /api/v1/admin/auctions/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/admin/auctions/([^/]+)$#', $uri, $m)) {
+// 18d. Admin Delete Auction: DELETE/POST /api/v1/admin/auctions/{id} or /api/v1/admin/auctions/{id}/delete
+if (($method === 'DELETE' || ($method === 'POST' && str_ends_with($uri, '/delete'))) && preg_match('#^/api/v1/admin/auctions/([^/]+)(/delete)?$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
 
@@ -4336,8 +4329,8 @@ if ($method === 'DELETE' && preg_match('#^/api/v1/admin/auctions/([^/]+)$#', $ur
     }
 }
 
-// 18e. Admin Delete Classified: DELETE /api/v1/admin/classifieds/{id}
-if ($method === 'DELETE' && preg_match('#^/api/v1/admin/classifieds/([^/]+)$#', $uri, $m)) {
+// 18e. Admin Delete Classified: DELETE/POST /api/v1/admin/classifieds/{id} or /api/v1/admin/classifieds/{id}/delete
+if (($method === 'DELETE' || ($method === 'POST' && str_ends_with($uri, '/delete'))) && preg_match('#^/api/v1/admin/classifieds/([^/]+)(/delete)?$#', $uri, $m)) {
     $user = getAuthUser($pdo);
     if (!isAdminUser($user)) jsonResponse(['message' => 'Admin required'], 403);
 
