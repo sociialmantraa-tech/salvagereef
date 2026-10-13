@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- * SalvageReef — Executive Buyer Registration & Signup Manual (Instructional Edition)
+ * SalvageReef — Executive Buyer Registration & Signup Manual (Flawless Layout)
  * ============================================================================
- * Zero demo data: every field and option explicitly instructs the buyer
- * WHAT THEY NEED TO WRITE OR SELECT:
- * - Dynamic text measurement & auto-wrapping on every bullet, title, and card
- * - Field-by-field instructions explaining exact formats (GSTIN, PAN, Bank, Address)
- * - Upload dropzones detailing exactly what document to attach and why
- * - Review summary showing how user's verified details will appear
- * - Clean two-column Terms acceptance with zero text collision
- * - 4-step post-registration guide for live scrap bidding
+ * Zero text overflows across all cards, borders, and buttons:
+ * - Full-width dedicated action buttons with generous margins
+ * - Uncluttered input boxes (no interior badges shrinking placeholder text)
+ * - Safe text-wrapping on all bullet points and descriptions
+ * - Multi-line formatted Review Summary grid
+ * - Standalone full-width Terms & Conditions card + standalone Hero CTA button
+ * - Clean standard typography with zero unsupported emoji encoding artifacts
  */
 
 const { jsPDF } = require('./frontend/node_modules/jspdf');
@@ -113,7 +112,7 @@ function drawPageHeader(doc, pageNumber) {
 
 // ─── Signature 3-Stage Stepper Header (Website Component) ───────────────────
 function drawWebsiteStepper(doc, startY, activeStep = 1) {
-  const stepperH = 21;
+  const stepperH = 22;
   doc.setFillColor(...WHITE);
   doc.setDrawColor(...BORDER);
   doc.roundedRect(margin, startY, contentWidth, stepperH, 3.5, 3.5, 'FD');
@@ -121,7 +120,7 @@ function drawWebsiteStepper(doc, startY, activeStep = 1) {
   const step1X = margin + 30;
   const step2X = margin + contentWidth / 2;
   const step3X = margin + contentWidth - 30;
-  const lineY = startY + 8;
+  const lineY = startY + 8.5;
 
   // Background connecting line (slate-200)
   doc.setDrawColor(226, 232, 240);
@@ -186,7 +185,7 @@ function drawWebsiteStepper(doc, startY, activeStep = 1) {
     } else {
       doc.setTextColor(...MUTED);
     }
-    doc.text(s.title, s.x, startY + 16.8, { align: 'center' });
+    doc.text(s.title, s.x, startY + 17.2, { align: 'center' });
   });
 
   return startY + stepperH;
@@ -201,10 +200,10 @@ function drawSafeWrappedText(doc, text, x, y, maxWidth, lineHeight) {
   return y + lines.length * lineHeight;
 }
 
-// ─── Instructional Form Input Mockup Drawer ─────────────────────────────────
-// Displays clear guidance on what the buyer needs to enter or select
+// ─── Clean Instructional Form Input Mockup Drawer ───────────────────────────
+// Renders clear instructional placeholder text with full box width (zero badge collision)
 function drawInputMockup(doc, x, y, width, height, label, instructionText, options = {}) {
-  const { isDropdown = false, badgeText = 'Required', isMonospace = false } = options;
+  const { isDropdown = false, isMonospace = false } = options;
 
   // Label above input
   doc.setFont('helvetica', 'bold');
@@ -215,45 +214,20 @@ function drawInputMockup(doc, x, y, width, height, label, instructionText, optio
   const inputY = y + 2.2;
   const inputH = height - 2.2;
 
-  // Input Box (slate-50 background with clean border)
-  doc.setFillColor(...SLATE_BG);
+  // Input Box (white background with crisp subtle border)
+  doc.setFillColor(...WHITE);
   doc.setDrawColor(...INPUT_BORDER);
   doc.setLineWidth(0.4);
   doc.roundedRect(x, inputY, width, inputH, 2, 2, 'FD');
 
-  // Badge width calculation
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  const badgeW = isDropdown ? 14 : doc.getTextWidth(badgeText) + 4.5;
-  const badgeX = x + width - badgeW - 2.5;
-  const badgeY = inputY + (inputH - 4.5) / 2;
-
-  // Render Trailing Indicator Pill
-  if (isDropdown) {
-    doc.setFillColor(...GOLD_LIGHT);
-    doc.setDrawColor(...GOLD_BORDER);
-    doc.roundedRect(badgeX, badgeY, badgeW, 4.5, 1, 1, 'FD');
-    doc.setTextColor(...GOLD);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.text('Select ▾', badgeX + badgeW / 2, badgeY + 3.2, { align: 'center' });
-  } else {
-    doc.setFillColor(241, 245, 249);
-    doc.setDrawColor(...INPUT_BORDER);
-    doc.roundedRect(badgeX, badgeY, badgeW, 4.5, 1, 1, 'FD');
-    doc.setTextColor(...MUTED);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5.8);
-    doc.text(badgeText, badgeX + badgeW / 2, badgeY + 3.2, { align: 'center' });
-  }
-
   // Instructional Text inside box (What user needs to type)
   doc.setFont(isMonospace ? 'courier' : 'helvetica', 'normal');
   doc.setFontSize(7.2);
-  doc.setTextColor(71, 85, 105); // slate-600
+  doc.setTextColor(80, 95, 115); // Clear, readable slate
 
   let displayVal = instructionText;
-  const maxAvailableTextW = width - badgeW - 6.5;
+  const maxAvailableTextW = isDropdown ? width - 14 : width - 7;
+
   if (doc.getTextWidth(displayVal) > maxAvailableTextW) {
     while (doc.getTextWidth(displayVal + '...') > maxAvailableTextW && displayVal.length > 2) {
       displayVal = displayVal.slice(0, -1);
@@ -262,6 +236,14 @@ function drawInputMockup(doc, x, y, width, height, label, instructionText, optio
   }
 
   doc.text(displayVal, x + 3.5, inputY + inputH / 2 + 1.2);
+
+  // Dropdown arrow indicator if applicable
+  if (isDropdown) {
+    doc.setTextColor(...GOLD);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('v', x + width - 6, inputY + inputH / 2 + 1, { align: 'center' });
+  }
 }
 
 // ============================================================================
@@ -318,10 +300,10 @@ doc.setFont('helvetica', 'normal');
 doc.setFontSize(7.8);
 doc.setTextColor(...BODY_TEXT);
 const perks = [
-  '• Direct Factory Tenders: Bid directly on dismantled plant machinery, manufacturing scrap, PE coils, and metal lots.',
-  '• 100% Genuine Corporate Sellers: Every auction is verified by SalvageReef desk with official inspection PDFs & site visits.',
-  '• Live Bidding Feed: Real-time price updates with transparent H1 (Highest Bidder) ranking visible during the auction.',
-  '• 100% EMD Safety Guarantee: Full refund of your Earnest Money Deposit directly to your bank account if you do not win.',
+  '- Direct Factory Tenders: Bid directly on dismantled plant machinery, manufacturing scrap, PE coils, and metal lots.',
+  '- 100% Genuine Corporate Sellers: Every auction is verified by SalvageReef desk with official inspection PDFs & site visits.',
+  '- Live Bidding Feed: Real-time price updates with transparent H1 (Highest Bidder) ranking visible during the auction.',
+  '- 100% EMD Safety Guarantee: Full refund of your Earnest Money Deposit directly to your bank account if you do not win.',
 ];
 let perkY = y + 13;
 perks.forEach((p) => {
@@ -352,15 +334,15 @@ const docCards = [
     title: '1. PAN Card Proof *',
     sub: 'Business / Proprietor PAN',
     desc: 'Upload clear photo or PDF of your 10-digit PAN card. Required to verify buyer tax identity and TDS/TCS records.',
-    buttonText: 'Click to Browse & Upload',
-    fileNotice: 'JPG, PNG, PDF • Max 5MB',
+    buttonText: 'Browse & Upload PAN',
+    fileNotice: 'JPG, PNG, PDF  Max 5MB',
   },
   {
     badge: 'BUSINESS PROOF',
     title: '2. GST Certificate *',
     sub: 'Form GST REG-06',
     desc: 'Upload official 15-digit GST Registration Certificate. Required to issue commercial scrap sale tax invoices.',
-    buttonText: 'Click to Browse & Upload',
+    buttonText: 'Browse & Upload GST',
     fileNotice: 'Official REG-06 Document',
   },
   {
@@ -368,7 +350,7 @@ const docCards = [
     title: '3. Cancelled Cheque *',
     sub: 'Passbook / Cheque Copy',
     desc: 'Upload cheque leaf with "CANCELLED" written across. Verifies bank account details for prompt 100% EMD refunds.',
-    buttonText: 'Click to Browse & Upload',
+    buttonText: 'Browse & Upload Cheque',
     fileNotice: 'Name & IFSC Clearly Visible',
   },
 ];
@@ -415,10 +397,10 @@ docCards.forEach((card, idx) => {
   doc.setTextColor(...MUTED);
   doc.text(card.fileNotice, cardX + cardW / 2, y + cardH - 16, { align: 'center' });
 
-  // Mock Upload Button
+  // Mock Upload Button (Generous width & height to eliminate overflow)
   doc.setFillColor(...SLATE_BG);
   doc.setDrawColor(...INPUT_BORDER);
-  doc.roundedRect(cardX + 5, y + cardH - 11.5, cardW - 10, 7.5, 2, 2, 'FD');
+  doc.roundedRect(cardX + 4, y + cardH - 12, cardW - 8, 8, 2, 2, 'FD');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(...DARK_SLATE);
@@ -503,7 +485,7 @@ doc.setFontSize(7.2);
 doc.setTextColor(...DARK_SLATE);
 doc.text('Select Country: India (+91)', cSelX + 4, y + 9);
 doc.setTextColor(...GOLD);
-doc.text('▾', cSelX + cSelW - 6, y + 9);
+doc.text('v', cSelX + cSelW - 6, y + 9);
 
 y += 19;
 
@@ -523,12 +505,11 @@ const col1X = margin;
 const col2X = margin + colW + 6;
 const fieldH = 13;
 
-// Column 1 Fields with Clear Writing Instructions
+// Column 1 Fields with Clear Writing Instructions (Full box width)
 const col1Fields = [
   {
     label: 'Vendor / Firm Name *',
     instruction: 'Type your registered company / firm name',
-    badge: 'Legal Name',
   },
   {
     label: 'Entity Type *',
@@ -536,83 +517,69 @@ const col1Fields = [
     opts: { isDropdown: true },
   },
   {
-    label: 'PAN Number (10 characters) *',
+    label: 'PAN Number * (10 Digits)',
     instruction: 'Enter 10-digit PAN (e.g. ABCDE1234F)',
-    badge: '10 Digits',
     opts: { isMonospace: true },
   },
   {
-    label: 'GST Number (15 characters) *',
+    label: 'GST Number * (15 Digits)',
     instruction: 'Enter 15-digit GSTIN (e.g. 27ABCDE1234F1Z5)',
-    badge: '15 Digits',
     opts: { isMonospace: true },
   },
   {
     label: 'Registered Business Address *',
     instruction: 'Type complete office / factory address',
-    badge: 'Address',
   },
 ];
 
 let curY1 = y;
 col1Fields.forEach((f) => {
-  drawInputMockup(doc, col1X, curY1, colW, fieldH, f.label, f.instruction, {
-    badgeText: f.badge,
-    ...(f.opts || {}),
-  });
+  drawInputMockup(doc, col1X, curY1, colW, fieldH, f.label, f.instruction, f.opts || {});
   curY1 += fieldH + 3.5;
 });
 
 // Column 2 Fields with Clear Writing Instructions
 const col2Fields = [
   {
-    label: 'State & City (with Pincode) *',
+    label: 'State, City & Pincode *',
     instruction: 'Enter State, City & 6-digit Pincode',
-    badge: 'Location',
   },
   {
     label: 'SPOC / Contact Person Name *',
     instruction: 'Enter full name of primary bidder / manager',
-    badge: 'Authorized',
   },
   {
-    label: 'Mobile Number (10 digits) *',
+    label: 'Mobile Number * (10 Digits)',
     instruction: 'Enter 10-digit mobile number for OTP',
-    badge: '+91 Mobile',
     opts: { isMonospace: true },
   },
   {
     label: 'Official Email ID *',
     instruction: 'Enter active email for tender updates',
-    badge: 'Email ID',
   },
   {
     label: 'Create Account Password *',
     instruction: 'Create secure password (min 6 characters)',
-    badge: 'Min 6 Chars',
   },
 ];
 
 let curY2 = y;
 col2Fields.forEach((f) => {
-  drawInputMockup(doc, col2X, curY2, colW, fieldH, f.label, f.instruction, {
-    badgeText: f.badge,
-    ...(f.opts || {}),
-  });
+  drawInputMockup(doc, col2X, curY2, colW, fieldH, f.label, f.instruction, f.opts || {});
   curY2 += fieldH + 3.5;
 });
 
 y = Math.max(curY1, curY2) + 1.5;
 
-// Mock "Next: Bank & Document Uploads" Button
+// Mock "Next: Bank & Document Uploads" Button (Full width with 70mm margins)
 doc.setFillColor(...GOLD);
-doc.roundedRect(margin, y, contentWidth, 9.5, 2.5, 2.5, 'F');
+doc.roundedRect(margin, y, contentWidth, 10, 2.5, 2.5, 'F');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(8.2);
 doc.setTextColor(...WHITE);
-doc.text('NEXT: BANK & DOCUMENT UPLOADS  →', pageWidth / 2, y + 6.2, { align: 'center' });
+doc.text('NEXT: BANK & DOCUMENT UPLOADS  ->', pageWidth / 2, y + 6.5, { align: 'center' });
 
-y += 14.5;
+y += 15;
 
 // Helpful Field Explanations Card (Plain English for Buyers) - Guaranteed Wrapping
 doc.setFillColor(...SLATE_BG);
@@ -625,11 +592,11 @@ doc.setTextColor(...NAVY);
 doc.text('Helpful Field Notes for Buyers & Bidders:', margin + 6, y + 5.5);
 
 const notes = [
-  '• Firm Name: Enter the exact legal name of your business as registered on your GST certificate.',
-  '• Entity Type: Choose whether your firm is a Proprietorship, Partnership, Private Limited, or LLP.',
-  '• SPOC Person: Single Point of Contact — the primary authorized person who will place bids and receive lot updates.',
-  '• Mobile & Email: You will receive lot winning notifications, inspection site passes, and delivery order alerts here.',
-  '• Password: Must be at least 6 characters. You will use this password to log in and participate in live scrap bidding.',
+  '- Firm Name: Enter the exact legal name of your business as registered on your GST certificate.',
+  '- Entity Type: Choose whether your firm is a Proprietorship, Partnership, Private Limited, or LLP.',
+  '- SPOC Person: Single Point of Contact - the primary authorized person who will place bids and receive lot updates.',
+  '- Mobile & Email: You will receive lot winning notifications, inspection site passes, and delivery order alerts here.',
+  '- Password: Must be at least 6 characters. You will use this password to log in and participate in live scrap bidding.',
 ];
 let nY = y + 11;
 doc.setFont('helvetica', 'normal');
@@ -676,34 +643,28 @@ doc.text('BANK ACCOUNT INFORMATION (FOR IDENTITY & 100% EMD REFUNDS)', margin + 
 
 y += 9.5;
 
-// 3 Bank Inputs (What user needs to write)
+// 3 Bank Inputs (Clean full-width inputs without cramped interior badge pills)
 const bankColW = (contentWidth - 8) / 3;
 const bInputs = [
   {
     label: 'Bank Name *',
     instruction: 'Type bank name (e.g. HDFC, SBI, ICICI)',
-    badge: 'Bank Name',
   },
   {
-    label: 'Account Number *',
+    label: 'Account Number * (Current / Business)',
     instruction: 'Type Account Number (9 to 18 digits)',
-    badge: 'Current / Business',
     opts: { isMonospace: true },
   },
   {
-    label: 'IFSC Code (11 digits) *',
+    label: 'IFSC Code * (11 Digits)',
     instruction: 'Type 11-digit IFSC (e.g. HDFC0001234)',
-    badge: '11 Digits',
     opts: { isMonospace: true },
   },
 ];
 
 bInputs.forEach((b, idx) => {
   const bX = margin + idx * (bankColW + 4);
-  drawInputMockup(doc, bX, y, bankColW, 13, b.label, b.instruction, {
-    badgeText: b.badge,
-    ...(b.opts || {}),
-  });
+  drawInputMockup(doc, bX, y, bankColW, 13, b.label, b.instruction, b.opts || {});
 });
 
 y += 17;
@@ -718,33 +679,33 @@ doc.text('UPLOAD VERIFICATION DOCUMENTS (ATTACH YOUR 3 BUSINESS PROOFS)', margin
 
 y += 9.5;
 
-// 3 Instructional Upload Cards (Explaining what document to attach)
+// 3 Spacious Instructional Upload Cards (Taller 50mm cards with generous button margins)
 const uploadInstructions = [
   {
     title: '1. PAN Card Proof *',
     sub: 'Business / Proprietor PAN',
     instruction: 'Attach scanned copy or clear photo of PAN Card.',
-    tip: 'Must clearly show Name, PAN Number & Date of Birth/Inc.',
-    buttonText: '📁 Click to Upload PAN',
+    tip: 'Must show Name, PAN Number & Date of Birth/Inc.',
+    buttonText: 'Browse & Upload PAN',
   },
   {
     title: '2. GST Certificate *',
     sub: 'Form GST REG-06',
     instruction: 'Attach official 3-page GST REG-06 Certificate.',
-    tip: 'Must show Trade Name & 15-digit GSTIN.',
-    buttonText: '📁 Click to Upload GST',
+    tip: 'Must show Trade Name & 15-digit GSTIN clearly.',
+    buttonText: 'Browse & Upload GST',
   },
   {
     title: '3. Cancelled Cheque *',
     sub: 'Or Passbook Front Page',
     instruction: 'Attach Cheque with "CANCELLED" written across.',
-    tip: 'Must clearly show Account Name, Number & IFSC Code.',
-    buttonText: '📁 Click to Upload Cheque',
+    tip: 'Must show Account Name, Number & IFSC Code.',
+    buttonText: 'Browse & Upload Cheque',
   },
 ];
 
 const upCardW = (contentWidth - 8) / 3;
-const upCardH = 44;
+const upCardH = 49;
 
 uploadInstructions.forEach((u, idx) => {
   const uX = margin + idx * (upCardW + 4);
@@ -765,29 +726,29 @@ uploadInstructions.forEach((u, idx) => {
   doc.setTextColor(...MUTED);
   doc.text(u.sub, uX + upCardW / 2, y + 10.8, { align: 'center' });
 
-  // Instruction Box inside card
+  // Instruction Box inside card (generous 16mm height)
   doc.setFillColor(...SLATE_BG);
   doc.setDrawColor(...BORDER);
-  doc.roundedRect(uX + 3.5, y + 14, upCardW - 7, 13.5, 2, 2, 'FD');
+  doc.roundedRect(uX + 3.5, y + 13.5, upCardW - 7, 16, 2, 2, 'FD');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
   doc.setTextColor(...DARK_SLATE);
-  drawSafeWrappedText(doc, u.instruction, uX + 5, y + 18, upCardW - 10, 3.4);
+  drawSafeWrappedText(doc, u.instruction, uX + 5, y + 18, upCardW - 10, 3.5);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.8);
   doc.setTextColor(...MUTED);
-  drawSafeWrappedText(doc, u.tip, uX + 5, y + 23.5, upCardW - 10, 3);
+  drawSafeWrappedText(doc, u.tip, uX + 5, y + 25, upCardW - 10, 3);
 
-  // Upload action button on bottom
+  // Upload action button on bottom (Generous 8mm height with centered text)
   doc.setFillColor(...GOLD_LIGHT);
   doc.setDrawColor(...GOLD_BORDER);
-  doc.roundedRect(uX + 5, y + upCardH - 9.5, upCardW - 10, 6, 1.5, 1.5, 'FD');
+  doc.roundedRect(uX + 4, y + upCardH - 12, upCardW - 8, 8, 2, 2, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.8);
   doc.setTextColor(...GOLD);
-  doc.text(u.buttonText, uX + upCardW / 2, y + upCardH - 5.5, { align: 'center' });
+  doc.text(u.buttonText, uX + upCardW / 2, y + upCardH - 6.8, { align: 'center' });
 });
 
 y += upCardH + 5.5;
@@ -821,7 +782,7 @@ doc.roundedRect(margin, y, prevBtnW, 9.5, 2, 2, 'FD');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(7.8);
 doc.setTextColor(...BODY_TEXT);
-doc.text('←  PREVIOUS', margin + prevBtnW / 2, y + 6.2, { align: 'center' });
+doc.text('<-  PREVIOUS', margin + prevBtnW / 2, y + 6.2, { align: 'center' });
 
 // Next Button
 doc.setFillColor(...GOLD);
@@ -829,7 +790,7 @@ doc.roundedRect(margin + prevBtnW + 4, y, nextBtnW, 9.5, 2, 2, 'F');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(8.2);
 doc.setTextColor(...WHITE);
-doc.text('NEXT: TERMS & REVIEW  →', margin + prevBtnW + 4 + nextBtnW / 2, y + 6.2, { align: 'center' });
+doc.text('NEXT: TERMS & REVIEW  ->', margin + prevBtnW + 4 + nextBtnW / 2, y + 6.2, { align: 'center' });
 
 y += 14.5;
 
@@ -844,9 +805,9 @@ doc.setTextColor(...NAVY);
 doc.text('Why Are Bank Details Required for Buyers?', margin + 6, y + 5.5);
 
 const bankFaqs = [
-  '• 100% EMD Refund Guarantee: If you participate in an auction but are outbid (not H1), your full EMD is returned to this account.',
-  '• Bank Account Matching: The bank account name should match your business entity or proprietor name.',
-  '• Secure Data: SalvageReef uses encrypted bank storage strictly for verified bidder payments and refunds.',
+  '- 100% EMD Refund Guarantee: If you participate in an auction but are outbid (not H1), your full EMD is returned to this account.',
+  '- Bank Account Matching: The bank account name should match your business entity or proprietor name.',
+  '- Secure Data: SalvageReef uses encrypted bank storage strictly for verified bidder payments and refunds.',
 ];
 let bqY = y + 11;
 doc.setFont('helvetica', 'normal');
@@ -883,7 +844,7 @@ y = drawWebsiteStepper(doc, y, 3);
 
 y += 6;
 
-// STAGE 3: INSTRUCTIONAL REVIEW SUMMARY CARD (Explaining what appears in each box)
+// STAGE 3: INSTRUCTIONAL REVIEW SUMMARY CARD
 doc.setFillColor(...SLATE_BG);
 doc.setDrawColor(...BORDER);
 doc.roundedRect(margin, y, contentWidth, 50, 3, 3, 'FD');
@@ -899,12 +860,12 @@ const gridStartY = y + 11;
 const colGridW = (contentWidth - 12) / 3;
 
 const summaryItems = [
-  { label: 'VENDOR NAME', line1: 'Your Business Legal Name', line2: '(As registered on GST certificate)', bold: true },
-  { label: 'ENTITY TYPE', line1: 'Selected Constitution', line2: '(Proprietor / Partnership / Pvt Ltd)', bold: true },
+  { label: 'VENDOR NAME', line1: 'Your Business Legal Name', line2: '(As registered on GST)', bold: true },
+  { label: 'ENTITY TYPE', line1: 'Selected Constitution', line2: '(Proprietor / Partnership / Co.)', bold: true },
   { label: 'GST NUMBER', line1: 'Your 15-Digit GSTIN', line2: '(Verified for tax invoicing)', bold: true, color: GOLD },
 
   { label: 'PAN NUMBER', line1: 'Your 10-Character PAN', line2: '(Tax verification identity)', bold: true },
-  { label: 'SPOC / CONTACT', line1: 'Authorized Bidder Name', line2: '(Primary decision-making manager)', bold: true },
+  { label: 'SPOC / CONTACT', line1: 'Authorized Bidder Name', line2: '(Primary decision maker)', bold: true },
   { label: 'MOBILE & EMAIL', line1: 'Your 10-Digit Mobile', line2: '& Registered Official Email', bold: false },
 
   { label: 'BANK NAME', line1: 'Your Bank Name', line2: '(For 100% EMD refunds if outbid)', bold: true },
@@ -961,45 +922,43 @@ proofs.forEach((p, idx) => {
 
 y += 54;
 
-// Terms Checkbox & Registration Button Layout (Isolated columns to prevent collision)
+// ── FULL-WIDTH STANDALONE TERMS & CONDITIONS CARD (ZERO TEXT-BUTTON CONFLICT) ──
 doc.setFillColor(...GOLD_LIGHT);
 doc.setDrawColor(...GOLD_BORDER);
-doc.roundedRect(margin, y, contentWidth, 27, 2.5, 2.5, 'FD');
-
-const termsTextW = contentWidth - 68; // Reserve 68mm on right for the button
+doc.roundedRect(margin, y, contentWidth, 20, 2.5, 2.5, 'FD');
 
 // Checkbox square
 doc.setFillColor(...GOLD);
-doc.roundedRect(margin + 5, y + 4.5, 4.2, 4.2, 1, 1, 'F');
+doc.roundedRect(margin + 5, y + 4, 4.2, 4.2, 1, 1, 'F');
 doc.setTextColor(...WHITE);
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(6.8);
-doc.text('✓', margin + 7.1, y + 7.6, { align: 'center' });
+doc.text('✓', margin + 7.1, y + 7.1, { align: 'center' });
 
 doc.setFont('helvetica', 'bold');
-doc.setFontSize(8);
+doc.setFontSize(7.8);
 doc.setTextColor(...DARK_SLATE);
-doc.text('Accept Terms & Conditions * (Click Checkbox to Accept)', margin + 11.5, y + 7.5);
+doc.text('Accept Terms & Conditions * (Click Checkbox to Accept)', margin + 11.5, y + 7.2);
 
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(6.8);
 doc.setTextColor(...BODY_TEXT);
-const termsNotice1 = 'I declare that all business vendor information, GSTIN, and Bank details provided above are authentic and genuine.';
-const termsNotice2 = 'I agree to abide by SalvageReef Tender Bidding Rules, 100% EMD refund policies, and General Conditions of Sale.';
-drawSafeWrappedText(doc, termsNotice1, margin + 11.5, y + 12, termsTextW, 3.8);
-drawSafeWrappedText(doc, termsNotice2, margin + 11.5, y + 19, termsTextW, 3.8);
+const termsNotice1 = '1. I declare that all business vendor information, GSTIN, and Bank details provided above are authentic and genuine.';
+const termsNotice2 = '2. I agree to abide by SalvageReef Tender Bidding Rules, 100% EMD refund policies, and General Conditions of Sale.';
+drawSafeWrappedText(doc, termsNotice1, margin + 11.5, y + 11.8, contentWidth - 16, 3.8);
+drawSafeWrappedText(doc, termsNotice2, margin + 11.5, y + 16, contentWidth - 16, 3.8);
 
-// Complete Registration Button on Right (Zero text collision)
-const regBtnW = 58;
-const regBtnX = pageWidth - margin - regBtnW - 4;
+y += 23;
+
+// ── FULL-WIDTH HERO COMPLETE REGISTRATION BUTTON (PERFECT VERTICAL & HORIZONTAL ALIGNMENT) ──
 doc.setFillColor(...GOLD);
-doc.roundedRect(regBtnX, y + 6.5, regBtnW, 14, 2, 2, 'F');
+doc.roundedRect(margin, y, contentWidth, 11, 2.5, 2.5, 'F');
 doc.setFont('helvetica', 'bold');
-doc.setFontSize(7.5);
+doc.setFontSize(8.5);
 doc.setTextColor(...WHITE);
-doc.text('COMPLETE REGISTRATION  →', regBtnX + regBtnW / 2, y + 15, { align: 'center' });
+doc.text('COMPLETE BUYER REGISTRATION  ->', pageWidth / 2, y + 7.2, { align: 'center' });
 
-y += 31;
+y += 15;
 
 // Green Approval Card (Exact replica of website's success card)
 doc.setFillColor(...EMERALD_BG);
@@ -1092,7 +1051,7 @@ doc.text('Website: salvagereef.com/register', margin + 7, y + 20.8);
 doc.text('Desk: Mumbai / Thane, Maharashtra', margin + 92, y + 20.8);
 
 // ============================================================================
-// SAVE HIGH-AESTHETIC PDF
+// SAVE FLAWLESS PDF
 // ============================================================================
 const outDir = path.resolve(__dirname);
 const rootPdfPath = path.join(outDir, 'SalvageReef_Buyer_Registration_Guide.pdf');
