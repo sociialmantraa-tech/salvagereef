@@ -1730,9 +1730,6 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
     $bankName          = sanitizeInput($body['bank_name'] ?? '', 100);
     $bankAccountNumber = sanitizeInput($body['bank_account_number'] ?? '', 50);
     $bankIfscCode      = strtoupper(trim(sanitizeInput($body['bank_ifsc_code'] ?? '', 20)));
-    $chequeFile        = saveBase64Upload(trim($body['cheque_file'] ?? ''), 'kyc', 'cheque');
-    $panFile           = saveBase64Upload(trim($body['pan_file'] ?? ''), 'kyc', 'pan');
-    $gstFile           = saveBase64Upload(trim($body['gst_file'] ?? ''), 'kyc', 'gst');
     $password          = $body['password'] ?? '';
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -1760,6 +1757,11 @@ if ($method === 'POST' && $uri === '/api/v1/auth/register') {
             jsonResponse(['message' => "Registration failed: An account with GST Number '{$gstNumber}' is already registered on SalvageReef."], 422);
         }
     }
+
+    // ── Save KYC uploads only after validation and uniqueness checks pass ─────
+    $chequeFile        = saveBase64Upload(trim($body['cheque_file'] ?? ''), 'kyc', 'cheque');
+    $panFile           = saveBase64Upload(trim($body['pan_file'] ?? ''), 'kyc', 'pan');
+    $gstFile           = saveBase64Upload(trim($body['gst_file'] ?? ''), 'kyc', 'gst');
 
     $passHash = password_hash($password, PASSWORD_DEFAULT);
     $loginId  = 'SR-' . mt_rand(100000, 999999);

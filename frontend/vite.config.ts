@@ -176,6 +176,14 @@ function devApiPlugin(): Plugin {
               return sendJson({ success: false, message: 'This email address is already registered. Please sign in.' }, 422);
             }
 
+            const gst = (body.gst_number || '').trim().toUpperCase();
+            if (gst) {
+              const existingGst = users.find((u: any) => (u.gst_number || '').trim().toUpperCase() === gst);
+              if (existingGst) {
+                return sendJson({ success: false, message: `Registration failed: An account with GST Number '${gst}' is already registered on SalvageReef.` }, 422);
+              }
+            }
+
             const savedPanUrl = body.pan_file ? (saveUploadedBase64(body.pan_file, 'kyc', `pan_card_${Date.now()}.jpg`) || body.pan_file) : '';
             const savedGstUrl = body.gst_file ? (saveUploadedBase64(body.gst_file, 'kyc', `gst_cert_${Date.now()}.jpg`) || body.gst_file) : '';
             const savedChequeUrl = body.cheque_file ? (saveUploadedBase64(body.cheque_file, 'kyc', `cheque_${Date.now()}.jpg`) || body.cheque_file) : '';

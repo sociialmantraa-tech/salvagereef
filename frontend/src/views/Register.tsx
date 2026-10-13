@@ -20,9 +20,11 @@ import {
   XCircle,
   ImageIcon,
   Globe,
+  X,
 } from 'lucide-react';
 import SEOHead from '../components/SEOHead';
 import { compressAndSanitizeImage, processUploadFile, isPdfDocument, formatBytes } from '../utils/imageCompressor';
+import { formatApiError, FormattedError } from '../utils/errorUtils';
 
 export interface CountryConfig {
   code: string;
@@ -79,6 +81,7 @@ export default function Register() {
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<FormattedError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
@@ -352,6 +355,7 @@ export default function Register() {
 
     setFormData((prev) => ({ ...prev, [name]: value }));
     setServerError(null);
+    setErrorBanner(null);
 
     // If user has already blurred this field before, re-validate on type
     if (touched[name]) {
@@ -369,12 +373,19 @@ export default function Register() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5 MB.');
+      setErrorBanner({
+        type: 'validation',
+        title: 'File Size Exceeded (Max 5 MB)',
+        description: `The selected file "${file.name}" exceeds the 5 MB limit. Please select a smaller photo or document under 5 MB.`,
+        actionType: 'retry',
+        actionLabel: 'Select Another File',
+      });
       return;
     }
 
     try {
-      const result = await processUploadFile(file, 1600, 1600, 0.85);
+      // 1200x1200 with 0.80 quality keeps documents crystal clear while compressing to ~150-250KB for rapid upload
+      const result = await processUploadFile(file, 1200, 1200, 0.80);
       if (fieldName === 'cheque_file') {
         setChequeFileName(file.name);
         setChequeFileSize(result.compressedSizeStr);
@@ -387,6 +398,8 @@ export default function Register() {
       }
       setFormData((prev) => ({ ...prev, [fieldName]: result.dataUrl }));
       setErrors((prev) => ({ ...prev, [fieldName]: undefined }));
+      setErrorBanner(null);
+      setServerError(null);
     } catch (err) {
       console.error('File compression error:', err);
       // Fallback
@@ -404,6 +417,8 @@ export default function Register() {
           setGstFileSize(formatBytes(file.size));
         }
         setFormData((prev) => ({ ...prev, [fieldName]: rawData }));
+        setErrorBanner(null);
+        setServerError(null);
       };
       reader.readAsDataURL(file);
     }
@@ -444,7 +459,15 @@ export default function Register() {
 
     if (hasError) {
       const firstErr = Object.values(newErrors)[0];
-      setServerError(firstErr || 'Please correct the highlighted fields before proceeding.');
+      const msg = firstErr || 'Please correct the highlighted fields before proceeding.';
+      setServerError(msg);
+      setErrorBanner({
+        type: 'validation',
+        title: 'Basic Details Need Review',
+        description: msg,
+        actionType: 'review_step1',
+        actionLabel: 'Review Fields',
+      });
       return false;
     }
 
@@ -454,6 +477,7 @@ export default function Register() {
   // Step 2 Validation Trigger
   const validateStep2 = (): boolean => {
     setServerError(null);
+    setErrorBanner(null);
     const step2Fields = ['bank_name', 'bank_account_number', 'bank_ifsc_code'];
 
     const newErrors: FormErrors = {};
@@ -474,7 +498,13 @@ export default function Register() {
 
     if (hasError) {
       const firstErr = Object.values(newErrors)[0];
-      setServerError(firstErr || 'Please correct the bank details before proceeding.');
+      const msg = firstErr || 'Please correct the bank details before proceeding.';
+      setServerError(msg);
+      setErrorBanner({
+        type: 'validation',
+        title: 'Banking Details Need Review',
+        description: msg,
+      });
       return false;
     }
 
@@ -482,6 +512,8 @@ export default function Register() {
   };
 
   const handleNextStep = () => {
+    setErrorBanner(null);
+    setServerError(null);
     if (currentStep === 1) {
       if (validateStep1()) setCurrentStep(2);
     } else if (currentStep === 2) {
@@ -493,6 +525,7 @@ export default function Register() {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
       setServerError(null);
+      setErrorBanner(null);
     }
   };
 
@@ -500,10 +533,17 @@ export default function Register() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
+    setErrorBanner(null);
     setTermsError(null);
 
     if (!termsAccepted) {
-      setTermsError('You must accept the Terms & Conditions to complete registration.');
+      const msg = 'You must accept the Terms & Conditions to complete registration.';
+      setTermsError(msg);
+      setErrorBanner({
+        type: 'validation',
+        title: 'Terms & Conditions Acceptance Required',
+        description: msg,
+      });
       return;
     }
 
@@ -534,7 +574,10 @@ export default function Register() {
         gst_file: formData.gst_file || '',
       };
 
-      const res = await api.post('/auth/register', payload);
+      // Dedicated 120-second (2 full minutes) timeout for uploading documents & KYC proofs
+      const res = await api.post('/auth/register', payload, {
+        timeout: 120000,
+      });
 
       const userToSave = {
         ...payload,
@@ -571,22 +614,19 @@ export default function Register() {
 
       useAuthStore.setState({ user: userToSave, token: tokenToSave, isAuthenticated: true });
       setRegistrationSuccess(true);
+      setErrorBanner(null);
     } catch (err: any) {
-      const backendMsg =
-        err.response?.data?.message ||
-        err.response?.data?.errors?.gst_number?.[0] ||
-        err.response?.data?.errors?.email?.[0] ||
-        err.message ||
-        'Registration failed';
+      const formatted = formatApiError(err);
+      setErrorBanner(formatted);
+      setServerError(formatted.description);
 
-      if (backendMsg.toLowerCase().includes('gst')) {
-        setErrors((prev) => ({ ...prev, gst_number: backendMsg }));
+      if (formatted.type === 'duplicate_gst' || formatted.description.toLowerCase().includes('gst')) {
+        setErrors((prev) => ({ ...prev, gst_number: formatted.description }));
         setCurrentStep(1);
-      } else if (backendMsg.toLowerCase().includes('email')) {
-        setErrors((prev) => ({ ...prev, email: backendMsg }));
+      } else if (formatted.type === 'duplicate_email' || formatted.description.toLowerCase().includes('email')) {
+        setErrors((prev) => ({ ...prev, email: formatted.description }));
         setCurrentStep(1);
       }
-      setServerError(backendMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -673,17 +713,82 @@ export default function Register() {
 
       {/* FORM CARD */}
       <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl space-y-6">
-        {(serverError || authError) && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs flex items-center justify-between gap-3 font-bold animate-shake">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-              <span>{serverError || authError}</span>
+        {/* BEAUTIFUL CONTEXTUAL ERROR & NOTICE BANNER */}
+        {(errorBanner || serverError || authError) && (
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-red-50 via-rose-50/70 to-red-50 border border-red-200/90 rounded-2xl shadow-sm space-y-3 animate-fade-in">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 ring-4 ring-red-50 shadow-sm mt-0.5">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-red-950 tracking-tight flex items-center gap-2">
+                    {errorBanner?.title || (authError ? 'Authentication Notice' : 'Registration Notice')}
+                  </h4>
+                  <p className="text-xs text-red-800 leading-relaxed font-medium">
+                    {errorBanner?.description || serverError || authError}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorBanner(null);
+                  setServerError(null);
+                }}
+                className="text-red-400 hover:text-red-700 p-1.5 rounded-lg transition-colors shrink-0"
+                aria-label="Dismiss notice"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            {(serverError?.toLowerCase().includes('sign in') || serverError?.toLowerCase().includes('already')) && (
-              <Link to="/login" className="px-3.5 py-1.5 bg-[#D48B1C] text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-[#B87514] shrink-0">
-                Sign In Now &rarr;
-              </Link>
-            )}
+
+            {/* CONTEXTUAL ACTION BUTTONS */}
+            <div className="pt-1 flex flex-wrap items-center gap-2.5 sm:pl-13">
+              {(errorBanner?.actionType === 'login' || serverError?.toLowerCase().includes('sign in') || serverError?.toLowerCase().includes('already')) && (
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D48B1C] hover:bg-[#B87514] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all"
+                >
+                  Sign In to Existing Account &rarr;
+                </Link>
+              )}
+              {errorBanner?.actionType === 'retry' && (
+                <button
+                  type="button"
+                  onClick={handleRegisterSubmit}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                  {isSubmitting ? 'Submitting...' : 'Try Again Now'}
+                </button>
+              )}
+              {errorBanner?.actionType === 'review_step1' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(1);
+                    setErrorBanner(null);
+                    setServerError(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                >
+                  Review Step 1 Information
+                </button>
+              )}
+              {currentStep === 3 && (errorBanner?.type === 'duplicate_gst' || errorBanner?.type === 'duplicate_email' || errorBanner?.type === 'validation') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(1);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-red-200 text-red-800 hover:bg-red-50 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  &larr; Back to Step 1
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -1513,16 +1618,20 @@ export default function Register() {
                 </div>
 
                 {/* TERMS & CONDITIONS CHECKBOX */}
-                <div className="bg-amber-50/60 p-4 rounded-2xl border border-amber-200 space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
+                <div className={`p-4 rounded-2xl border transition-all ${termsError ? 'bg-red-50/70 border-red-300 ring-2 ring-red-200' : 'bg-amber-50/60 border-amber-200'}`}>
+                  <label htmlFor="terms-checkbox" className="flex items-start gap-3 cursor-pointer select-none">
                     <input
+                      id="terms-checkbox"
                       type="checkbox"
                       checked={termsAccepted}
                       onChange={(e) => {
                         setTermsAccepted(e.target.checked);
-                        if (e.target.checked) setTermsError(null);
+                        if (e.target.checked) {
+                          setTermsError(null);
+                          setErrorBanner(null);
+                        }
                       }}
-                      className="mt-1 w-4 h-4 text-[#D48B1C] rounded border-slate-300 focus:ring-[#D48B1C]"
+                      className="mt-1 w-4 h-4 text-[#D48B1C] rounded border-slate-300 focus:ring-[#D48B1C] cursor-pointer"
                     />
                     <div className="text-xs text-slate-800 space-y-1">
                       <span className="font-extrabold text-slate-900 block">Accept Terms & Conditions *</span>
@@ -1546,8 +1655,8 @@ export default function Register() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || !termsAccepted}
-                    className="w-2/3 py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs disabled:opacity-50"
+                    disabled={isSubmitting}
+                    className="w-2/3 py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-xs disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />

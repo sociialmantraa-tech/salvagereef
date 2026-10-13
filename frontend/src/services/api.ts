@@ -48,7 +48,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  timeout: 8000, // 8 second timeout — fast fail if server is unreachable
+  timeout: 60000, // 60 seconds (1 minute) default timeout — ample time for standard operations
 });
 
 // ─── Request Interceptor ─────────────────────────────────────────────────────
@@ -75,7 +75,19 @@ api.interceptors.request.use(async (config) => {
     config.headers['Pragma'] = 'no-cache';
   }
 
-  // 3. Sign write requests only (POST, PUT, DELETE, PATCH)
+  // 3. For file uploads, KYC documents, or registration, extend timeout to 120 seconds (2 full minutes)
+  const reqUrl = (config.url || '').toLowerCase();
+  if (
+    reqUrl.includes('/register') ||
+    reqUrl.includes('/upload') ||
+    reqUrl.includes('/kyc') ||
+    reqUrl.includes('/scrap-requests') ||
+    config.data instanceof FormData
+  ) {
+    config.timeout = Math.max(config.timeout || 0, 120000);
+  }
+
+  // 4. Sign write requests only (POST, PUT, DELETE, PATCH)
   const method = config.method?.toLowerCase() ?? '';
   if (method === 'post' || method === 'put' || method === 'delete' || method === 'patch') {
     try {
@@ -287,6 +299,9 @@ export async function uploadFile(endpoint: string, formData: FormData): Promise<
 
 // Attach uploadFile as a method on api instance for convenience
 (api as any).uploadFile = uploadFile;
+
+export { formatApiError } from '../utils/errorUtils';
+export type { FormattedError } from '../utils/errorUtils';
 
 export default api;
 
