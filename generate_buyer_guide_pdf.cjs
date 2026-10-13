@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- * SalvageReef — Executive Buyer Registration & Signup Manual (Perfect Layout)
+ * SalvageReef — Executive Buyer Registration & Signup Manual (Instructional Edition)
  * ============================================================================
- * Zero-overflow, pixel-perfect 4-page PDF document matching the website portal:
+ * Zero demo data: every field and option explicitly instructs the buyer
+ * WHAT THEY NEED TO WRITE OR SELECT:
  * - Dynamic text measurement & auto-wrapping on every bullet, title, and card
- * - Clean multi-line metadata grid for Review Summary (no cell overflows)
- * - Protected Terms & Conditions card with isolated button layout
- * - Exact 3-stage golden stepper header on every page
- * - Form input mockups with mathematical text-clipping & checkmark clearance
- * - Zero font-encoding issues (no unsupported emojis, uses clean typography)
+ * - Field-by-field instructions explaining exact formats (GSTIN, PAN, Bank, Address)
+ * - Upload dropzones detailing exactly what document to attach and why
+ * - Review summary showing how user's verified details will appear
+ * - Clean two-column Terms acceptance with zero text collision
+ * - 4-step post-registration guide for live scrap bidding
  */
 
 const { jsPDF } = require('./frontend/node_modules/jspdf');
@@ -200,9 +201,10 @@ function drawSafeWrappedText(doc, text, x, y, maxWidth, lineHeight) {
   return y + lines.length * lineHeight;
 }
 
-// ─── Realistic Form Input Mockup Drawer with Strict Width Clamping ──────────
-function drawInputMockup(doc, x, y, width, height, label, value, options = {}) {
-  const { isDropdown = false, hasCheck = true, isMonospace = false, isPassword = false } = options;
+// ─── Instructional Form Input Mockup Drawer ─────────────────────────────────
+// Displays clear guidance on what the buyer needs to enter or select
+function drawInputMockup(doc, x, y, width, height, label, instructionText, options = {}) {
+  const { isDropdown = false, badgeText = 'Required', isMonospace = false } = options;
 
   // Label above input
   doc.setFont('helvetica', 'bold');
@@ -210,50 +212,56 @@ function drawInputMockup(doc, x, y, width, height, label, value, options = {}) {
   doc.setTextColor(...DARK_SLATE);
   doc.text(label, x, y);
 
-  const inputY = y + 2;
-  const inputH = height - 2;
+  const inputY = y + 2.2;
+  const inputH = height - 2.2;
 
-  // Input Box (white with crisp subtle border)
-  doc.setFillColor(...WHITE);
+  // Input Box (slate-50 background with clean border)
+  doc.setFillColor(...SLATE_BG);
   doc.setDrawColor(...INPUT_BORDER);
   doc.setLineWidth(0.4);
   doc.roundedRect(x, inputY, width, inputH, 2, 2, 'FD');
 
-  // Input Value Text
-  doc.setFont(isMonospace ? 'courier' : 'helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...DARK_SLATE);
+  // Badge width calculation
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6);
+  const badgeW = isDropdown ? 14 : doc.getTextWidth(badgeText) + 4.5;
+  const badgeX = x + width - badgeW - 2.5;
+  const badgeY = inputY + (inputH - 4.5) / 2;
 
-  let displayVal = value;
-  if (isPassword) {
-    displayVal = '••••••••••••';
+  // Render Trailing Indicator Pill
+  if (isDropdown) {
+    doc.setFillColor(...GOLD_LIGHT);
+    doc.setDrawColor(...GOLD_BORDER);
+    doc.roundedRect(badgeX, badgeY, badgeW, 4.5, 1, 1, 'FD');
+    doc.setTextColor(...GOLD);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.text('Select ▾', badgeX + badgeW / 2, badgeY + 3.2, { align: 'center' });
+  } else {
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(...INPUT_BORDER);
+    doc.roundedRect(badgeX, badgeY, badgeW, 4.5, 1, 1, 'FD');
+    doc.setTextColor(...MUTED);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5.8);
+    doc.text(badgeText, badgeX + badgeW / 2, badgeY + 3.2, { align: 'center' });
   }
 
-  // Available text width inside input box (leaving 9mm for trailing check/arrow icon)
-  const maxAvailableTextW = width - 11;
-  while (doc.getTextWidth(displayVal) > maxAvailableTextW && displayVal.length > 3) {
-    displayVal = displayVal.substring(0, displayVal.length - 2) + '...';
+  // Instructional Text inside box (What user needs to type)
+  doc.setFont(isMonospace ? 'courier' : 'helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(71, 85, 105); // slate-600
+
+  let displayVal = instructionText;
+  const maxAvailableTextW = width - badgeW - 6.5;
+  if (doc.getTextWidth(displayVal) > maxAvailableTextW) {
+    while (doc.getTextWidth(displayVal + '...') > maxAvailableTextW && displayVal.length > 2) {
+      displayVal = displayVal.slice(0, -1);
+    }
+    displayVal = displayVal + '...';
   }
 
   doc.text(displayVal, x + 3.5, inputY + inputH / 2 + 1.2);
-
-  // Trailing indicator: Dropdown arrow or Green checkmark
-  if (isDropdown) {
-    doc.setTextColor(...MUTED);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text('▾', x + width - 5, inputY + inputH / 2 + 1);
-  } else if (hasCheck) {
-    doc.setTextColor(...EMERALD_DARK);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text('✓', x + width - 5, inputY + inputH / 2 + 1);
-  } else if (isPassword) {
-    doc.setTextColor(...MUTED);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.text('[SHOW]', x + width - 9, inputY + inputH / 2 + 1);
-  }
 }
 
 // ============================================================================
@@ -337,31 +345,31 @@ doc.text('To ensure genuine commercial bidding and tax compliance, buyers upload
 
 y += 5.5;
 
-// 3 Dropzone-style cards mimicking the website upload boxes
+// 3 Dropzone-style cards explaining what the user needs to upload
 const docCards = [
   {
     badge: 'IDENTITY PROOF',
     title: '1. PAN Card Proof *',
     sub: 'Business / Proprietor PAN',
-    desc: 'Clear photo or PDF of your 10-digit PAN card. Required for buyer identity verification & income tax records.',
-    buttonText: 'Browse / Upload PAN',
+    desc: 'Upload clear photo or PDF of your 10-digit PAN card. Required to verify buyer tax identity and TDS/TCS records.',
+    buttonText: 'Click to Browse & Upload',
     fileNotice: 'JPG, PNG, PDF • Max 5MB',
   },
   {
     badge: 'BUSINESS PROOF',
     title: '2. GST Certificate *',
     sub: 'Form GST REG-06',
-    desc: 'Official 15-digit GST Registration Certificate. Required to issue commercial scrap sale tax invoices.',
-    buttonText: 'Browse / Upload GST',
-    fileNotice: 'Official REG-06 Proof',
+    desc: 'Upload official 15-digit GST Registration Certificate. Required to issue commercial scrap sale tax invoices.',
+    buttonText: 'Click to Browse & Upload',
+    fileNotice: 'Official REG-06 Document',
   },
   {
     badge: 'BANKING PROOF',
     title: '3. Cancelled Cheque *',
     sub: 'Passbook / Cheque Copy',
-    desc: 'Cancelled cheque showing Account Number & IFSC. Used for secure identity and prompt 100% EMD refunds.',
-    buttonText: 'Browse / Upload Cheque',
-    fileNotice: 'Account Details Visible',
+    desc: 'Upload cheque leaf with "CANCELLED" written across. Verifies bank account details for prompt 100% EMD refunds.',
+    buttonText: 'Click to Browse & Upload',
+    fileNotice: 'Name & IFSC Clearly Visible',
   },
 ];
 
@@ -444,7 +452,7 @@ tips.forEach((t) => {
 });
 
 // ============================================================================
-// PAGE 2: STAGE 1 — BASIC & CONTACT DETAILS (WEBSITE FORM MOCKUP)
+// PAGE 2: STAGE 1 — BASIC & CONTACT DETAILS (INSTRUCTIONAL FORM BLUEPRINT)
 // ============================================================================
 doc.addPage();
 drawPageHeader(doc, 2);
@@ -482,18 +490,18 @@ doc.text('Country / Operating Region *', margin + 5, y + 5.5);
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(6.8);
 doc.setTextColor(...BODY_TEXT);
-doc.text('Select your business country. Rules and dialing codes adapt automatically.', margin + 5, y + 10.8);
+doc.text('Select your business country. Indian buyers select India (+91). Global buyers choose their country.', margin + 5, y + 10.8);
 
 // Selector mockup on right
-const cSelW = 70;
+const cSelW = 75;
 const cSelX = pageWidth - margin - cSelW - 4;
 doc.setFillColor(...WHITE);
 doc.setDrawColor(...GOLD);
 doc.roundedRect(cSelX, y + 3, cSelW, 9, 2, 2, 'FD');
 doc.setFont('helvetica', 'bold');
-doc.setFontSize(7.5);
+doc.setFontSize(7.2);
 doc.setTextColor(...DARK_SLATE);
-doc.text('India (+91)', cSelX + 5, y + 9);
+doc.text('Select Country: India (+91)', cSelX + 4, y + 9);
 doc.setTextColor(...GOLD);
 doc.text('▾', cSelX + cSelW - 6, y + 9);
 
@@ -505,43 +513,92 @@ doc.roundedRect(margin, y, contentWidth, 6.5, 2, 2, 'F');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(7.8);
 doc.setTextColor(...WHITE);
-doc.text('WEBSITE FORM INPUTS (STAGE 1 : BASIC INFORMATION)', margin + 6, y + 4.5);
+doc.text('STAGE 1 FIELDS : WHAT INFORMATION YOU NEED TO ENTER', margin + 6, y + 4.5);
 
 y += 9.5;
 
-// 10 Mockup Input Fields (2 Columns of 5 fields each)
+// 10 Instructional Input Fields (What user needs to write / select)
 const colW = (contentWidth - 6) / 2;
 const col1X = margin;
 const col2X = margin + colW + 6;
 const fieldH = 13;
 
-// Column 1 Fields
+// Column 1 Fields with Clear Writing Instructions
 const col1Fields = [
-  { label: 'Vendor / Firm Name *', val: 'Shree Shyam Metals & Scraps', opts: { hasCheck: true } },
-  { label: 'Entity Type *', val: 'Proprietorship', opts: { isDropdown: true } },
-  { label: 'PAN Number (10 digits) *', val: 'ABCDE1234F', opts: { isMonospace: true, hasCheck: true } },
-  { label: 'GST Number (15 digits) *', val: '27ABCDE1234F1Z5', opts: { isMonospace: true, hasCheck: true } },
-  { label: 'Registered Business Address *', val: 'Plot 42, MIDC Indl Area, Taloja', opts: { hasCheck: true } },
+  {
+    label: 'Vendor / Firm Name *',
+    instruction: 'Type your registered company / firm name',
+    badge: 'Legal Name',
+  },
+  {
+    label: 'Entity Type *',
+    instruction: 'Select: Proprietor, Partnership, or Pvt Ltd',
+    opts: { isDropdown: true },
+  },
+  {
+    label: 'PAN Number (10 characters) *',
+    instruction: 'Enter 10-digit PAN (e.g. ABCDE1234F)',
+    badge: '10 Digits',
+    opts: { isMonospace: true },
+  },
+  {
+    label: 'GST Number (15 characters) *',
+    instruction: 'Enter 15-digit GSTIN (e.g. 27ABCDE1234F1Z5)',
+    badge: '15 Digits',
+    opts: { isMonospace: true },
+  },
+  {
+    label: 'Registered Business Address *',
+    instruction: 'Type complete office / factory address',
+    badge: 'Address',
+  },
 ];
 
 let curY1 = y;
 col1Fields.forEach((f) => {
-  drawInputMockup(doc, col1X, curY1, colW, fieldH, f.label, f.val, f.opts);
+  drawInputMockup(doc, col1X, curY1, colW, fieldH, f.label, f.instruction, {
+    badgeText: f.badge,
+    ...(f.opts || {}),
+  });
   curY1 += fieldH + 3.5;
 });
 
-// Column 2 Fields
+// Column 2 Fields with Clear Writing Instructions
 const col2Fields = [
-  { label: 'State & City *', val: 'Maharashtra / Navi Mumbai (410208)', opts: { hasCheck: true } },
-  { label: 'SPOC / Contact Person Name *', val: 'Ramesh Sharma (Proprietor)', opts: { hasCheck: true } },
-  { label: 'Mobile Number *', val: '+91 98201 23456', opts: { isMonospace: true, hasCheck: true } },
-  { label: 'Official Email ID *', val: 'ramesh@shyammetals.com', opts: { hasCheck: true } },
-  { label: 'Create Account Password *', val: 'SecurePass@2026', opts: { isPassword: true } },
+  {
+    label: 'State & City (with Pincode) *',
+    instruction: 'Enter State, City & 6-digit Pincode',
+    badge: 'Location',
+  },
+  {
+    label: 'SPOC / Contact Person Name *',
+    instruction: 'Enter full name of primary bidder / manager',
+    badge: 'Authorized',
+  },
+  {
+    label: 'Mobile Number (10 digits) *',
+    instruction: 'Enter 10-digit mobile number for OTP',
+    badge: '+91 Mobile',
+    opts: { isMonospace: true },
+  },
+  {
+    label: 'Official Email ID *',
+    instruction: 'Enter active email for tender updates',
+    badge: 'Email ID',
+  },
+  {
+    label: 'Create Account Password *',
+    instruction: 'Create secure password (min 6 characters)',
+    badge: 'Min 6 Chars',
+  },
 ];
 
 let curY2 = y;
 col2Fields.forEach((f) => {
-  drawInputMockup(doc, col2X, curY2, colW, fieldH, f.label, f.val, f.opts);
+  drawInputMockup(doc, col2X, curY2, colW, fieldH, f.label, f.instruction, {
+    badgeText: f.badge,
+    ...(f.opts || {}),
+  });
   curY2 += fieldH + 3.5;
 });
 
@@ -584,7 +641,7 @@ notes.forEach((note) => {
 });
 
 // ============================================================================
-// PAGE 3: STAGE 2 — BANK DETAILS & KYC UPLOADS (WEBSITE FORM MOCKUP)
+// PAGE 3: STAGE 2 — BANK DETAILS & KYC UPLOADS (INSTRUCTIONAL FORM BLUEPRINT)
 // ============================================================================
 doc.addPage();
 drawPageHeader(doc, 3);
@@ -615,21 +672,38 @@ doc.roundedRect(margin, y, contentWidth, 6.5, 2, 2, 'F');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(7.8);
 doc.setTextColor(...WHITE);
-doc.text('BANK ACCOUNT INFORMATION (FOR IDENTITY & EMD REFUNDS)', margin + 6, y + 4.5);
+doc.text('BANK ACCOUNT INFORMATION (FOR IDENTITY & 100% EMD REFUNDS)', margin + 6, y + 4.5);
 
 y += 9.5;
 
-// 3 Bank Inputs (3 columns across)
+// 3 Bank Inputs (What user needs to write)
 const bankColW = (contentWidth - 8) / 3;
 const bInputs = [
-  { label: 'Bank Name *', val: 'HDFC Bank Limited', opts: { hasCheck: true } },
-  { label: 'Account Number *', val: '50200099094159', opts: { isMonospace: true, hasCheck: true } },
-  { label: 'IFSC Code (11 digits) *', val: 'HDFC0004372', opts: { isMonospace: true, hasCheck: true } },
+  {
+    label: 'Bank Name *',
+    instruction: 'Type bank name (e.g. HDFC, SBI, ICICI)',
+    badge: 'Bank Name',
+  },
+  {
+    label: 'Account Number *',
+    instruction: 'Type Account Number (9 to 18 digits)',
+    badge: 'Current / Business',
+    opts: { isMonospace: true },
+  },
+  {
+    label: 'IFSC Code (11 digits) *',
+    instruction: 'Type 11-digit IFSC (e.g. HDFC0001234)',
+    badge: '11 Digits',
+    opts: { isMonospace: true },
+  },
 ];
 
 bInputs.forEach((b, idx) => {
   const bX = margin + idx * (bankColW + 4);
-  drawInputMockup(doc, bX, y, bankColW, 13, b.label, b.val, b.opts);
+  drawInputMockup(doc, bX, y, bankColW, 13, b.label, b.instruction, {
+    badgeText: b.badge,
+    ...(b.opts || {}),
+  });
 });
 
 y += 17;
@@ -640,36 +714,39 @@ doc.roundedRect(margin, y, contentWidth, 6.5, 2, 2, 'F');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(7.8);
 doc.setTextColor(...WHITE);
-doc.text('UPLOAD VERIFICATION DOCUMENTS (MOCKUP OF ATTACHED PROOFS)', margin + 6, y + 4.5);
+doc.text('UPLOAD VERIFICATION DOCUMENTS (ATTACH YOUR 3 BUSINESS PROOFS)', margin + 6, y + 4.5);
 
 y += 9.5;
 
-// 3 Realistic Upload Cards (showing what it looks like when uploaded on the website)
-const uploadMockups = [
+// 3 Instructional Upload Cards (Explaining what document to attach)
+const uploadInstructions = [
   {
-    title: '1. PAN Card Copy *',
+    title: '1. PAN Card Proof *',
     sub: 'Business / Proprietor PAN',
-    fileName: 'pan_card_copy.pdf',
-    fileSize: '185 KB',
+    instruction: 'Attach scanned copy or clear photo of PAN Card.',
+    tip: 'Must clearly show Name, PAN Number & Date of Birth/Inc.',
+    buttonText: '📁 Click to Upload PAN',
   },
   {
     title: '2. GST Certificate *',
     sub: 'Form GST REG-06',
-    fileName: 'gst_reg06_cert.pdf',
-    fileSize: '290 KB',
+    instruction: 'Attach official 3-page GST REG-06 Certificate.',
+    tip: 'Must show Trade Name & 15-digit GSTIN.',
+    buttonText: '📁 Click to Upload GST',
   },
   {
     title: '3. Cancelled Cheque *',
-    sub: 'Passbook / Cheque Copy',
-    fileName: 'cancelled_cheque.jpg',
-    fileSize: '160 KB',
+    sub: 'Or Passbook Front Page',
+    instruction: 'Attach Cheque with "CANCELLED" written across.',
+    tip: 'Must clearly show Account Name, Number & IFSC Code.',
+    buttonText: '📁 Click to Upload Cheque',
   },
 ];
 
 const upCardW = (contentWidth - 8) / 3;
 const upCardH = 44;
 
-uploadMockups.forEach((u, idx) => {
+uploadInstructions.forEach((u, idx) => {
   const uX = margin + idx * (upCardW + 4);
 
   // Card box
@@ -688,29 +765,29 @@ uploadMockups.forEach((u, idx) => {
   doc.setTextColor(...MUTED);
   doc.text(u.sub, uX + upCardW / 2, y + 10.8, { align: 'center' });
 
-  // Attached File Pill Badge (emerald)
-  doc.setFillColor(...EMERALD_BG);
-  doc.setDrawColor(...EMERALD_BORDER);
-  doc.roundedRect(uX + 3.5, y + 15, upCardW - 7, 11.5, 2, 2, 'FD');
+  // Instruction Box inside card
+  doc.setFillColor(...SLATE_BG);
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(uX + 3.5, y + 14, upCardW - 7, 13.5, 2, 2, 'FD');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.8);
-  doc.setTextColor(...EMERALD_DARK);
-  doc.text(`✓ ${u.fileName}`, uX + upCardW / 2, y + 20, { align: 'center' });
+  doc.setFontSize(6.5);
+  doc.setTextColor(...DARK_SLATE);
+  drawSafeWrappedText(doc, u.instruction, uX + 5, y + 18, upCardW - 10, 3.4);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
+  doc.setFontSize(5.8);
   doc.setTextColor(...MUTED);
-  doc.text(`Compressed: ${u.fileSize}`, uX + upCardW / 2, y + 24, { align: 'center' });
+  drawSafeWrappedText(doc, u.tip, uX + 5, y + 23.5, upCardW - 10, 3);
 
-  // "Change File" button on bottom
-  doc.setFillColor(...SLATE_BG);
-  doc.setDrawColor(...INPUT_BORDER);
+  // Upload action button on bottom
+  doc.setFillColor(...GOLD_LIGHT);
+  doc.setDrawColor(...GOLD_BORDER);
   doc.roundedRect(uX + 5, y + upCardH - 9.5, upCardW - 10, 6, 1.5, 1.5, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.2);
-  doc.setTextColor(...BODY_TEXT);
-  doc.text('Change File', uX + upCardW / 2, y + upCardH - 5.5, { align: 'center' });
+  doc.setFontSize(6.5);
+  doc.setTextColor(...GOLD);
+  doc.text(u.buttonText, uX + upCardW / 2, y + upCardH - 5.5, { align: 'center' });
 });
 
 y += upCardH + 5.5;
@@ -806,7 +883,7 @@ y = drawWebsiteStepper(doc, y, 3);
 
 y += 6;
 
-// STAGE 3: EXACT RECREATION OF THE WEBSITE REVIEW SUMMARY CARD (No cell overflows)
+// STAGE 3: INSTRUCTIONAL REVIEW SUMMARY CARD (Explaining what appears in each box)
 doc.setFillColor(...SLATE_BG);
 doc.setDrawColor(...BORDER);
 doc.roundedRect(margin, y, contentWidth, 50, 3, 3, 'FD');
@@ -815,24 +892,24 @@ doc.roundedRect(margin, y, contentWidth, 50, 3, 3, 'FD');
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(8.2);
 doc.setTextColor(...DARK_SLATE);
-doc.text('REVIEW SUMMARY & TERMS', margin + 6, y + 5.5);
+doc.text('STAGE 3 REVIEW SUMMARY : WHAT YOUR APPLICATION WILL DISPLAY', margin + 6, y + 5.5);
 
 // Summary Grid (3 columns x 3 rows with multi-line support)
 const gridStartY = y + 11;
 const colGridW = (contentWidth - 12) / 3;
 
 const summaryItems = [
-  { label: 'VENDOR NAME', line1: 'Shree Shyam Metals', line2: '& Scraps', bold: true },
-  { label: 'ENTITY TYPE', line1: 'Proprietorship Firm', line2: '', bold: true },
-  { label: 'GST NUMBER', line1: '27ABCDE1234F1Z5', line2: '', bold: true, color: GOLD },
+  { label: 'VENDOR NAME', line1: 'Your Business Legal Name', line2: '(As registered on GST certificate)', bold: true },
+  { label: 'ENTITY TYPE', line1: 'Selected Constitution', line2: '(Proprietor / Partnership / Pvt Ltd)', bold: true },
+  { label: 'GST NUMBER', line1: 'Your 15-Digit GSTIN', line2: '(Verified for tax invoicing)', bold: true, color: GOLD },
 
-  { label: 'PAN NUMBER', line1: 'ABCDE1234F', line2: '', bold: true },
-  { label: 'SPOC / CONTACT', line1: 'Ramesh Sharma', line2: '(Proprietor)', bold: true },
-  { label: 'MOBILE & EMAIL', line1: '+91 98201 23456', line2: 'ramesh@shyammetals.com', bold: false },
+  { label: 'PAN NUMBER', line1: 'Your 10-Character PAN', line2: '(Tax verification identity)', bold: true },
+  { label: 'SPOC / CONTACT', line1: 'Authorized Bidder Name', line2: '(Primary decision-making manager)', bold: true },
+  { label: 'MOBILE & EMAIL', line1: 'Your 10-Digit Mobile', line2: '& Registered Official Email', bold: false },
 
-  { label: 'BANK NAME', line1: 'HDFC Bank Limited', line2: '', bold: true },
-  { label: 'ACCOUNT & IFSC', line1: '50200099094159', line2: 'IFSC: HDFC0004372', bold: false },
-  { label: 'LOCATION', line1: 'Navi Mumbai, MH', line2: 'PIN: 410208', bold: false },
+  { label: 'BANK NAME', line1: 'Your Bank Name', line2: '(For 100% EMD refunds if outbid)', bold: true },
+  { label: 'ACCOUNT & IFSC', line1: 'Your Account Number', line2: '& 11-digit Branch IFSC Code', bold: false },
+  { label: 'LOCATION', line1: 'Your Business City & State', line2: 'with 6-Digit Postal PIN', bold: false },
 ];
 
 summaryItems.forEach((item, i) => {
@@ -857,7 +934,7 @@ summaryItems.forEach((item, i) => {
 
   if (item.line2) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(6.2);
     doc.setTextColor(...MUTED);
     doc.text(item.line2, cellX, cellY + 7);
   }
@@ -868,7 +945,7 @@ const badgeRowY = gridStartY + 30;
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(6.2);
 doc.setTextColor(...MUTED);
-doc.text('UPLOADED VERIFICATION PROOFS:', margin + 6, badgeRowY - 1);
+doc.text('VERIFICATION PROOFS ATTACHED IN YOUR APPLICATION:', margin + 6, badgeRowY - 1);
 
 const proofs = ['✓ PAN Card Attached', '✓ GST Cert Attached', '✓ Cheque Attached'];
 proofs.forEach((p, idx) => {
@@ -902,13 +979,13 @@ doc.text('✓', margin + 7.1, y + 7.6, { align: 'center' });
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(8);
 doc.setTextColor(...DARK_SLATE);
-doc.text('Accept Terms & Conditions *', margin + 11.5, y + 7.5);
+doc.text('Accept Terms & Conditions * (Click Checkbox to Accept)', margin + 11.5, y + 7.5);
 
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(6.8);
 doc.setTextColor(...BODY_TEXT);
-const termsNotice1 = 'I declare that all vendor information, GSTIN (27ABCDE1234F1Z5) and Bank details provided above are authentic.';
-const termsNotice2 = 'I agree to abide by SalvageReef Tender Bidding Rules, EMD refund policies, and General Conditions of Sale.';
+const termsNotice1 = 'I declare that all business vendor information, GSTIN, and Bank details provided above are authentic and genuine.';
+const termsNotice2 = 'I agree to abide by SalvageReef Tender Bidding Rules, 100% EMD refund policies, and General Conditions of Sale.';
 drawSafeWrappedText(doc, termsNotice1, margin + 11.5, y + 12, termsTextW, 3.8);
 drawSafeWrappedText(doc, termsNotice2, margin + 11.5, y + 19, termsTextW, 3.8);
 
