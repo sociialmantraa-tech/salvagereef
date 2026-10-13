@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- * SalvageReef — Buyer & Bidder Registration Manual (PDF Generator)
+ * SalvageReef — High-Aesthetic Buyer Registration & Signup PDF Manual
  * ============================================================================
- * Simple, professional, step-by-step buyer onboarding guide.
- * Written in easy-to-understand plain language for buyers/bidders.
+ * Recreates the exact website registration portal visual design:
+ * - Authentic Brand Emblem & Typography
+ * - 3-Stage Golden Stepper Header (Basic Details -> Bank & Uploads -> Terms & Review)
+ * - Beautiful dropzone upload cards, summary preview cards, and action buttons
+ * - Written in crystal-clear, friendly plain language for buyers/bidders
  */
 
 const { jsPDF } = require('./frontend/node_modules/jspdf');
@@ -17,512 +20,725 @@ const doc = new jsPDF({
   format: 'a4',
 });
 
-const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+const pageWidth = doc.internal.pageSize.getWidth();   // 210mm
 const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
 const margin = 14;
-const contentWidth = pageWidth - margin * 2; // 182mm
+const contentWidth = pageWidth - margin * 2;         // 182mm
 
-// --- Color Palette ---
-const NAVY = [11, 25, 44];       // #0B192C
-const GOLD = [212, 139, 28];     // #D48B1C
-const LIGHT_BG = [248, 250, 252];// #F8FAFC
+// --- Color Palette matching salvagereef.com ---
+const NAVY = [11, 25, 44];          // #0B192C (Brand Navy)
+const GOLD = [212, 139, 28];        // #D48B1C (Brand Amber / Gold)
+const GOLD_HOVER = [184, 117, 20];  // #B87514
+const SLATE_BG = [248, 250, 252];   // #F8FAFC
 const WHITE = [255, 255, 255];
-const DARK_TEXT = [30, 41, 59];  // #1E293B
-const MUTED_TEXT = [100, 116, 139];// #64748B
-const EMERALD = [16, 185, 129];  // #10B981
-const BORDER = [226, 232, 240];  // #E2E8F0
-const SOFT_BLUE = [238, 242, 255];
-const SOFT_AMBER = [254, 243, 199];
+const DARK_SLATE = [15, 23, 42];    // #0F172A
+const BODY_TEXT = [51, 65, 85];     // #334155
+const MUTED = [100, 116, 139];      // #64748B
+const BORDER = [226, 232, 240];     // #E2E8F0
+const EMERALD = [16, 185, 129];     // #10B981
+const EMERALD_BG = [236, 253, 245]; // #ECFDF5
+const AMBER_BG = [254, 243, 199];   // #FEF3C7
+const AMBER_BORDER = [252, 211, 77];// #FCD34D
 
-function drawHeader(pageNumber, totalPages = 3) {
-  // Top Banner
+// Read Brand Logo Emblem (PNG)
+let logoBase64 = null;
+const logoPath = path.join(__dirname, 'frontend', 'public', 'logo.png');
+if (fs.existsSync(logoPath)) {
+  logoBase64 = 'data:image/png;base64,' + fs.readFileSync(logoPath).toString('base64');
+}
+
+// ─── Reusable Top Header Bar ────────────────────────────────────────────────
+function drawPageHeader(doc, pageNumber, totalPages = 3) {
+  // Deep Navy Brand Bar
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 24, 'F');
+  doc.rect(0, 0, pageWidth, 25, 'F');
 
-  // Gold accent line under header
+  // Golden accent bottom border line
   doc.setFillColor(...GOLD);
-  doc.rect(0, 24, pageWidth, 1.5, 'F');
+  doc.rect(0, 25, pageWidth, 1.2, 'F');
 
-  // Logo / Brand
+  // Embed Logo Emblem if available
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', margin, 4.5, 12, 15);
+    } catch {}
+  }
+
+  const titleX = logoBase64 ? margin + 14.5 : margin;
+
+  // Brand Name
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('SALVAGEREEF', margin, 12);
+  doc.setFontSize(14.5);
+  doc.text('SalvageReef', titleX, 12);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  // Subtitle
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.2);
   doc.setTextColor(...GOLD);
-  doc.text('B2B INDUSTRIAL SALVAGE & FORWARD AUCTIONS', margin, 17.5);
+  doc.text('AUCTIONS & CLASSIFIEDS  •  B2B TENDER PORTAL', titleX, 17.5);
 
   // Right Header Info
   doc.setTextColor(...WHITE);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text('Portal: salvagereef.com', pageWidth - margin, 11, { align: 'right' });
-  doc.setTextColor(203, 213, 225);
-  doc.text('Buyer Helpline: +91 7304481166', pageWidth - margin, 17, { align: 'right' });
-
-  // Footer
-  doc.setFillColor(...NAVY);
-  doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('BUYER ONBOARDING GUIDE', pageWidth - margin, 11.5, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(203, 213, 225);
-  doc.text('SalvageReef Operations Desk  |  Official Buyer Onboarding Manual', margin, pageHeight - 5);
+  doc.text('Website: salvagereef.com  |  Helpline: +91 7304481166', pageWidth - margin, 17.5, { align: 'right' });
+
+  // Bottom Footer
+  doc.setFillColor(...NAVY);
+  doc.rect(0, pageHeight - 11, pageWidth, 11, 'F');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(203, 213, 225);
+  doc.text('SalvageReef Operations Desk  |  Official Buyer & Bidder Verification Manual', margin, pageHeight - 4.5);
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GOLD);
-  doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - margin, pageHeight - 4.5, { align: 'right' });
+}
+
+// ─── Signature 3-Stage Stepper Header (Website Component) ───────────────────
+function drawWebsiteStepper(doc, startY, activeStep = 1) {
+  const stepperH = 24;
+  doc.setFillColor(...WHITE);
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(margin, startY, contentWidth, stepperH, 3.5, 3.5, 'FD');
+
+  const step1X = margin + 30;
+  const step2X = margin + contentWidth / 2;
+  const step3X = margin + contentWidth - 30;
+  const lineY = startY + 9;
+
+  // Background connecting line
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.8);
+  doc.line(step1X, lineY, step3X, lineY);
+
+  // Active golden progress line
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(1.2);
+  if (activeStep === 2) {
+    doc.line(step1X, lineY, step2X, lineY);
+  } else if (activeStep >= 3) {
+    doc.line(step1X, lineY, step3X, lineY);
+  }
+
+  // Draw 3 Step Badges
+  const steps = [
+    { num: '1', title: 'BASIC DETAILS', x: step1X, stepNum: 1 },
+    { num: '2', title: 'BANK & UPLOADS', x: step2X, stepNum: 2 },
+    { num: '3', title: 'TERMS & REVIEW', x: step3X, stepNum: 3 },
+  ];
+
+  steps.forEach((s) => {
+    const isCompleted = s.stepNum < activeStep;
+    const isCurrent = s.stepNum === activeStep;
+
+    if (isCompleted || isCurrent) {
+      doc.setFillColor(...GOLD);
+      doc.circle(s.x, lineY, 4.8, 'F');
+      doc.setTextColor(...WHITE);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(isCompleted ? '✓' : s.num, s.x, lineY + 1.2, { align: 'center' });
+    } else {
+      doc.setFillColor(226, 232, 240);
+      doc.circle(s.x, lineY, 4.8, 'F');
+      doc.setTextColor(...MUTED);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(s.num, s.x, lineY + 1.2, { align: 'center' });
+    }
+
+    // Step Title Label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.2);
+    if (isCurrent) {
+      doc.setTextColor(...GOLD);
+    } else if (isCompleted) {
+      doc.setTextColor(...DARK_SLATE);
+    } else {
+      doc.setTextColor(...MUTED);
+    }
+    doc.text(s.title, s.x, startY + 19, { align: 'center' });
+  });
+
+  return startY + stepperH;
 }
 
 // ============================================================================
-// PAGE 1: INTRODUCTION & 3 REQUIRED KYC DOCUMENTS
+// PAGE 1: HERO, WHAT BUYERS CAN DO & 3 REQUIRED KYC DOCUMENTS
 // ============================================================================
-drawHeader(1);
+drawPageHeader(doc, 1);
 
-let y = 33;
+let y = 31;
 
-// Hero Badge
-doc.setFillColor(...SOFT_AMBER);
-doc.roundedRect(margin, y, 70, 7, 2, 2, 'F');
+// "SALVAGE BUYER ONBOARDING PORTAL" pill badge (identical to website)
+doc.setFillColor(...AMBER_BG);
+doc.setDrawColor(...AMBER_BORDER);
+doc.roundedRect(pageWidth / 2 - 40, y, 80, 6.5, 3.25, 3.25, 'FD');
 doc.setFont('helvetica', 'bold');
-doc.setFontSize(8);
+doc.setFontSize(7.5);
 doc.setTextColor(...GOLD);
-doc.text('BUYER & BIDDER ONBOARDING GUIDE', margin + 3, y + 5);
+doc.text('SALVAGE BUYER ONBOARDING PORTAL', pageWidth / 2, y + 4.5, { align: 'center' });
 
-y += 12;
+y += 10.5;
 
-// Main Title
+// Main Heading
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(18);
-doc.setTextColor(...NAVY);
-doc.text('How to Register as a Buyer on SalvageReef', margin, y);
+doc.setTextColor(...DARK_SLATE);
+doc.text('Buyer Account Registration Guide', pageWidth / 2, y, { align: 'center' });
 
-y += 6;
+y += 5.5;
 doc.setFont('helvetica', 'normal');
-doc.setFontSize(9.5);
-doc.setTextColor(...MUTED_TEXT);
-doc.text('A simple, step-by-step guide for scrap buyers, plant liquidators & asset bidders.', margin, y);
+doc.setFontSize(8.8);
+doc.setTextColor(...MUTED);
+doc.text('Complete the 3-stage verification process to participate in live scrap tenders & salvage asset bidding.', pageWidth / 2, y, { align: 'center' });
 
-y += 9;
+y += 8;
 
-// Highlight Box: What is SalvageReef for Buyers?
-doc.setFillColor(...LIGHT_BG);
+// Stepper visual on Page 1 (shows Step 1 Active)
+y = drawWebsiteStepper(doc, y, 1);
+
+y += 8;
+
+// Why Register as a Buyer Card
+doc.setFillColor(...SLATE_BG);
 doc.setDrawColor(...BORDER);
-doc.roundedRect(margin, y, contentWidth, 32, 3, 3, 'FD');
+doc.roundedRect(margin, y, contentWidth, 36, 3, 3, 'FD');
 
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(10);
 doc.setTextColor(...NAVY);
-doc.text('What You Can Do as a Registered Buyer:', margin + 6, y + 7);
+doc.text('Why Register on SalvageReef? (Exclusively for Buyers & Bidders)', margin + 7, y + 7.5);
 
 doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.5);
-doc.setTextColor(...DARK_TEXT);
+doc.setFontSize(8.2);
+doc.setTextColor(...BODY_TEXT);
 const perks = [
-  '• Participate in Live Online Bidding for scrap metals, industrial plant machinery, vehicles, and factory surplus.',
-  '• Access 100% verified asset lots with complete technical inspection PDFs, photos, and exact site locations.',
-  '• Real-time competitive bidding with transparent H1 (Highest Bidder) award confirmation directly from top enterprises.',
-  '• Zero hidden charges — Direct purchase awards, prompt EMD refunds, and dedicated desk support.',
+  '• Direct Factory Tenders: Bid directly on dismantled plant machinery, manufacturing scrap, PE coils, and metal lots.',
+  '• 100% Genuine Corporate Sellers: Every auction is verified by SalvageReef desk with official inspection PDFs & site visits.',
+  '• Live Bidding Feed: Real-time price updates with transparent H1 (Highest Bidder) ranking visible during the auction.',
+  '• 100% EMD Safety: Full refund of your Earnest Money Deposit directly to your bank account if you do not win the lot.',
 ];
-let perkY = y + 13;
+let perkY = y + 14;
 perks.forEach((p) => {
-  doc.text(p, margin + 6, perkY);
-  perkY += 4.5;
+  doc.text(p, margin + 7, perkY);
+  perkY += 5;
 });
 
-y += 39;
+y += 42;
 
 // Section Header: Required Documents
 doc.setFont('helvetica', 'bold');
-doc.setFontSize(12);
+doc.setFontSize(11.5);
 doc.setTextColor(...NAVY);
-doc.text('Keep These 3 Documents Ready Before Starting', margin, y);
+doc.text('3 Documents Required for Verification (Keep Ready on Your Phone)', margin, y);
 
 y += 4;
 doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.5);
-doc.setTextColor(...MUTED_TEXT);
-doc.text('To ensure genuine commercial bidding, every buyer requires a 1-time business KYC verification:', margin, y);
+doc.setFontSize(8);
+doc.setTextColor(...MUTED);
+doc.text('To ensure genuine commercial bidding and tax compliance, buyers upload these 3 proofs in Stage 2:', margin, y);
 
-y += 7;
+y += 6.5;
 
-// 3 Document Cards
+// 3 Dropzone-style cards mimicking the website upload boxes
 const docCards = [
   {
     num: '1',
-    title: 'PAN Card Proof',
+    badge: 'IDENTITY PROOF',
+    title: 'PAN Card Proof *',
     sub: 'Business or Proprietor PAN',
-    desc: 'Clear photo or PDF of your 10-character PAN card (e.g. ABCDE1234F). Used for identity and TDS compliance.',
-    fileType: 'JPG, PNG, or PDF (Max 5MB)',
+    desc: 'Clear photo or PDF of your 10-digit PAN card (e.g. ABCDE1234F). Used for buyer identity & tax records.',
+    buttonText: 'Browse / Upload PAN',
   },
   {
     num: '2',
-    title: 'GST Certificate',
+    badge: 'BUSINESS PROOF',
+    title: 'GST Certificate *',
     sub: 'Form GST REG-06',
-    desc: 'Government 15-digit GST Registration Certificate. Required to generate auction sale tax invoices.',
-    fileType: 'JPG, PNG, or PDF (Max 5MB)',
+    desc: 'Government 15-digit GST Registration Certificate. Required to issue commercial scrap sale tax invoices.',
+    buttonText: 'Browse / Upload GST',
   },
   {
     num: '3',
-    title: 'Bank Account Proof',
-    sub: 'Cancelled Cheque / Passbook',
-    desc: 'A cancelled cheque or bank statement showing Account Number & IFSC Code. Used for fast security & EMD refund.',
-    fileType: 'JPG, PNG, or PDF (Max 5MB)',
+    badge: 'BANKING PROOF',
+    title: 'Cancelled Cheque *',
+    sub: 'Or Bank Passbook Photo',
+    desc: 'Cancelled cheque showing Account Number & IFSC. Used for secure identity and prompt EMD refunds.',
+    buttonText: 'Browse / Upload Cheque',
   },
 ];
 
 const cardW = (contentWidth - 8) / 3;
 docCards.forEach((card, idx) => {
   const cardX = margin + idx * (cardW + 4);
-  const cardH = 58;
+  const cardH = 59;
 
-  // Background
+  // White Box with border
   doc.setFillColor(...WHITE);
   doc.setDrawColor(...BORDER);
   doc.roundedRect(cardX, y, cardW, cardH, 3, 3, 'FD');
 
-  // Top accent badge
-  doc.setFillColor(...NAVY);
-  doc.circle(cardX + 8, y + 8, 4, 'F');
-  doc.setTextColor(...WHITE);
+  // Pill badge
+  doc.setFillColor(...SLATE_BG);
+  doc.roundedRect(cardX + 5, y + 5, cardW - 10, 5, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text(card.num, cardX + 8, y + 9.5, { align: 'center' });
+  doc.setFontSize(6.5);
+  doc.setTextColor(...GOLD);
+  doc.text(card.badge, cardX + cardW / 2, y + 8.5, { align: 'center' });
 
   // Title
-  doc.setTextColor(...NAVY);
+  doc.setTextColor(...DARK_SLATE);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
-  doc.text(card.title, cardX + 15, y + 8);
+  doc.text(card.title, cardX + cardW / 2, y + 17, { align: 'center' });
 
-  doc.setFont('helvetica', 'italic');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(...GOLD);
-  doc.text(card.sub, cardX + 6, y + 16);
+  doc.setTextColor(...MUTED);
+  doc.text(card.sub, cardX + cardW / 2, y + 22, { align: 'center' });
 
   // Description
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(...DARK_TEXT);
-  const splitDesc = doc.splitTextToSize(card.desc, cardW - 12);
-  doc.text(splitDesc, cardX + 6, y + 23);
+  doc.setTextColor(...BODY_TEXT);
+  const splitDesc = doc.splitTextToSize(card.desc, cardW - 10);
+  doc.text(splitDesc, cardX + 5, y + 28);
 
-  // Format Footer
-  doc.setFillColor(...LIGHT_BG);
-  doc.roundedRect(cardX + 4, y + cardH - 12, cardW - 8, 8, 2, 2, 'F');
+  // Mock Upload Button
+  doc.setFillColor(...WHITE);
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(cardX + 6, y + cardH - 12, cardW - 12, 7.5, 2, 2, 'FD');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...MUTED_TEXT);
-  doc.text(card.fileType, cardX + cardW / 2, y + cardH - 7, { align: 'center' });
+  doc.setFontSize(7);
+  doc.setTextColor(...DARK_SLATE);
+  doc.text(card.buttonText, cardX + cardW / 2, y + cardH - 7, { align: 'center' });
 });
 
 y += 66;
 
-// Pro-Tips Box
-doc.setFillColor(236, 253, 245); // Light emerald
+// Emerald Pro-Tips Banner
+doc.setFillColor(...EMERALD_BG);
 doc.setDrawColor(167, 243, 208);
-doc.roundedRect(margin, y, contentWidth, 38, 3, 3, 'FD');
-
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(10);
-doc.setTextColor(6, 95, 70); // Dark emerald
-doc.text('3 Quick Tips for 10-Minute Account Approval:', margin + 6, y + 7);
-
-const tips = [
-  '1. Clear Photos: Ensure your phone camera photo is sharp and text is easily readable without blurry shadows.',
-  '2. Name Matching: Make sure the Firm / Proprietor Name matches what is printed on your GST certificate.',
-  '3. Correct Mobile & Email: You will receive real-time bidding notifications, auction reminders & award alerts there.',
-];
-let tipY = y + 14;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.5);
-doc.setTextColor(4, 120, 87);
-tips.forEach((t) => {
-  doc.text(t, margin + 6, tipY);
-  tipY += 6.5;
-});
-
-// ============================================================================
-// PAGE 2: STEP-BY-STEP REGISTRATION WALKTHROUGH
-// ============================================================================
-doc.addPage();
-drawHeader(2);
-
-y = 33;
-
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(16);
-doc.setTextColor(...NAVY);
-doc.text('Step-by-Step Registration Walkthrough', margin, y);
-
-y += 5.5;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.5);
-doc.setTextColor(...MUTED_TEXT);
-doc.text('Visit https://salvagereef.com/register on any mobile phone or computer.', margin, y);
-
-y += 9;
-
-// Stage 1 Block
-doc.setFillColor(...WHITE);
-doc.setDrawColor(...BORDER);
-doc.roundedRect(margin, y, contentWidth, 58, 3, 3, 'FD');
-
-doc.setFillColor(...GOLD);
-doc.roundedRect(margin, y, contentWidth, 7.5, 3, 3, 'F');
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...WHITE);
-doc.text('STAGE 1 : BASIC COMPANY & CONTACT DETAILS', margin + 6, y + 5);
-
-let s1Y = y + 13;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8);
-doc.setTextColor(...DARK_TEXT);
-
-const s1Fields = [
-  ['Country', 'Select India (+91) or your international country code.'],
-  ['Firm / Vendor Name', 'Enter your full registered business name (e.g. Shree Shyam Traders).'],
-  ['Entity Type', 'Choose Proprietorship, Partnership, Pvt Ltd, LLP, or Public Limited.'],
-  ['PAN Number', 'Enter your 10-character PAN (5 letters, 4 numbers, 1 letter).'],
-  ['GSTIN Number', 'Enter your 15-character GST number (e.g. 27ABCDE1234F1Z5).'],
-  ['Business Address', 'Your registered address, State, City, and 6-digit Pincode.'],
-  ['Contact Person (SPOC)', 'Name of primary owner / manager dealing with auctions.'],
-  ['Mobile & Email ID', 'Active contact details for OTPs and auction award notices.'],
-  ['Create Password', 'Choose a secure password (minimum 6 characters).'],
-];
-
-s1Fields.forEach(([label, desc], i) => {
-  const colX = i < 5 ? margin + 6 : margin + contentWidth / 2 + 2;
-  const rowY = s1Y + (i % 5) * 8.5;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`• ${label}:`, colX, rowY);
-  doc.setFont('helvetica', 'normal');
-  const labelWidth = doc.getTextWidth(`• ${label}: `);
-  const maxW = (contentWidth / 2) - labelWidth - 8;
-  const wrapped = doc.splitTextToSize(desc, maxW);
-  doc.text(wrapped[0], colX + labelWidth, rowY);
-});
-
-y += 64;
-
-// Stage 2 Block
-doc.setFillColor(...WHITE);
-doc.setDrawColor(...BORDER);
-doc.roundedRect(margin, y, contentWidth, 54, 3, 3, 'FD');
-
-doc.setFillColor(...NAVY);
-doc.roundedRect(margin, y, contentWidth, 7.5, 3, 3, 'F');
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...WHITE);
-doc.text('STAGE 2 : BANK DETAILS & KYC DOCUMENT UPLOADS', margin + 6, y + 5);
-
-let s2Y = y + 13;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8);
-doc.setTextColor(...DARK_TEXT);
-
-const s2Steps = [
-  ['Bank Name', 'Enter your commercial bank name (e.g. HDFC Bank, SBI, ICICI, Kotak).'],
-  ['Account Number', 'Enter your 9 to 18 digit business or current account number.'],
-  ['IFSC Code', 'Enter your 11-character bank branch IFSC code (e.g. HDFC0001234).'],
-  ['Upload PAN Card', 'Click "Browse / Upload" and select your PAN card photo or PDF.'],
-  ['Upload GST Certificate', 'Click "Browse / Upload" and select your GST REG-06 document.'],
-  ['Upload Cancelled Cheque', 'Click "Browse / Upload" and select your passbook/cheque photo.'],
-];
-
-s2Steps.forEach(([label, desc], i) => {
-  const colX = i < 3 ? margin + 6 : margin + contentWidth / 2 + 2;
-  const rowY = s2Y + (i % 3) * 12;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`✓ ${label}:`, colX, rowY);
-  doc.setFont('helvetica', 'normal');
-  const subWrap = doc.splitTextToSize(desc, (contentWidth / 2) - 10);
-  doc.text(subWrap, colX + 4, rowY + 4);
-});
-
-y += 60;
-
-// Stage 3 Block
-doc.setFillColor(...WHITE);
-doc.setDrawColor(...BORDER);
-doc.roundedRect(margin, y, contentWidth, 48, 3, 3, 'FD');
-
-doc.setFillColor(...EMERALD);
-doc.roundedRect(margin, y, contentWidth, 7.5, 3, 3, 'F');
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...WHITE);
-doc.text('STAGE 3 : FINAL REVIEW & COMPLETE REGISTRATION', margin + 6, y + 5);
-
-let s3Y = y + 14;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.2);
-doc.setTextColor(...DARK_TEXT);
-
-const s3Info = [
-  '1. Review Summary Card: Check your company name, GST, contact details, and uploaded document badges.',
-  '2. Click "Accept Terms & Conditions": Check the box declaring authentic business information.',
-  '3. Click "Complete Registration": The gold button will submit your application securely to SalvageReef.',
-  '4. Instant Confirmation: You will see a green shield screen confirming submission for Admin Verification.',
-];
-
-s3Info.forEach((step) => {
-  doc.text(step, margin + 6, s3Y);
-  s3Y += 6.5;
-});
-
-// Green Callout
-doc.setFillColor(240, 253, 244);
-doc.roundedRect(margin + 6, s3Y + 1, contentWidth - 12, 8, 2, 2, 'F');
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(7.5);
-doc.setTextColor(21, 128, 61);
-doc.text('✓ Auto-Saved: Your documents & inputs are safely saved — no data is lost during submission.', margin + 10, s3Y + 6);
-
-// ============================================================================
-// PAGE 3: AFTER REGISTRATION — APPROVAL, LOGIN & HOW TO BID
-// ============================================================================
-doc.addPage();
-drawHeader(3);
-
-y = 33;
-
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(16);
-doc.setTextColor(...NAVY);
-doc.text('After Registration: Approval, Login & How to Bid', margin, y);
-
-y += 5.5;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(8.5);
-doc.setTextColor(...MUTED_TEXT);
-doc.text('Everything you need to know about buying industrial assets on SalvageReef.', margin, y);
-
-y += 9;
-
-// Timeline / Process: 4 Steps
-const timeline = [
-  {
-    step: 'STEP 1',
-    title: 'Admin Verification (Within 2 to 4 Hours)',
-    desc: 'The SalvageReef compliance team reviews your GST and uploaded documents. Once approved, your account is activated and you will receive your unique Login ID (e.g. SR-102934).',
-    badgeBg: [224, 231, 255],
-    badgeColor: [67, 56, 202],
-  },
-  {
-    step: 'STEP 2',
-    title: 'Sign In to Your Buyer Account',
-    desc: 'Visit https://salvagereef.com/login. Enter your registered Email ID or Login ID and your password to access your personalized Buyer Control Dashboard.',
-    badgeBg: [254, 243, 199],
-    badgeColor: [180, 83, 9],
-  },
-  {
-    step: 'STEP 3',
-    title: 'Browse Live Tenders & Pay EMD',
-    desc: 'Go to https://salvagereef.com/auctions. Review lot catalogs, photos, and inspection reports. To unlock live bidding on a lot, pay the refundable lot EMD (Earnest Money Deposit) via bank transfer.',
-    badgeBg: [236, 253, 245],
-    badgeColor: [4, 120, 87],
-  },
-  {
-    step: 'STEP 4',
-    title: 'Participate in Live Bidding & Win',
-    desc: 'When the auction goes live, enter your bids in real time. If your bid is the highest at auction close, you will be confirmed as the H1 Winner! Complete balance payment and arrange material lifting.',
-    badgeBg: [254, 226, 226],
-    badgeColor: [185, 28, 28],
-  },
-];
-
-timeline.forEach((item) => {
-  doc.setFillColor(...WHITE);
-  doc.setDrawColor(...BORDER);
-  doc.roundedRect(margin, y, contentWidth, 24, 2.5, 2.5, 'FD');
-
-  // Step Badge
-  doc.setFillColor(...item.badgeBg);
-  doc.roundedRect(margin + 4, y + 4, 16, 6, 1.5, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...item.badgeColor);
-  doc.text(item.step, margin + 12, y + 8, { align: 'center' });
-
-  // Title
-  doc.setTextColor(...NAVY);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.text(item.title, margin + 24, y + 8.5);
-
-  // Description
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.8);
-  doc.setTextColor(...DARK_TEXT);
-  const wrapDesc = doc.splitTextToSize(item.desc, contentWidth - 28);
-  doc.text(wrapDesc, margin + 24, y + 14);
-
-  y += 27;
-});
-
-y += 3;
-
-// Important Rules Box
-doc.setFillColor(...LIGHT_BG);
-doc.setDrawColor(...BORDER);
-doc.roundedRect(margin, y, contentWidth, 38, 3, 3, 'FD');
+doc.roundedRect(margin, y, contentWidth, 31, 3, 3, 'FD');
 
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(9.5);
-doc.setTextColor(...NAVY);
-doc.text('Important Bidding Rules for Buyers:', margin + 6, y + 6);
-
-const rules = [
-  '• EMD Refund Guarantee: If you do not win the auction, your full Earnest Money Deposit is promptly refunded to your bank account within 2 business days.',
-  '• Physical Site Inspection: Buyers have the right to physically inspect scrap lots at the factory location prior to auction close.',
-  '• Binding Bids: All bids placed on the live platform are legally binding. Ensure you review the lot specification and tax terms carefully before bidding.',
-];
-let rY = y + 12;
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(7.8);
-doc.setTextColor(...DARK_TEXT);
-rules.forEach((r) => {
-  const rWrap = doc.splitTextToSize(r, contentWidth - 12);
-  doc.text(rWrap, margin + 6, rY);
-  rY += 7.5;
-});
-
-y += 44;
-
-// Dedicated Support Contact Card
-doc.setFillColor(...NAVY);
-doc.roundedRect(margin, y, contentWidth, 30, 3, 3, 'F');
-
-doc.setTextColor(...WHITE);
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(10);
-doc.text('Need Assistance with Buyer Registration?', margin + 8, y + 8);
+doc.setTextColor(6, 95, 70);
+doc.text('3 Simple Tips for Instant 10-Minute Approval:', margin + 6, y + 6.5);
 
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(8);
-doc.setTextColor(203, 213, 225);
-doc.text('Our dedicated Desk Support executive is available Monday to Saturday, 9:30 AM to 6:30 PM.', margin + 8, y + 14);
+doc.setTextColor(4, 120, 87);
+const tips = [
+  '1. Sharp Photos: Take a clear photo in good daylight. Make sure numbers and names are easy to read.',
+  '2. Matching Details: The firm name entered in Step 1 should match the legal name on your GST certificate.',
+  '3. File Size Under 5 MB: Standard mobile camera photos and scanned PDFs work smoothly.',
+];
+let tY = y + 12.5;
+tips.forEach((t) => {
+  doc.text(t, margin + 6, tY);
+  tY += 5.5;
+});
 
-// Contact Grid
+// ============================================================================
+// PAGE 2: STEP-BY-STEP FORM WALKTHROUGH & REVIEW SUMMARY
+// ============================================================================
+doc.addPage();
+drawPageHeader(doc, 2);
+
+y = 31;
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(15);
+doc.setTextColor(...NAVY);
+doc.text('Stage-by-Stage Form Walkthrough', margin, y);
+
+y += 5;
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8.2);
+doc.setTextColor(...MUTED);
+doc.text('Visit https://salvagereef.com/register on any mobile browser or laptop.', margin, y);
+
+y += 7;
+
+// Stepper showing Step 2 Active
+y = drawWebsiteStepper(doc, y, 2);
+
+y += 7;
+
+// STAGE 1 & 2 DUAL COLUMNS
+const colWidth = (contentWidth - 6) / 2;
+
+// Column 1: Stage 1 Details
+doc.setFillColor(...WHITE);
+doc.setDrawColor(...BORDER);
+doc.roundedRect(margin, y, colWidth, 70, 3, 3, 'FD');
+
+doc.setFillColor(...NAVY);
+doc.roundedRect(margin, y, colWidth, 7, 3, 3, 'F');
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(8);
+doc.setTextColor(...WHITE);
+doc.text('STAGE 1 : BASIC & CONTACT DETAILS', margin + 6, y + 4.8);
+
+let c1Y = y + 12;
+const s1Fields = [
+  ['Country', 'India (+91) or International dial code'],
+  ['Firm / Vendor Name', 'Full registered firm name (e.g. Shyam Traders)'],
+  ['Entity Type', 'Proprietorship, Partnership, Pvt Ltd, LLP'],
+  ['PAN Number', '10 characters (e.g. ABCDE1234F)'],
+  ['GST Number', '15-digit GSTIN (e.g. 27ABCDE1234F1Z5)'],
+  ['Business Address', 'Registered office address, City, State, Pincode'],
+  ['SPOC Name', 'Primary contact person / decision maker'],
+  ['Mobile & Email', 'Active mobile number & email for notifications'],
+  ['Password', 'Create secure password (min 6 characters)'],
+];
+
+s1Fields.forEach(([label, desc]) => {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...DARK_SLATE);
+  doc.text(`• ${label}:`, margin + 5, c1Y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...MUTED);
+  doc.text(desc, margin + 35, c1Y);
+
+  c1Y += 6.2;
+});
+
+// Column 2: Stage 2 Bank & Uploads
+const col2X = margin + colWidth + 6;
+doc.setFillColor(...WHITE);
+doc.setDrawColor(...BORDER);
+doc.roundedRect(col2X, y, colWidth, 70, 3, 3, 'FD');
+
+doc.setFillColor(...GOLD);
+doc.roundedRect(col2X, y, colWidth, 7, 3, 3, 'F');
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(8);
+doc.setTextColor(...WHITE);
+doc.text('STAGE 2 : BANK DETAILS & UPLOADS', col2X + 6, y + 4.8);
+
+let c2Y = y + 12;
+const s2Fields = [
+  ['Bank Name', 'Your bank name (e.g. HDFC, SBI, ICICI, PNB)'],
+  ['Account Number', 'Current / Business bank account (9-18 digits)'],
+  ['IFSC Code', '11-digit bank branch code (e.g. HDFC0001234)'],
+  ['PAN Card Upload', 'Select file -> Auto-compressed in 1 second'],
+  ['GST Upload', 'Select file -> Form GST REG-06 proof'],
+  ['Cheque Upload', 'Select file -> Cancelled cheque / passbook'],
+];
+
+s2Fields.forEach(([label, desc]) => {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...DARK_SLATE);
+  doc.text(`✓ ${label}:`, col2X + 5, c2Y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...MUTED);
+  doc.text(desc, col2X + 33, c2Y);
+
+  c2Y += 6.8;
+});
+
+// Upload Security Note
+doc.setFillColor(...SLATE_BG);
+doc.roundedRect(col2X + 4, c2Y, colWidth - 8, 15, 2, 2, 'F');
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(7.2);
+doc.setTextColor(...EMERALD);
+doc.text('✓ Auto-Optimized Upload Engine:', col2X + 7, c2Y + 4.5);
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(6.8);
+doc.setTextColor(...BODY_TEXT);
+doc.text('Documents are auto-compressed on your phone to ~200 KB', col2X + 7, c2Y + 8.5);
+doc.text('for superfast uploads even on 3G/4G connections.', col2X + 7, c2Y + 12);
+
+y += 75;
+
+// STAGE 3: RECREATION OF THE WEBSITE REVIEW SUMMARY CARD
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(11);
+doc.setTextColor(...NAVY);
+doc.text('Stage 3: Review Summary & Acceptance (What You See on Screen)', margin, y);
+
+y += 4.5;
+
+// The Review Summary Card (Exact layout as shown on website)
+doc.setFillColor(...SLATE_BG);
+doc.setDrawColor(...BORDER);
+doc.roundedRect(margin, y, contentWidth, 52, 3, 3, 'FD');
+
+// Header inside card
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9);
+doc.setTextColor(...DARK_SLATE);
+doc.text('REVIEW SUMMARY & TERMS', margin + 6, y + 6);
+
+// Summary Grid (3 columns x 3 rows)
+const gridStartY = y + 13;
+const colGridW = (contentWidth - 12) / 3;
+
+const summaryItems = [
+  { label: 'VENDOR NAME', val: 'Shree Shyam Traders', bold: true },
+  { label: 'ENTITY TYPE', val: 'Proprietorship', bold: true },
+  { label: 'GST NUMBER', val: '06EHYPK7800M1ZK', bold: true, color: GOLD },
+
+  { label: 'PAN NUMBER', val: 'EHYPK7800M', bold: true },
+  { label: 'SPOC / CONTACT PERSON', val: 'Kapil / Manager', bold: true },
+  { label: 'MOBILE & EMAIL', val: '7900071109 / kapilwm@gmail.com', bold: false },
+
+  { label: 'BANK NAME', val: 'HDFC Bank', bold: true },
+  { label: 'ACCOUNT & IFSC', val: '50200099094159 / HDFC0004372', bold: false },
+  { label: 'LOCATION', val: 'Jind, Haryana / Mumbai', bold: false },
+];
+
+summaryItems.forEach((item, i) => {
+  const colIndex = i % 3;
+  const rowIndex = Math.floor(i / 3);
+  const cellX = margin + 6 + colIndex * colGridW;
+  const cellY = gridStartY + rowIndex * 9.5;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...MUTED);
+  doc.text(item.label, cellX, cellY);
+
+  doc.setFont('helvetica', item.bold ? 'bold' : 'normal');
+  doc.setFontSize(7.8);
+  if (item.color) {
+    doc.setTextColor(...item.color);
+  } else {
+    doc.setTextColor(...DARK_SLATE);
+  }
+  doc.text(item.val, cellX, cellY + 4);
+});
+
+// Badges Row for attached proofs
+const badgeRowY = gridStartY + 30;
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(6.5);
+doc.setTextColor(...MUTED);
+doc.text('UPLOADED VERIFICATION PROOFS:', margin + 6, badgeRowY - 1);
+
+const proofs = ['✓ PAN Card Attached', '✓ GST Certificate Attached', '✓ Cancelled Cheque Attached'];
+proofs.forEach((p, idx) => {
+  const badgeX = margin + 6 + idx * 56;
+  doc.setFillColor(...EMERALD_BG);
+  doc.roundedRect(badgeX, badgeRowY + 1, 52, 5.5, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(21, 128, 61);
+  doc.text(p, badgeX + 26, badgeRowY + 4.8, { align: 'center' });
+});
+
+y += 56;
+
+// Terms Checkbox & Complete Registration Button
+doc.setFillColor(...AMBER_BG);
+doc.setDrawColor(...AMBER_BORDER);
+doc.roundedRect(margin, y, contentWidth, 26, 2.5, 2.5, 'FD');
+
+// Checkbox square
+doc.setFillColor(...GOLD);
+doc.roundedRect(margin + 6, y + 4.5, 4.5, 4.5, 1, 1, 'F');
+doc.setTextColor(...WHITE);
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(7);
+doc.text('✓', margin + 8.25, y + 7.8, { align: 'center' });
+
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(8.5);
-doc.setTextColor(...GOLD);
-doc.text('Phone / WhatsApp: +91 7304481166', margin + 8, y + 22);
-doc.text('Email: salvagereef@gmail.com', margin + 95, y + 22);
+doc.setTextColor(...DARK_SLATE);
+doc.text('Accept Terms & Conditions *', margin + 14, y + 8);
+
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(7.2);
+doc.setTextColor(...BODY_TEXT);
+doc.text('I hereby declare that all business vendor information, including GSTIN and Bank details, provided above is true and authentic.', margin + 14, y + 13.5);
+doc.text('I agree to abide by SalvageReef Tender Bidding Rules, EMD policies, and General Conditions of Sale.', margin + 14, y + 17.5);
+
+// The Gold "Complete Registration" Button
+const btnW = 75;
+const btnX = pageWidth - margin - btnW - 6;
+const btnY = y + 18.5;
+
+// ============================================================================
+// PAGE 3: WHAT HAPPENS NEXT — APPROVAL, DASHBOARD & HOW TO BID
+// ============================================================================
+doc.addPage();
+drawPageHeader(doc, 3);
+
+y = 31;
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(15);
+doc.setTextColor(...NAVY);
+doc.text('After Registration: Approval, Login & How to Bid', margin, y);
+
+y += 5;
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8.2);
+doc.setTextColor(...MUTED);
+doc.text('Your roadmap to bidding, winning, and picking up industrial scrap lots.', margin, y);
+
+y += 7;
+
+// Stepper showing Step 3 Complete
+y = drawWebsiteStepper(doc, y, 3);
+
+y += 7;
+
+// Green Approval Card (mimicking the website's success card)
+doc.setFillColor(240, 253, 244); // emerald-50
+doc.setDrawColor(187, 247, 208);
+doc.roundedRect(margin, y, contentWidth, 31, 3, 3, 'FD');
+
+// Green Shield icon circle
+doc.setFillColor(...EMERALD);
+doc.circle(margin + 12, y + 15.5, 6.5, 'F');
+doc.setTextColor(...WHITE);
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(10);
+doc.text('✓', margin + 12, y + 17.5, { align: 'center' });
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(11);
+doc.setTextColor(22, 101, 52);
+doc.text('Registration Submitted for Admin Approval!', margin + 23, y + 10);
+
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8);
+doc.setTextColor(21, 128, 61);
+doc.text('Your vendor registration and KYC documents have been securely received.', margin + 23, y + 16);
+doc.text('The SalvageReef desk reviews your application within 2 to 4 business hours.', margin + 23, y + 21);
+doc.text('Once approved, your account is activated and you will receive your unique Login ID (e.g. SR-XXXXXX).', margin + 23, y + 26);
+
+y += 37;
+
+// 4-Step Action Timeline
+const steps4 = [
+  {
+    step: '1',
+    title: 'Sign In to Your Dashboard',
+    desc: 'Go to https://salvagereef.com/login. Enter your registered Email or Login ID and password to access live lots.',
+  },
+  {
+    step: '2',
+    title: 'Browse Live Tenders & Download Dossiers',
+    desc: 'Visit https://salvagereef.com/auctions. Review lot catalogs, photographs, and download technical inspection PDFs.',
+  },
+  {
+    step: '3',
+    title: 'Pay Lot EMD & Unlock Live Bidding',
+    desc: 'Pay the Earnest Money Deposit (EMD) via bank transfer for the lots you want to bid on. EMD is 100% refundable if you do not win.',
+  },
+  {
+    step: '4',
+    title: 'Place Live Bids & Win the Auction',
+    desc: 'Enter incremental bids in the live bidding feed. If your bid is highest at close (H1), you win! Complete payment & lift material.',
+  },
+];
+
+steps4.forEach((s) => {
+  doc.setFillColor(...WHITE);
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(margin, y, contentWidth, 20.5, 2.5, 2.5, 'FD');
+
+  // Step Number Badge
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(margin + 4, y + 4, 16, 5.5, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...WHITE);
+  doc.text(`STEP ${s.step}`, margin + 12, y + 7.8, { align: 'center' });
+
+  // Title
+  doc.setTextColor(...DARK_SLATE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(s.title, margin + 24, y + 8);
+
+  // Description
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.6);
+  doc.setTextColor(...BODY_TEXT);
+  const wrapDesc = doc.splitTextToSize(s.desc, contentWidth - 30);
+  doc.text(wrapDesc, margin + 24, y + 13.5);
+
+  y += 24.5;
+});
+
+y += 2;
+
+// Buyer Protection & EMD Guarantee Box
+doc.setFillColor(...SLATE_BG);
+doc.setDrawColor(...BORDER);
+doc.roundedRect(margin, y, contentWidth, 27, 3, 3, 'FD');
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9);
+doc.setTextColor(...NAVY);
+doc.text('Buyer Protection & Refund Policies:', margin + 6, y + 5.5);
+
+const policies = [
+  '• 100% EMD Refund: If you are not the highest bidder (H1), your full EMD is returned within 2 business days.',
+  '• Inspection Rights: Buyers have full physical inspection rights at the factory warehouse before bidding closes.',
+  '• Direct Invoicing: Material sale tax invoices are issued directly by the corporate seller in your firm name.',
+];
+let polY = y + 11;
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(7.5);
+doc.setTextColor(...BODY_TEXT);
+policies.forEach((pol) => {
+  doc.text(pol, margin + 6, polY);
+  polY += 5;
+});
+
+y += 31;
+
+// Dedicated Support Card
+doc.setFillColor(...NAVY);
+doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'F');
+
+doc.setTextColor(...WHITE);
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9.5);
+doc.text('Have Questions? Dedicated Buyer Desk Support', margin + 8, y + 7.5);
 
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(7.5);
+doc.setTextColor(203, 213, 225);
+doc.text('Our executive desk is available to assist you with registration, KYC documents & bidding.', margin + 8, y + 13);
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(8.2);
+doc.setTextColor(...GOLD);
+doc.text('📞 Phone / WhatsApp: +91 7304481166', margin + 8, y + 20.5);
+doc.text('✉️ Email: salvagereef@gmail.com', margin + 95, y + 20.5);
+
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(7.2);
 doc.setTextColor(...WHITE);
-doc.text('Website: https://salvagereef.com/register', margin + 8, y + 26);
-doc.text('Head Office: Mumbai, Maharashtra', margin + 95, y + 26);
+doc.text('🌐 Web: https://salvagereef.com/register', margin + 8, y + 24.5);
+doc.text('🏢 Desk: Mumbai / Thane, Maharashtra', margin + 95, y + 24.5);
 
 // ============================================================================
-// SAVE FILE
+// SAVE HIGH-AESTHETIC PDF
 // ============================================================================
 const outDir = path.resolve(__dirname);
 const rootPdfPath = path.join(outDir, 'SalvageReef_Buyer_Registration_Guide.pdf');
