@@ -1,13 +1,43 @@
 /**
  * Official Indian Business & User KYC Verification Document Generators
  * Creates crystal-clear, high-resolution SVG documents for PAN Card, GST REG-06 Certificate, and Bank Cancelled Cheque.
+ * Fully XML-escaped and base64-encoded to guarantee 100% reliable rendering in all browsers.
  */
 
+function escapeXml(unsafe: any): string {
+  if (unsafe === null || unsafe === undefined) return '';
+  const decoded = String(unsafe)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  return decoded
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function svgToDataUri(svg: string): string {
+  const trimmed = svg.trim();
+  try {
+    if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+      return 'data:image/svg+xml;base64,' + window.btoa(unescape(encodeURIComponent(trimmed)));
+    }
+  } catch (e) {}
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`;
+}
+
 export function generatePanCardSvg(user: any): string {
-  const pan = (user?.pan_number || 'ABCDE1234F').toUpperCase();
-  const name = (user?.company_name || user?.name || 'SALVAGEREEF VERIFIED MEMBER').toUpperCase();
-  const spoc = (user?.spoc_name || user?.name || 'DIRECTOR / AUTHORIZED SIGNATORY').toUpperCase();
-  const dateStr = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-IN') : '15/08/2021';
+  const pan = escapeXml((user?.pan_number || 'ABCDE1234F').toUpperCase());
+  const rawName = (user?.company_name || user?.name || 'SALVAGEREEF VERIFIED MEMBER').toUpperCase();
+  const rawSpoc = (user?.spoc_name || user?.name || 'DIRECTOR / AUTHORIZED SIGNATORY').toUpperCase();
+  const name = escapeXml(rawName.substring(0, 32));
+  const spoc = escapeXml(rawSpoc.substring(0, 32));
+  const dateStr = escapeXml(user?.created_at ? new Date(user.created_at).toLocaleDateString('en-IN') : '15/08/2021');
 
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 410" width="100%" height="100%">
@@ -33,10 +63,10 @@ export function generatePanCardSvg(user: any): string {
     <!-- Top Header Ribbon -->
     <rect x="15" y="15" width="620" height="75" rx="10" fill="#ffffff" opacity="0.9" stroke="#93c5fd" />
     
-    <!-- Govt Lions & ITD Header -->
+    <!-- Govt Emblem & ITD Header -->
     <g transform="translate(30, 25)">
       <circle cx="25" cy="25" r="22" fill="#1e3a8a" />
-      <text x="25" y="32" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle" font-weight="900">🏛</text>
+      <text x="25" y="32" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle" font-weight="900">&#127963;</text>
     </g>
 
     <text x="90" y="42" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e3a8a" letter-spacing="1">आयकर विभाग</text>
@@ -60,11 +90,11 @@ export function generatePanCardSvg(user: any): string {
     <!-- Details Section -->
     <!-- Name -->
     <text x="180" y="180" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">NAME / नाम</text>
-    <text x="180" y="200" font-family="Arial, sans-serif" font-size="14" fill="#0f172a" font-weight="900">${name.substring(0, 32)}</text>
+    <text x="180" y="200" font-family="Arial, sans-serif" font-size="14" fill="#0f172a" font-weight="900">${name}</text>
 
     <!-- Father's / Signatory Name -->
-    <text x="180" y="230" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">FATHER'S / AUTHORIZED SIGNATORY NAME</text>
-    <text x="180" y="250" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" font-weight="800">${spoc.substring(0, 32)}</text>
+    <text x="180" y="230" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">FATHER&apos;S / AUTHORIZED SIGNATORY NAME</text>
+    <text x="180" y="250" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" font-weight="800">${spoc}</text>
 
     <!-- Date of Birth / Incorporation -->
     <text x="180" y="280" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">DATE OF INCORPORATION / ISSUE</text>
@@ -83,19 +113,22 @@ export function generatePanCardSvg(user: any): string {
 
     <!-- Footer Bar -->
     <rect x="15" y="345" width="620" height="45" rx="8" fill="#1e3a8a" />
-    <text x="35" y="372" font-family="Arial, sans-serif" font-size="11" fill="#ffffff" font-weight="bold">✓ GOVERNMENT OF INDIA VERIFIED TAX ID PROOF</text>
+    <text x="35" y="372" font-family="Arial, sans-serif" font-size="11" fill="#ffffff" font-weight="bold">&#10003; GOVERNMENT OF INDIA VERIFIED TAX ID PROOF</text>
     <text x="600" y="372" font-family="monospace" font-size="11" fill="#38bdf8" text-anchor="end" font-weight="bold">STATUS: ACTIVE &amp; VALIDATED</text>
   </svg>`;
 
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
+  return svgToDataUri(svg);
 }
 
 export function generateGstCertificateSvg(user: any): string {
-  const gstin = (user?.gst_number || '27AAAAA0000A1Z5').toUpperCase();
-  const company = (user?.company_name || user?.name || 'Apex Scrap Recyclers Ltd').toUpperCase();
-  const trade = (user?.company_name || user?.name || 'SalvageReef Commercial Enterprise').toUpperCase();
-  const entity = user?.entity_type || 'Private Limited Company';
-  const address = `${user?.registered_address || user?.city || 'Industrial Area, Andheri East'}, ${user?.state || 'Maharashtra'} - ${user?.pincode || '400093'}`;
+  const gstin = escapeXml((user?.gst_number || '27AAAAA0000A1Z5').toUpperCase());
+  const rawCompany = (user?.company_name || user?.name || 'Apex Scrap Recyclers Ltd').toUpperCase();
+  const rawTrade = (user?.company_name || user?.name || 'SalvageReef Commercial Enterprise').toUpperCase();
+  const company = escapeXml(rawCompany.substring(0, 40));
+  const trade = escapeXml(rawTrade.substring(0, 40));
+  const entity = escapeXml(user?.entity_type || 'Private Limited Company');
+  const rawAddress = `${user?.registered_address || user?.city || 'Industrial Area, Andheri East'}, ${user?.state || 'Maharashtra'} - ${user?.pincode || '400093'}`;
+  const address = escapeXml(rawAddress.substring(0, 55));
 
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 500" width="100%" height="100%">
@@ -112,12 +145,12 @@ export function generateGstCertificateSvg(user: any): string {
 
     <!-- Ashoka Chakra Watermark Icon -->
     <circle cx="325" cy="65" r="28" fill="#1e3a8a" />
-    <text x="325" y="74" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle" font-weight="900">☸</text>
+    <text x="325" y="74" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" text-anchor="middle" font-weight="900">&#9784;</text>
 
     <!-- Header -->
     <text x="325" y="115" font-family="Arial, sans-serif" font-size="15" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="1">GOVERNMENT OF INDIA</text>
     <text x="325" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#1e3a8a" text-anchor="middle">Form GST REG-06</text>
-    <text x="325" y="152" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">[See Rule 10(1)] • CERTIFICATE OF REGISTRATION</text>
+    <text x="325" y="152" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#64748b" text-anchor="middle">[See Rule 10(1)] &#8226; CERTIFICATE OF REGISTRATION</text>
 
     <!-- Horizontal Divider -->
     <line x1="30" y1="165" x2="620" y2="165" stroke="#cbd5e1" stroke-width="1.5" />
@@ -130,11 +163,11 @@ export function generateGstCertificateSvg(user: any): string {
     <!-- Table of Business Details -->
     <!-- Legal Name -->
     <text x="40" y="245" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">1. LEGAL NAME</text>
-    <text x="40" y="265" font-family="Arial, sans-serif" font-size="13" fill="#0f172a" font-weight="800">${company.substring(0, 40)}</text>
+    <text x="40" y="265" font-family="Arial, sans-serif" font-size="13" fill="#0f172a" font-weight="800">${company}</text>
 
     <!-- Trade Name -->
     <text x="40" y="295" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">2. TRADE NAME</text>
-    <text x="40" y="315" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" font-weight="700">${trade.substring(0, 40)}</text>
+    <text x="40" y="315" font-family="Arial, sans-serif" font-size="13" fill="#1e293b" font-weight="700">${trade}</text>
 
     <!-- Constitution -->
     <text x="40" y="345" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">3. CONSTITUTION OF BUSINESS</text>
@@ -142,12 +175,12 @@ export function generateGstCertificateSvg(user: any): string {
 
     <!-- Address -->
     <text x="40" y="395" font-family="Arial, sans-serif" font-size="10" fill="#64748b" font-weight="bold">4. ADDRESS OF PRINCIPAL PLACE OF BUSINESS</text>
-    <text x="40" y="415" font-family="Arial, sans-serif" font-size="12" fill="#1e293b" font-weight="600">${address.substring(0, 55)}</text>
+    <text x="40" y="415" font-family="Arial, sans-serif" font-size="12" fill="#1e293b" font-weight="600">${address}</text>
 
     <!-- Right Side Verification Stamp -->
     <rect x="440" y="240" width="180" height="150" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5" />
     <circle cx="530" cy="285" r="25" fill="#16a34a" />
-    <text x="530" y="293" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle" font-weight="900">✓</text>
+    <text x="530" y="293" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle" font-weight="900">&#10003;</text>
     <text x="530" y="325" font-family="Arial, sans-serif" font-size="11" fill="#15803d" text-anchor="middle" font-weight="900">DIGITALLY SIGNED</text>
     <text x="530" y="340" font-family="Arial, sans-serif" font-size="9" fill="#166534" text-anchor="middle" font-weight="bold">GST PORTAL INDIA</text>
     <text x="530" y="355" font-family="Arial, sans-serif" font-size="8" fill="#64748b" text-anchor="middle">Superintendent CGST</text>
@@ -155,18 +188,19 @@ export function generateGstCertificateSvg(user: any): string {
 
     <!-- Footer Security Banner -->
     <rect x="10" y="445" width="630" height="45" fill="#1e3a8a" />
-    <text x="30" y="472" font-family="Arial, sans-serif" font-size="10" fill="#ffffff" font-weight="bold">VERIFIED GSTIN REGISTRATION DOCUMENT • GOODS AND SERVICES TAX NETWORK (GSTN)</text>
+    <text x="30" y="472" font-family="Arial, sans-serif" font-size="10" fill="#ffffff" font-weight="bold">VERIFIED GSTIN REGISTRATION DOCUMENT &#8226; GOODS AND SERVICES TAX NETWORK (GSTN)</text>
   </svg>`;
 
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
+  return svgToDataUri(svg);
 }
 
 export function generateCancelledChequeSvg(user: any): string {
-  const bank = (user?.bank_name || 'HDFC BANK LTD').toUpperCase();
-  const ifsc = (user?.bank_ifsc_code || 'HDFC0000123').toUpperCase();
-  const accNo = user?.bank_account_number || '50200088991122';
-  const name = (user?.company_name || user?.name || 'Apex Scrap Recyclers Ltd').toUpperCase();
-  const city = (user?.city || 'MUMBAI').toUpperCase();
+  const bank = escapeXml((user?.bank_name || 'HDFC BANK LTD').toUpperCase());
+  const ifsc = escapeXml((user?.bank_ifsc_code || 'HDFC0000123').toUpperCase());
+  const accNo = escapeXml(user?.bank_account_number || '50200088991122');
+  const rawName = (user?.company_name || user?.name || 'Apex Scrap Recyclers Ltd').toUpperCase();
+  const name = escapeXml(rawName.substring(0, 24));
+  const city = escapeXml((user?.city || 'MUMBAI').toUpperCase());
 
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 320" width="100%" height="100%">
@@ -183,9 +217,9 @@ export function generateCancelledChequeSvg(user: any): string {
     <!-- Top Bank Header -->
     <g transform="translate(30, 20)">
       <rect width="40" height="35" rx="4" fill="#0369a1" />
-      <text x="20" y="24" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle" font-weight="bold">🏦</text>
+      <text x="20" y="24" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle" font-weight="bold">&#127974;</text>
       <text x="50" y="18" font-family="Arial, sans-serif" font-size="15" font-weight="900" fill="#0c4a6e">${bank}</text>
-      <text x="50" y="32" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#0369a1">BRANCH: ${city} CENTRAL • IFSC: ${ifsc}</text>
+      <text x="50" y="32" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#0369a1">BRANCH: ${city} CENTRAL &#8226; IFSC: ${ifsc}</text>
     </g>
 
     <!-- Cheque Date Box -->
@@ -208,7 +242,7 @@ export function generateCancelledChequeSvg(user: any): string {
     <text x="30" y="125" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#0f172a">RUPEES</text>
     <line x1="85" y1="128" x2="480" y2="128" stroke="#64748b" stroke-width="1" stroke-dasharray="2 2" />
     <rect x="490" y="105" width="130" height="35" fill="#ffffff" stroke="#0284c7" stroke-width="1.5" />
-    <text x="500" y="128" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#0284c7">₹</text>
+    <text x="500" y="128" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#0284c7">&#8377;</text>
 
     <!-- Account Number Box -->
     <g transform="translate(30, 160)">
@@ -219,7 +253,7 @@ export function generateCancelledChequeSvg(user: any): string {
 
     <!-- Account Name / Signatory Box -->
     <g transform="translate(420, 165)">
-      <text x="200" y="10" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#64748b" text-anchor="end">FOR ${name.substring(0, 24)}</text>
+      <text x="200" y="10" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#64748b" text-anchor="end">FOR ${name}</text>
       <text x="200" y="55" font-family="Arial, sans-serif" font-size="10" font-weight="900" fill="#0f172a" text-anchor="end">AUTHORISED SIGNATORY</text>
     </g>
 
@@ -234,11 +268,11 @@ export function generateCancelledChequeSvg(user: any): string {
     <!-- Bottom MICR Strip -->
     <rect x="0" y="260" width="650" height="60" fill="#ffffff" stroke-top="#cbd5e1" />
     <text x="325" y="295" font-family="monospace" font-size="15" font-weight="bold" fill="#334155" text-anchor="middle" letter-spacing="4">
-      ⑈ 400240012 ⑈  ${accNo.substring(0, 6)}  ⑈  000240  ⑈  10  ⑈
+      &#9792; 400240012 &#9792;  ${accNo.substring(0, 6)}  &#9792;  000240  &#9792;  10  &#9792;
     </text>
   </svg>`;
 
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
+  return svgToDataUri(svg);
 }
 
 function resolveDocUrl(doc: any, fallbackGenerator: () => string): string {
@@ -248,7 +282,7 @@ function resolveDocUrl(doc: any, fallbackGenerator: () => string): string {
 
   // If a raw SVG string was saved, wrap it into a data URI so <img> tags render it
   if (str.startsWith('<svg') || str.startsWith('<?xml')) {
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(str)}`;
+    return svgToDataUri(str);
   }
 
   // If already a Data URL, blob, or absolute URL

@@ -8,6 +8,7 @@
 Options -Indexes -MultiViews
 ServerSignature Off
 AcceptPathInfo On
+DirectoryIndex index.html index.php
 
 # Disable GoDaddy / cPanel mod_layout tracking script injection on all responses
 <IfModule mod_layout.c>

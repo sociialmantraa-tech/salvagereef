@@ -39,6 +39,30 @@ if (file_exists(__DIR__ . '/.env')) {
 
 $candidates = [
     [
+        'label' => 'Hostinger MySQL Socket (localhost | u749926374_salvagereef | u749926374_admin)',
+        'host' => 'localhost',
+        'port' => '3306',
+        'dbname' => 'u749926374_salvagereef',
+        'user' => 'u749926374_admin',
+        'pass' => 'SalvagereefAdmin@123',
+    ],
+    [
+        'label' => 'Hostinger MySQL Alternate Pass (localhost | u749926374_salvagereef | u749926374_admin)',
+        'host' => 'localhost',
+        'port' => '3306',
+        'dbname' => 'u749926374_salvagereef',
+        'user' => 'u749926374_admin',
+        'pass' => 'salvegereef@Neel1234',
+    ],
+    [
+        'label' => 'Hostinger MySQL TCP (127.0.0.1 | u749926374_salvagereef | u749926374_admin)',
+        'host' => '127.0.0.1',
+        'port' => '3306',
+        'dbname' => 'u749926374_salvagereef',
+        'user' => 'u749926374_admin',
+        'pass' => 'SalvagereefAdmin@123',
+    ],
+    [
         'label' => 'Standard cPanel Socket (localhost | scrab | scrab_user)',
         'host' => 'localhost',
         'port' => '3306',

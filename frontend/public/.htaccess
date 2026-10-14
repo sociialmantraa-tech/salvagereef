@@ -1,6 +1,8 @@
 # SalvageReef GoDaddy cPanel Production .htaccess Configuration
 # Enables SPA Routing, Gzip Compression, Browser Caching, and Security Headers
 
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /

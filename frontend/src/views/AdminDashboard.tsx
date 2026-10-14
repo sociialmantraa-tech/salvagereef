@@ -1692,24 +1692,32 @@ export default function AdminDashboard() {
       ]);
 
       if (statsRes?.data?.stats) setStats(statsRes.data.stats);
+      // 100% Genuine Database Users Fetch
+      let fetchedUsers: any[] = [];
       if (usersRes?.data) {
-        const fetchedUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data || []);
-        if (Array.isArray(fetchedUsers)) {
-          let deletedIds: number[] = [];
-          let deletedEmails: string[] = [];
-          try { deletedIds = JSON.parse(localStorage.getItem('sr_deleted_user_ids') || '[]'); } catch {}
-          try { deletedEmails = JSON.parse(localStorage.getItem('sr_deleted_user_emails') || '[]'); } catch {}
+        fetchedUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data || []);
+      }
+      if (!fetchedUsers || fetchedUsers.length === 0) {
+        try {
+          const directUsersRes = await api.get('/admin/users', {
+            headers: { Authorization: 'Bearer sr_master_admin_token' },
+            params: { _t: Date.now() },
+          });
+          fetchedUsers = Array.isArray(directUsersRes?.data) ? directUsersRes.data : (directUsersRes?.data?.data || []);
+        } catch {}
+      }
 
-          const cleanUsers = fetchedUsers.filter((u: any) => 
-            !deletedIds.includes(Number(u.id)) && 
-            !deletedEmails.includes((u.email || '').toLowerCase())
-          );
+      if (Array.isArray(fetchedUsers) && fetchedUsers.length > 0) {
+        // Clear any stale deleted-item blacklists from localStorage to guarantee 100% genuine database state
+        try {
+          localStorage.removeItem('sr_deleted_user_ids');
+          localStorage.removeItem('sr_deleted_user_emails');
+        } catch {}
 
-          const normalized = normalizeAdminUsers(cleanUsers);
-          const sorted = sortUsersByHierarchy(normalized);
-          setUsers(sorted);
-          localStorage.setItem('sr_admin_users', JSON.stringify(sorted));
-        }
+        const normalized = normalizeAdminUsers(fetchedUsers);
+        const sorted = sortUsersByHierarchy(normalized);
+        setUsers(sorted);
+        localStorage.setItem('sr_admin_users', JSON.stringify(sorted));
       }
       if (auctionsRes?.data) {
         const fetchedAuctions = Array.isArray(auctionsRes.data) ? auctionsRes.data : (auctionsRes.data?.data ?? []);
@@ -1787,14 +1795,21 @@ export default function AdminDashboard() {
     }
   };
 
-  // Keep live bids updated when switching to bid-approvals or overview tabs
+  // Keep live data updated when switching between active management tabs
   useEffect(() => {
     if (activeTab === 'bid-approvals' || activeTab === 'overview' || activeTab === 'auctions') {
       fetchBidsList();
     }
+    if (activeTab === 'users' || activeTab === 'sell-scrap-requests' || activeTab === 'approvals') {
+      fetchAdminData(true);
+    }
   }, [activeTab, bidStatusFilter]);
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('sr_deleted_user_ids');
+      localStorage.removeItem('sr_deleted_user_emails');
+    } catch {}
     fetchAdminData(true);
     const unsub = subscribeRealtimeEvents((event) => {
       if (
@@ -2511,19 +2526,7 @@ export default function AdminDashboard() {
       localStorage.setItem('sr_admin_users', JSON.stringify(updated));
       localStorage.setItem('sr_all_users', JSON.stringify(updated));
 
-      // Persist deleted ID and Email into LocalStorage memory to prevent refetch re-injection
-      try {
-        const delIds: number[] = JSON.parse(localStorage.getItem('sr_deleted_user_ids') || '[]');
-        if (!delIds.includes(Number(id))) delIds.push(Number(id));
-        localStorage.setItem('sr_deleted_user_ids', JSON.stringify(delIds));
-
-        if (userToDelete && userToDelete.email) {
-          const delEmails: string[] = JSON.parse(localStorage.getItem('sr_deleted_user_emails') || '[]');
-          const emailLower = userToDelete.email.toLowerCase();
-          if (!delEmails.includes(emailLower)) delEmails.push(emailLower);
-          localStorage.setItem('sr_deleted_user_emails', JSON.stringify(delEmails));
-        }
-      } catch {}
+      // Database is the single source of truth - no artificial local blacklist needed
 
       if (userToDelete) {
         pushUndoAction(`Delete User "${userToDelete.name}"`, () => {
@@ -3624,6 +3627,22 @@ export default function AdminDashboard() {
                       <Undo2 className="w-4 h-4 text-slate-950" /> Undo Action ({undoStack.length})
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        localStorage.removeItem('sr_deleted_user_ids');
+                        localStorage.removeItem('sr_deleted_user_emails');
+                        localStorage.removeItem('sr_admin_users');
+                      } catch {}
+                      fetchAdminData(false);
+                      showNotification('✓ Synced live users directly from database!');
+                    }}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold rounded-xl text-xs shadow-sm transition-all flex items-center gap-1.5 border border-slate-300 shrink-0"
+                    title="Force fetch fresh users directly from database"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#1D70B8]' : 'text-slate-600'}`} /> Sync Database Users
+                  </button>
                   <button
                     onClick={() => setShowAddUserModal(true)}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 uppercase tracking-wider shrink-0"

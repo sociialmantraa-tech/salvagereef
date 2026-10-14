@@ -151,14 +151,14 @@ success('Configured backend/database/ with database.sqlite and salvagereef_mysql
 
 // Create pre-configured .env and .env.production templates in deploy backend
 const envProductionContent = `# SalvageReef Production Environment Configuration
-# GoDaddy cPanel MySQL Connection Settings (Database: scrab)
+# Hostinger MySQL Connection Settings (Database: u749926374_salvagereef)
 
 DB_CONNECTION=mysql
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=scrab
-DB_USERNAME=scrab_user
-DB_PASSWORD=scrabRoot@123
+DB_DATABASE=u749926374_salvagereef
+DB_USERNAME=u749926374_admin
+DB_PASSWORD=SalvagereefAdmin@123
 
 APP_ENV=production
 APP_DEBUG=false
@@ -168,7 +168,7 @@ fs.writeFileSync(path.join(DEPLOY_BACKEND, '.env.production'), envProductionCont
 fs.writeFileSync(path.join(DEPLOY_BACKEND, '.env'), envProductionContent);
 fs.writeFileSync(path.join(BACKEND, '.env.production'), envProductionContent);
 fs.writeFileSync(path.join(BACKEND, '.env'), envProductionContent);
-success('Generated backend/.env and .env.production with cPanel MySQL (scrab/scrab_user)');
+success('Generated backend/.env and .env.production with Hostinger MySQL (u749926374_salvagereef/u749926374_admin)');
 
 // Copy backend logs directory (empty)
 ensureDir(path.join(DEPLOY_BACKEND, 'logs'));
@@ -227,9 +227,28 @@ requiredFiles.forEach(file => {
 const totalAssets = fs.existsSync(deployAssets) ? fs.readdirSync(deployAssets).length : 0;
 
 // ============================================================================
-// STEP 6: Generate ZIP Packages
+// Add root fail-safe handlers
+const rootIndexPhp = `<?php
+// SalvageReef Root Fallback — Serves React SPA directly without 500 error
+if (file_exists(__DIR__ . '/index.html')) {
+    include __DIR__ . '/index.html';
+    exit();
+}
+`;
+fs.writeFileSync(path.join(DEPLOY, 'index.php'), rootIndexPhp);
+success('Created fail-safe public_html/index.php');
+
+const rootServerPhp = `<?php
+// SalvageReef Root API Router — Delegates to backend/server.php
+require_once __DIR__ . '/backend/server.php';
+`;
+fs.writeFileSync(path.join(DEPLOY, 'server.php'), rootServerPhp);
+success('Created fail-safe public_html/server.php');
+
 // ============================================================================
-log('Generating ZIP packages...');
+// STEP 6: Generate Standard POSIX ZIP Packages
+// ============================================================================
+log('Generating ZIP packages with forward-slash POSIX paths...');
 
 try {
   const fullZipName = 'salvagereef_FULL_UPLOAD.zip';
@@ -249,13 +268,20 @@ try {
     }
   });
 
+  const zipScript = path.join(ROOT, 'create_posix_zip.ps1');
+  const zipFromDir = (sourceDir, destZip) => {
+    const s = sourceDir.replace(/\\/g, '/');
+    const d = destZip.replace(/\\/g, '/');
+    const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${zipScript}" -SourceDir "${s}" -ZipFile "${d}"`;
+    execSync(cmd, { cwd: ROOT, stdio: 'pipe' });
+  };
+
   // 1. Create salvagereef_FULL_UPLOAD.zip
-  const psFullCmd = `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting\\public_html\\*' -DestinationPath '${fullZipName}' -Force"`;
-  execSync(psFullCmd, { cwd: ROOT, stdio: 'pipe' });
+  zipFromDir(DEPLOY, fullZipPath);
   
   if (fs.existsSync(fullZipPath)) {
     const zipSize = (fs.statSync(fullZipPath).size / 1024).toFixed(1);
-    success(`Created ${fullZipName} (${zipSize} KB)`);
+    success(`Created ${fullZipName} (${zipSize} KB) with POSIX folder structure`);
     fs.copyFileSync(fullZipPath, path.join(ROOT, 'deploy_hosting', fullZipName));
   }
 
@@ -266,12 +292,11 @@ try {
   if (hadDb) fs.renameSync(dbFile, dbTempMove);
 
   try {
-    const psUpdateCmd = `powershell -NoProfile -Command "Compress-Archive -Path 'deploy_hosting\\public_html\\*' -DestinationPath '${updateZipName}' -Force"`;
-    execSync(psUpdateCmd, { cwd: ROOT, stdio: 'pipe' });
+    zipFromDir(DEPLOY, updateZipPath);
 
     if (fs.existsSync(updateZipPath)) {
       const updateZipSize = (fs.statSync(updateZipPath).size / 1024).toFixed(1);
-      success(`Created ${updateZipName} (${updateZipSize} KB)`);
+      success(`Created ${updateZipName} (${updateZipSize} KB) with POSIX folder structure`);
       fs.copyFileSync(updateZipPath, path.join(ROOT, 'deploy_hosting', updateZipName));
     }
   } finally {

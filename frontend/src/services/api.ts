@@ -56,10 +56,19 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   // 1. Attach auth token
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    const token = localStorage.getItem('salvagereef_token') 
-      || localStorage.getItem('token') 
-      || localStorage.getItem('auth_token') 
-      || (localStorage.getItem('sr_admin_auth') === 'true' ? 'sr_master_admin_token' : null);
+    const isAdminReq = (config.url || '').includes('/admin') || (config.url || '').includes('/system');
+    let token: string | null = null;
+
+    if (isAdminReq && (localStorage.getItem('sr_admin_auth') === 'true' || sessionStorage.getItem('sr_admin_auth') === 'true')) {
+      // Ensure admin requests always use admin authorization and are never hijacked by a regular bidder session
+      token = localStorage.getItem('sr_admin_token') || 'sr_master_admin_token';
+    } else {
+      token = localStorage.getItem('salvagereef_token') 
+        || localStorage.getItem('token') 
+        || localStorage.getItem('auth_token') 
+        || (localStorage.getItem('sr_admin_auth') === 'true' ? 'sr_master_admin_token' : null);
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

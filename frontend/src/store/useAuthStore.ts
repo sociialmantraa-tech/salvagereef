@@ -163,6 +163,23 @@ export const useAuthStore = create<AuthState>((set) => ({
         },
         token: 'sr_exec_admin_token',
       },
+      'inspector@salvagereef.com': {
+        pass: ['deskadmin123', 'desk123', 'readonly123'],
+        user: {
+          id: 5,
+          name: 'SalvageReef Desk Admin (Read-Only)',
+          email: 'inspector@salvagereef.com',
+          login_id: 'SR-DESK-1',
+          phone: '9820888888',
+          role: 'read_only_admin',
+          company_name: 'SalvageReef Audit Desk (Read-Only)',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          is_verified: true,
+          is_active: true,
+        },
+        token: 'sr_desk_admin_token',
+      },
       'seller@salvagereef.com': {
         pass: ['SellerPass@2026', 'seller123'],
         user: {

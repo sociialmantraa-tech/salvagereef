@@ -31,11 +31,13 @@ CREATE TABLE `categories` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Data for `categories` (3 records)
+-- Data for `categories` (5 records)
 INSERT INTO `categories` (`id`, `name`, `slug`, `parent_id`, `created_at`, `updated_at`) VALUES
   (1, 'Scrap Metals (Ferrous & Non-Ferrous)', 'scrap-metals', NULL, '2026-08-08 16:46:32', '2026-08-08 16:46:32'),
   (2, 'Damaged Vehicles & Fleet Salvage', 'damaged-vehicles', NULL, '2026-08-08 16:46:32', '2026-08-08 16:46:32'),
-  (3, 'Industrial Idle Assets & Machinery', 'industrial-machinery', NULL, '2026-08-08 16:46:32', '2026-08-08 16:46:32');
+  (3, 'Industrial Idle Assets & Machinery', 'industrial-machinery', NULL, '2026-08-08 16:46:32', '2026-08-08 16:46:32'),
+  (4, 'Aluminium Coil', 'aluminium-coil', NULL, '2026-10-13 03:05:18', '2026-10-13 03:05:18'),
+  (5, 'Hardware - Computer', 'hardware-computer', NULL, '2026-10-13 14:14:52', '2026-10-13 14:17:22');
 
 -- ------------------------------------------------------------
 -- Table structure for `locations`
@@ -49,7 +51,7 @@ CREATE TABLE `locations` (
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Data for `locations` (9 records)
+-- Data for `locations` (10 records)
 INSERT INTO `locations` (`id`, `city`, `state`, `is_active`, `created_at`) VALUES
   (1, 'Mumbai', 'Maharashtra', 1, '2026-08-10 06:45:13'),
   (2, 'Thane', 'Maharashtra', 1, '2026-08-10 06:45:13'),
@@ -58,8 +60,9 @@ INSERT INTO `locations` (`id`, `city`, `state`, `is_active`, `created_at`) VALUE
   (5, 'Gujarat', 'Gujarat', 1, '2026-08-10 06:45:14'),
   (6, 'Delhi NCR', 'Delhi', 1, '2026-08-10 06:45:14'),
   (7, 'Bengaluru', 'Karnataka', 1, '2026-08-10 06:45:14'),
-  (8, 'Bhayander West', 'Maharashtra', 1, '2026-08-12 07:26:10'),
-  (9, 'Bhayander West', 'Maharashtra', 1, '2026-08-12 07:27:57');
+  (8, 'Ahmedabad', 'Gujarat', 1, '2026-10-13 14:15:00'),
+  (9, 'Dhule', 'Maharashtra', 1, '2026-10-13 13:55:00'),
+  (10, 'Dehradun', 'Uttarakhand', 1, '2026-10-13 03:05:00');
 
 -- ------------------------------------------------------------
 -- Table structure for `users`
@@ -127,7 +130,9 @@ INSERT INTO `users` (`id`, `name`, `email`, `phone`, `password`, `role`, `compan
   (22, 'Test Metal Recycler 1790947624722', 'test.bidder.1790947624722@salvagereef.com', '9820112233', '$2y$10$7bHQEBAzvR6v.Ea5DRV1LuoxxZzG2dDjY9vLbVfYHTccbdcVuMD5W', 'bidder', 'Test Alloys &amp; Recycling Ltd 1790947624722', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL, 'SR-121075', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27ABCDE3165F1Z5', 'Private Limited', NULL, NULL, 'Test Metal Recycler 1790947624722', NULL, NULL, NULL, NULL, NULL, NULL),
   (23, 'Google User 1790947624722', 'google.user.1790947624722@gmail.com', NULL, '$2y$10$iGTmFOe0UWcxBamlkugRwuSZBShl.NYYh6dk88dEfgnYriS4kNo/2', 'bidder', 'Google SSO Account', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL, 'SR-103277', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27AAAAA0000A1Z5', 'Proprietorship', 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093', NULL, NULL, 'HDFC Bank Ltd', '50200088991122', 'HDFC0000123', NULL, NULL, NULL),
   (24, 'Test Metal Recycler 1790947679968', 'test.bidder.1790947679968@salvagereef.com', '9820112233', '$2y$10$sq/hNVmht4WipC3keNh3AuEbWxMbgfv6rdyypHOKIXtyeipBdhHfa', 'bidder', 'Test Alloys &amp; Recycling Ltd 1790947679968', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL, 'SR-347344', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27ABCDE8738F1Z5', 'Private Limited', NULL, NULL, 'Test Metal Recycler 1790947679968', NULL, NULL, NULL, NULL, NULL, NULL),
-  (25, 'Google User 1790947679968', 'google.user.1790947679968@gmail.com', NULL, '$2y$10$T49jhVvNU0Hc8Z8KHf52SOsAj/KS1zHzKs5T2bcu6XGUBwAvjCyfy', 'bidder', 'Google SSO Account', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL, 'SR-694979', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27AAAAA0000A1Z5', 'Proprietorship', 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093', NULL, NULL, 'HDFC Bank Ltd', '50200088991122', 'HDFC0000123', NULL, NULL, NULL);
+  (25, 'Google User 1790947679968', 'google.user.1790947679968@gmail.com', NULL, '$2y$10$T49jhVvNU0Hc8Z8KHf52SOsAj/KS1zHzKs5T2bcu6XGUBwAvjCyfy', 'bidder', 'Google SSO Account', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL, 'SR-694979', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27AAAAA0000A1Z5', 'Proprietorship', 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093', NULL, NULL, 'HDFC Bank Ltd', '50200088991122', 'HDFC0000123', NULL, NULL, NULL),
+  (34, 'SalvageReef Executive Desk Admin', 'executive@salvagereef.com', '7304481166', '$2y$12$/yJZRHkrM4iK2uV/JobeheK./6y7r44Jpc4HkN2ksHd2N8za3zxN6', 'desk_admin', 'SalvageReef Executive Desk', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, '2026-10-13 13:55:00', '2026-10-14 13:00:00', 'SR-EXEC-1', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27AAAAA0000A1Z5', 'Proprietorship', 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093', NULL, NULL, 'HDFC Bank Ltd', '50200088991122', 'HDFC0000123', NULL, NULL, NULL),
+  (35, 'SalvageReef Desk Admin (Read-Only)', 'inspector@salvagereef.com', '9820888888', '$2y$12$/yJZRHkrM4iK2uV/JobeheK./6y7r44Jpc4HkN2ksHd2N8za3zxN6', 'read_only_admin', 'SalvageReef Audit Desk (Read-Only)', 'Mumbai', 'Maharashtra', 1, 1, NULL, NULL, NULL, NULL, 1, 1, NULL, '2026-10-13 13:55:00', '2026-10-14 13:00:00', 'SR-DESK-1', NULL, NULL, NULL, NULL, 'ABCDE1234F', '27AAAAA0000A1Z5', 'Proprietorship', 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093', NULL, NULL, 'HDFC Bank Ltd', '50200088991122', 'HDFC0000123', NULL, NULL, NULL);
 
 -- ------------------------------------------------------------
 -- Table structure for `auctions`
@@ -171,9 +176,9 @@ CREATE TABLE `auctions` (
 
 -- Data for `auctions` (3 records)
 INSERT INTO `auctions` (`id`, `title`, `slug`, `description`, `category_id`, `auction_type`, `status`, `quantity`, `unit`, `starting_price`, `current_highest_bid`, `start_time`, `end_time`, `location_city`, `location_state`, `is_group`, `group_id`, `created_by`, `created_at`, `updated_at`, `winner_confirmed`, `winner_user_id`, `bid_increment`, `winner_h1_user_id`, `winner_h2_user_id`, `winner_h3_user_id`, `awarded_winner_type`, `awarded_winner_id`, `emd_amount`, `condition`, `pdf_url`) VALUES
-  (101, '50 MT Industrial Copper Cable Scrap - Grade A Clean Wire', '50-mt-industrial-copper-cable-scrap-grade-a', 'Bulk lot of high-grade copper cables stripped from power sub-station dismantling. Inspection invited at Thane scrap yard. Purity verified at 99.2% Cu.', 2, 'public', 'live', 50, 'MT', 3500000, 3500000, '2026-09-28 08:43:14', '2026-10-09 13:28:13', 'Mumbai', 'Maharashtra', 0, NULL, 1, NULL, NULL, 0, NULL, 10000.0, NULL, NULL, NULL, NULL, NULL, 0.0, NULL, NULL),
-  (102, 'CNC Milling Machine 5-Axis (Industrial Plant Dismantling Surplus)', 'cnc-milling-machine-5-axis-surplus-equipment', 'Heavy duty Japanese manufactured 5-axis CNC Milling machine in prime working condition. Includes original control panel, tool changers, and coolant system.', 1, 'public', 'live', 2, 'nos', 8000000, 9200000, '2026-09-28 08:43:14', '2026-10-01 09:43:14', 'Mumbai', 'Maharashtra', 0, NULL, 1, NULL, NULL, 0, NULL, 25000.0, NULL, NULL, NULL, NULL, NULL, 0.0, NULL, NULL),
-  (999, '⚡ 7-Day Live Demo Auction: Industrial Copper Armoured Cables & Heavy Melting Steel Scrap Lot', 'live-demo-auction-industrial-copper-cables', 'Official 7-Day Demo Auction Lot for live system testing, PDF spec sheet generation, 2-minute dynamic anti-sniping validation, and multi-user bidding verification. Lot contains sorted commercial grade heavy melting steel (HMS 1 & 2) and high-conductivity copper armoured power cables.', 2, 'public', 'live', 45, 'MT', 500000, 500000, '2026-10-01 07:08:53', '2026-10-09 13:28:13', 'Mumbai', 'Maharashtra', 0, NULL, 1, NULL, NULL, 0, NULL, 10000.0, NULL, NULL, NULL, NULL, NULL, 0.0, NULL, NULL);
+  (1011, 'LOT-003 | Acer Desktop PCs, Interactive Flat Panels (IFPs), and Laptops', 'lot-003-acer-desktop-pcs-interactive-flat-panels-ifps-and-laptops-a8120', 'Acer India products, including Desktop PCs, Interactive Flat Panels (IFPs), and Laptops. As is where is basis - WET/PARTLY SUBMERGED IN WATER', 5, 'public', 'live', 164.00, 'Nos', 1500000.00, 1500000.00, '2026-10-13 14:15:00', '2026-10-27 16:00:00', 'Ahmedabad', 'Gujarat', 0, NULL, 1, '2026-10-13 14:15:18', '2026-10-14 13:02:40', 0, NULL, 10000.00, NULL, NULL, NULL, NULL, NULL, 150000.00, 'As is where is basis - WET/PARTLY SUBMERGED IN WATER', '/uploads/general/20261013_141458_5d146f695c50.pdf'),
+  (1010, 'LOT-002 | Shilcher Transformer 1500 KVA', 'lot-002-shilcher-transformer-1500-kva-4a8da', 'Approx weight 5500 kgs - As is where is basis. Heavy industrial high-voltage transformer dismantling scrap.', 1, 'public', 'live', 1.00, 'Nos', 750000.00, 750000.00, '2026-10-13 14:00:00', '2026-10-27 17:00:00', 'Dhule', 'Maharashtra', 0, NULL, 1, '2026-10-13 13:55:42', '2026-10-14 13:17:56', 0, NULL, 25000.00, NULL, NULL, NULL, NULL, NULL, 150000.00, 'Technical Error', '/uploads/general/20261013_135537_070665aa659e.pdf'),
+  (1009, 'LOT-001 | PE Color Coated Aluminium Coil', 'lot-001-pe-color-coated-aluminium-coil-2d8ea', 'As is where is basis. Premium architectural color coated aluminium coil roll scrap.', 4, 'public', 'live', 2370.00, 'KGS', 220.00, 220.00, '2026-10-13 13:00:00', '2026-10-27 18:00:00', 'Dehradun', 'Uttarakhand', 0, NULL, 1, '2026-10-13 03:05:54', '2026-10-14 13:18:24', 0, NULL, 10.00, NULL, NULL, NULL, NULL, NULL, 25000.00, 'Accidental', '/uploads/general/20261013_030530_e8e3bea1e3e7.pdf');
 
 -- ------------------------------------------------------------
 -- Table structure for `auction_images`
@@ -182,20 +187,18 @@ DROP TABLE IF EXISTS `auction_images`;
 CREATE TABLE `auction_images` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `auction_id` INT NOT NULL,
-  `image_path` VARCHAR(255) NOT NULL,
+  `image_path` LONGTEXT NOT NULL,
   `is_primary` TINYINT(1) DEFAULT 0,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY `idx_auction_images_auction` (`auction_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Data for `auction_images` (5 records)
+-- Data for `auction_images` (3 records)
 INSERT INTO `auction_images` (`id`, `auction_id`, `image_path`, `is_primary`, `created_at`, `updated_at`) VALUES
-  (12, 101, 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL),
-  (13, 102, 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL),
-  (21, 999, 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL),
-  (22, 999, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 0, NULL, NULL),
-  (23, 999, 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80', 0, NULL, NULL);
+  (1, 1011, '/uploads/auction/lot_003_acer_pcs_laptops.jpg', 1, '2026-10-13 14:15:18', '2026-10-13 14:15:18'),
+  (2, 1010, '/uploads/auction/lot_002_shilcher_transformer.jpg', 1, '2026-10-13 13:55:42', '2026-10-13 13:55:42'),
+  (3, 1009, '/uploads/auction/lot_001_aluminium_coil.jpg', 1, '2026-10-13 03:05:54', '2026-10-13 03:05:54');
 
 -- ------------------------------------------------------------
 -- Table structure for `bids`
@@ -212,9 +215,7 @@ CREATE TABLE `bids` (
   KEY `idx_bids_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Data for `bids` (1 records)
-INSERT INTO `bids` (`id`, `auction_id`, `user_id`, `amount`, `created_at`, `status`) VALUES
-  (504, 102, 2, 9200000, '2026-09-28 09:33:14', 'approved');
+-- Data for `bids` (0 records)
 
 -- ------------------------------------------------------------
 -- Table structure for `classifieds`
