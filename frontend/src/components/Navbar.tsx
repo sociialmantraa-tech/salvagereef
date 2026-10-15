@@ -276,9 +276,9 @@ export default function Navbar() {
         />
       )}
 
-      {/* Mobile & Tablet Slide-over Sidebar (Takes Half Screen / 50% width in portrait and horizontal/landscape form) */}
+      {/* Mobile & Tablet Slide-over Sidebar (Takes Half Screen Width and Half Screen Height in Vertical Form) */}
       <aside
-        className={`fixed top-0 right-0 h-full w-1/2 z-50 bg-white shadow-2xl xl:hidden flex flex-col justify-between overflow-y-auto overflow-x-hidden border-l border-slate-200 transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 w-1/2 h-1/2 landscape:h-full z-50 bg-white shadow-2xl xl:hidden flex flex-col justify-between overflow-y-auto overflow-x-hidden border-l border-b border-slate-200 rounded-bl-2xl transition-transform duration-300 ease-in-out ${
           mobileMenuOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
         aria-label="Mobile Navigation Sidebar"
