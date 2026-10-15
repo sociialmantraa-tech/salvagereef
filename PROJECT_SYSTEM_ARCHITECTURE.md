@@ -171,4 +171,27 @@ This produces two ZIP archives:
 - `salvagereef_UPDATE_SAFE_NO_DATABASE.zip`: Update package that updates code without overwriting active database records.
 
 ---
+
+## 8. SEO, Sitemap & Google Search Console Integration
+
+- **Canonical Sitemap**: Located at `/sitemap.xml` (`frontend/public/sitemap.xml`).
+  - Strict compliance with `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`.
+  - Excludes extraneous `xsi:schemaLocation` and avoids hardcoded future `<lastmod>` timestamps to guarantee 100% Google Search Console validation.
+  - Priority mapping: Homepage (`1.0`), `/auctions` & `/classifieds` (`0.9`), `/about` & `/contact` (`0.8`), `/register` (`0.7`), Legal/Policies (`0.5`).
+- **GSC Submission**: In Google Search Console, submit only the relative path `sitemap.xml` (the root domain `https://salvagereef.com/` is pre-filled).
+- **Robots.txt Protection**: `robots.txt` disallows `/admin`, `/dashboard`, and `/backend/` to safeguard administrative tools and conserve Google crawler budget.
+
+---
+
+## 9. Mobile Responsive Layout & Dashboard Navigation
+
+- **Dashboard Navigation (`UserDashboard.tsx`)**:
+  - **Grid Form**: Configured as `grid-cols-2` on mobile, `sm:grid-cols-3` on tablet, and `lg:grid-cols-6` on desktop so all categories remain directly accessible without horizontal cutoff.
+  - **Mobile Dropdown Selector (`sm:hidden`)**: A clean 1-tap select dropdown is provided on mobile screens with real-time bid/win counters.
+  - **Identity Badges & Contact Info**: Rendered with `flex-nowrap` and `.no-scrollbar` to guarantee zero page-width horizontal overflow (`scrollWidth === clientWidth`).
+- **Mobile Navbar & Half-Screen Menu**:
+  - Mobile action buttons (`+ SELL`, `Desk`/`Sign In`, menu toggle) remain fixed at `z-50` above the sidebar.
+  - Slide-over mobile drawer is positioned at `top-16` and sized to half screen width (`w-1/2`) and half screen height (`h-1/2` / landscape full height).
+
+---
 *Document saved to repository for permanent reference.*
