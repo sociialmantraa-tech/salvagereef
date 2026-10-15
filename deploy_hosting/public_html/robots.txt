@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /backend/
+
+Sitemap: https://salvagereef.com/sitemap.xml

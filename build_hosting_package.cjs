@@ -105,8 +105,8 @@ copyDirSync(distAssets, deployAssets);
 const assetCount = fs.readdirSync(deployAssets).length;
 success(`Copied ${assetCount} asset files`);
 
-// Copy favicons & logo
-['favicon.ico', 'favicon.png', 'favicon.svg', 'logo.png'].forEach(file => {
+// Copy favicons, logo, sitemap & robots
+['favicon.ico', 'favicon.png', 'favicon.svg', 'logo.png', 'sitemap.xml', 'robots.txt'].forEach(file => {
   if (copyFileSafe(path.join(DIST, file), path.join(DEPLOY, file))) {
     success(`Copied ${file}`);
   } else if (copyFileSafe(path.join(FRONTEND, 'public', file), path.join(DEPLOY, file))) {
