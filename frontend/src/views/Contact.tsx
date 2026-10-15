@@ -3,6 +3,7 @@ import { useContentStore } from '../store/useContentStore';
 import { Phone, Mail, MapPin, Send, CheckCircle2, MessageSquare, Clock, ShieldCheck, Building2, HelpCircle } from 'lucide-react';
 
 import SEOHead from '../components/SEOHead';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 
 export default function Contact() {
   const { content } = useContentStore();
@@ -86,7 +87,7 @@ export default function Contact() {
 
               <div className="flex items-start gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                  <MessageSquare className="w-5 h-5" />
+                  <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
                 </div>
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">WhatsApp Live Support</span>
@@ -94,9 +95,9 @@ export default function Contact() {
                     href="https://wa.me/917304481166?text=Hi%20SalvageReef%2C%20I%20have%20an%20inquiry"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-extrabold text-emerald-700 hover:underline flex items-center gap-1"
+                    className="text-sm font-extrabold text-emerald-700 hover:underline flex items-center gap-1.5"
                   >
-                    Chat on WhatsApp &rarr;
+                    <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" /> Chat on WhatsApp &rarr;
                   </a>
                   <p className="text-[11px] text-slate-500 mt-0.5">Instant response for verified buyers</p>
                 </div>

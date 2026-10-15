@@ -458,7 +458,7 @@ if (!$forcedSqliteOnly) {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 1,
+                PDO::ATTR_TIMEOUT => 3,
             ]);
             $conn->query("SELECT 1");
             $pdo = $conn;
@@ -486,7 +486,7 @@ if (!$forcedSqliteOnly) {
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                         PDO::ATTR_EMULATE_PREPARES => false,
-                        PDO::ATTR_TIMEOUT => 1,
+                        PDO::ATTR_TIMEOUT => 3,
                     ]);
                     $conn->query("SELECT 1");
                     $pdo = $conn;
@@ -754,6 +754,11 @@ function srEnsureDatabaseSchema(PDO $pdo): void {
         )");
     } catch (\Throwable $e) {}
 
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_cheque_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_pan_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_gst_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN kyc_update_requested_at DATETIME DEFAULT NULL"); } catch (\Throwable $e) {}
+
     try {
         $coreAccounts = [
             ['Master Admin', 'admin@salvagereef.com', 'SR-ADMIN', 'sociial123', '9820999999', 'master_admin', 'SalvageReef Master Operations', 'Mumbai', 'Maharashtra'],
@@ -868,6 +873,21 @@ if (!file_exists($_SR_SCHEMA_FLAG)) {
     } catch (\Throwable $e) {}
 }
 
+// ── Zero-Maintenance Auto-Purge of Legacy Test Accounts on Boot ──────────────
+$_SR_PURGE_TEST_USERS_FLAG = __DIR__ . '/logs/.test_users_purged_v2.flag';
+if ($pdo && !file_exists($_SR_PURGE_TEST_USERS_FLAG)) {
+    try {
+        $pdo->exec("DELETE FROM users WHERE 
+            LOWER(email) LIKE '%test.bidder%' OR 
+            LOWER(email) LIKE '%google.user%' OR 
+            LOWER(email) LIKE '%_audit_%' OR 
+            LOWER(name) LIKE '%test bidder%' OR 
+            LOWER(email) IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')
+        ");
+        @file_put_contents($_SR_PURGE_TEST_USERS_FLAG, date('Y-m-d H:i:s'));
+    } catch (\Throwable $e) {}
+}
+
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
@@ -894,6 +914,13 @@ function ensureActiveContentAutoSeeded($pdo) {
                           AND (`winner_confirmed` IS NULL OR `winner_confirmed` = 0) 
                           AND (`end_time` IS NULL OR `end_time` < ?)");
             $stmtRenew->execute([$plus7DaysIso, $nowIso]);
+        } catch (\Throwable $e) {}
+
+        // Step 1b: Auto-heal any corrupt or truncated base64 strings in auction_images
+        try {
+            $pdo->prepare("UPDATE `auction_images` 
+                SET `image_path` = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80' 
+                WHERE `image_path` LIKE 'data:image/%' AND LENGTH(`image_path`) <= 350")->execute();
         } catch (\Throwable $e) {}
 
         // Initial Seed Safeguard: Only seeds during fresh database installation when total rows = 0
@@ -1126,17 +1153,36 @@ function saveBase64Upload(?string $dataOrPath, string $folder = 'kyc', string $p
     $trimmed = trim($dataOrPath);
     if (empty($trimmed)) return '';
 
-    // If it's already a path or URL
-    if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://') || str_starts_with($trimmed, '/uploads/') || str_starts_with($trimmed, 'uploads/')) {
-        return str_starts_with($trimmed, '/') ? $trimmed : '/' . $trimmed;
+    // Normalize folder name: 'auctions' -> 'auction', 'classifieds' -> 'classified'
+    if ($folder === 'auctions') $folder = 'auction';
+    if ($folder === 'classifieds') $folder = 'classified';
+
+    // If it's already an absolute HTTP/HTTPS URL, return as-is
+    if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://')) {
+        return $trimmed;
+    }
+
+    // If it's already a relative /uploads/ path
+    if (str_starts_with($trimmed, '/uploads/')) {
+        return $trimmed;
+    }
+    if (str_starts_with($trimmed, 'uploads/')) {
+        return '/' . $trimmed;
+    }
+
+    // Check if it is a truncated / corrupt data URI (e.g. truncated at 255 chars by MySQL)
+    if (str_starts_with($trimmed, 'data:') && strlen($trimmed) <= 350) {
+        return 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
     }
 
     // Check for data URI pattern
     if (preg_match('#^data:([^;]+);base64,(.+)$#s', $trimmed, $matches)) {
         $mime = strtolower(trim($matches[1]));
         $base64 = $matches[2];
-        $binary = base64_decode($base64);
-        if ($binary === false || strlen($binary) === 0) return '';
+        $binary = base64_decode($base64, true);
+        if ($binary === false || strlen($binary) < 20) {
+            return 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+        }
 
         $ext = 'jpg';
         if (str_contains($mime, 'png')) $ext = 'png';
@@ -1167,7 +1213,9 @@ function saveBase64Upload(?string $dataOrPath, string $folder = 'kyc', string $p
             @file_put_contents($deployDir . '/' . $filename, $binary);
         }
 
-        return '/uploads/' . $folder . '/' . $filename;
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'salvagereef.com';
+        return "{$protocol}://{$host}/uploads/{$folder}/{$filename}";
     }
 
     // Check if raw SVG markup was sent
@@ -2208,6 +2256,11 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
 
         foreach ($rawImgs as $row) {
             $path = is_array($row) ? ($row['image_path'] ?? '') : (string)$row;
+            if (str_starts_with($path, 'data:image/') && strlen($path) <= 350) {
+                $path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                if (is_array($row)) $row['image_path'] = $path;
+                else $row = $path;
+            }
             if (preg_match('/\.pdf($|\?)/i', $path)) {
                 if (!in_array($path, $detectedPdfs)) {
                     $detectedPdfs[] = $path;
@@ -2218,6 +2271,9 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
         }
 
         $primaryImg = $item['primary_image_url'] ?? null;
+        if (!empty($primaryImg) && str_starts_with($primaryImg, 'data:image/') && strlen($primaryImg) <= 350) {
+            $primaryImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+        }
         if (!empty($primaryImg) && preg_match('/\.pdf($|\?)/i', $primaryImg)) {
             if (!in_array($primaryImg, $detectedPdfs)) {
                 $detectedPdfs[] = $primaryImg;
@@ -2229,8 +2285,8 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
             $primaryImg = is_array($cleanImages[0]) ? ($cleanImages[0]['image_path'] ?? null) : $cleanImages[0];
         }
 
-        if (empty($primaryImg)) {
-            $primaryImg = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80';
+        if (empty($primaryImg) || (str_starts_with($primaryImg, 'data:image/') && strlen($primaryImg) <= 350)) {
+            $primaryImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
             if (empty($cleanImages)) {
                 $cleanImages[] = ['image_path' => $primaryImg, 'is_primary' => 1];
             }
@@ -2318,7 +2374,7 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     // Safely resolve created_by user ID (must exist in users table for FK constraint)
     $creatorId = !empty($body['created_by']) ? (int)$body['created_by'] : ($user['id'] ?? null);
     if (!$creatorId) {
-        $creatorId = (int)($pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+        $creatorId = (int)($pdo->query("SELECT id FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com') ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
     } else {
         $uChk = $pdo->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
         $uChk->execute([$creatorId]);
@@ -2497,11 +2553,14 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
         foreach ($body['images'] as $idx => $img) {
             $path = is_array($img) ? ($img['image_path'] ?? $img['url'] ?? null) : $img;
             if ($path) {
+                if (str_starts_with($path, 'data:image/') || str_starts_with($path, 'data:application/')) {
+                    $path = saveBase64Upload($path, 'auction', 'auc');
+                }
                 if (preg_match('/\.pdf($|\?)/i', $path)) {
                     if (empty($pdfUrlFromEdit)) {
                         $pdfUrlFromEdit = $path;
                         try {
-                            $pdo->prepare("UPDATE auctions SET pdf_url = ? WHERE id = ?")->execute([$path, $auctionId]);
+                            $pdo->prepare("UPDATE `auctions` SET `pdf_url` = ? WHERE `id` = ?")->execute([$path, $auctionId]);
                         } catch (\Throwable $e) {}
                     }
                 } else {
@@ -2513,17 +2572,23 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
     if (empty($imagesList)) {
         $single = $body['image_url'] ?? $body['image_path'] ?? ($body['primary_image']['image_path'] ?? null);
         if ($single) {
+            if (str_starts_with($single, 'data:image/') || str_starts_with($single, 'data:application/')) {
+                $single = saveBase64Upload($single, 'auction', 'auc');
+            }
             if (preg_match('/\.pdf($|\?)/i', $single)) {
                 if (empty($pdfUrlFromEdit)) {
                     $pdfUrlFromEdit = $single;
                     try {
-                        $pdo->prepare("UPDATE auctions SET pdf_url = ? WHERE id = ?")->execute([$single, $auctionId]);
+                        $pdo->prepare("UPDATE `auctions` SET `pdf_url` = ? WHERE `id` = ?")->execute([$single, $auctionId]);
                     } catch (\Throwable $e) {}
                 }
             } else {
                 $imagesList[] = ['path' => $single, 'primary' => 1];
             }
         }
+    }
+    if (!empty($pdfUrlFromEdit) && str_starts_with($pdfUrlFromEdit, 'data:')) {
+        $pdfUrlFromEdit = saveBase64Upload($pdfUrlFromEdit, 'general', 'pdf');
     }
     if (!empty($imagesList)) {
         $hasPrimary = false;
@@ -2534,10 +2599,14 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/(admin/)?
             $imagesList[0]['primary'] = 1;
         }
         try {
-            $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auctionId]);
+            $pdo->prepare("DELETE FROM `auction_images` WHERE `auction_id` = ?")->execute([$auctionId]);
             foreach ($imagesList as $imgItem) {
-                $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, ?)")
-                    ->execute([$auctionId, $imgItem['path'], $imgItem['primary']]);
+                $imgPath = $imgItem['path'];
+                if (str_starts_with($imgPath, 'data:image/') || str_starts_with($imgPath, 'data:application/')) {
+                    $imgPath = saveBase64Upload($imgPath, 'auction', 'auc');
+                }
+                $pdo->prepare("INSERT INTO `auction_images` (`auction_id`, `image_path`, `is_primary`) VALUES (?, ?, ?)")
+                    ->execute([$auctionId, $imgPath, $imgItem['primary']]);
             }
         } catch (\Throwable $e) {}
     }
@@ -2713,7 +2782,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/dashboard/stats') {
     $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();
     $liveAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
     $totalClassifieds = (int)$pdo->query("SELECT COUNT(*) FROM classifieds")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
 
     jsonResponse([
@@ -2742,7 +2811,7 @@ if ($method === 'GET' && ($uri === '/api/v1/admin/analytics/overview' || str_sta
     $liveAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
     $completedAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'completed' OR status = 'closed' OR winner_confirmed = 1")->fetchColumn();
     $upcomingAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'upcoming'")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
     $totalVal = (float)$pdo->query("SELECT COALESCE(SUM(current_highest_bid), SUM(starting_price), 0) FROM auctions")->fetchColumn();
 
@@ -2888,6 +2957,10 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     }
     foreach ($rawImgs as $img) {
         $path = $img['image_path'] ?? '';
+        if (str_starts_with($path, 'data:image/') && strlen($path) <= 350) {
+            $path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+            $img['image_path'] = $path;
+        }
         if (preg_match('/\.pdf($|\?)/i', $path)) {
             if (!in_array($path, $detectedPdfs)) {
                 $detectedPdfs[] = $path;
@@ -2900,13 +2973,17 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
         $cleanImgs[] = [
             'id' => 1,
             'auction_id' => $auction['id'],
-            'image_path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80',
+            'image_path' => 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80',
             'is_primary' => 1
         ];
     }
+    $primaryPath = $cleanImgs[0]['image_path'] ?? 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+    if (str_starts_with($primaryPath, 'data:image/') && strlen($primaryPath) <= 350) {
+        $primaryPath = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+    }
     $auction['images'] = $cleanImgs;
-    $auction['primary_image_url'] = $cleanImgs[0]['image_path'] ?? 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80';
-    $auction['primary_image'] = ['image_path' => $auction['primary_image_url']];
+    $auction['primary_image_url'] = $primaryPath;
+    $auction['primary_image'] = ['image_path' => $primaryPath];
     $auction['pdf_urls'] = $detectedPdfs;
     $auction['pdf_url'] = !empty($detectedPdfs[0]) ? $detectedPdfs[0] : null;
     $auction['pdf_document'] = $auction['pdf_url'];
@@ -3064,7 +3141,7 @@ if ($method === 'POST' && preg_match('#^/api/v1/auctions/(\d+)/bid$#', $uri, $m)
                 'requires_admin_approval' => true,
                 'is_first_bid' => true,
                 'bid_id' => $bidId,
-                'current_highest_bid' => $bidAmount,
+                'current_highest_bid' => $highest,
                 'time_extended' => $timeExtended,
                 'new_end_time' => $newEndTime,
                 'extension_seconds' => 120,
@@ -3717,52 +3794,340 @@ if ($method === 'GET' && $uri === '/api/v1/user/dashboard') {
     $user = getAuthUser($pdo);
     if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
 
-    $stmtBids = $pdo->prepare("SELECT b.*, a.title as auction_title, a.slug as auction_slug, a.status as auction_status, a.current_highest_bid
-                               FROM bids b JOIN auctions a ON b.auction_id = a.id
-                               WHERE b.user_id = ? ORDER BY b.created_at DESC LIMIT 15");
+    // 1. Fetch user bids with auction details and lot info
+    $stmtBids = $pdo->prepare("
+        SELECT b.id, b.auction_id, b.amount, b.status as bid_status, b.created_at,
+               a.title as auction_title, a.slug as auction_slug, a.status as auction_status,
+               a.starting_price, a.current_highest_bid, a.bid_increment, a.emd_amount,
+               a.start_time, a.end_time, a.location_city, a.location_state, a.pdf_url,
+               a.winner_confirmed, a.winner_user_id, a.awarded_winner_id, a.awarded_winner_type,
+               c.name as category_name
+        FROM bids b
+        JOIN auctions a ON b.auction_id = a.id
+        LEFT JOIN categories c ON a.category_id = c.id
+        WHERE b.user_id = ?
+        ORDER BY b.created_at DESC
+    ");
     $stmtBids->execute([$user['id']]);
     $rawBids = $stmtBids->fetchAll();
 
-    $activeCount = count(array_unique(array_column($rawBids, 'auction_id')));
+    // Fetch primary images for these auctions
+    $auctionIds = array_unique(array_filter(array_column($rawBids, 'auction_id')));
+    $imagesMap = [];
+    if (!empty($auctionIds)) {
+        $inClause = implode(',', array_map('intval', $auctionIds));
+        try {
+            // Auto-heal any corrupt data URI stubs in database
+            $pdo->query("UPDATE auction_images SET image_path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80' WHERE (image_path LIKE 'data:image/%' AND LENGTH(image_path) <= 350) OR image_path IS NULL OR image_path = ''");
+
+            $stmtImgs = $pdo->query("SELECT auction_id, image_path, is_primary FROM auction_images WHERE auction_id IN ($inClause) ORDER BY is_primary DESC, id ASC");
+            if ($stmtImgs) {
+                while ($row = $stmtImgs->fetch()) {
+                    $aucRowId = (int)$row['auction_id'];
+                    $imgPath = trim((string)($row['image_path'] ?? ''));
+                    if (isset($imagesMap[$aucRowId])) continue;
+                    if (str_starts_with($imgPath, 'data:image/') && strlen($imgPath) <= 350) continue;
+                    if (preg_match('/\.pdf($|\?)/i', $imgPath)) continue;
+                    if (!empty($imgPath)) {
+                        $imagesMap[$aucRowId] = $imgPath;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
     $wonCount = 0;
+    $winningCount = 0;
+    $outbidCount = 0;
+    $pendingBidsCount = 0;
     $recentBidsList = [];
+    $seenAuctions = [];
+    $wonAuctionsMap = [];
 
     foreach ($rawBids as $b) {
-        $myStatus = 'active';
-        if ($b['auction_status'] === 'closed') {
-            if ($b['current_highest_bid'] == $b['amount']) {
+        $aucId = (int)$b['auction_id'];
+        $highest = !empty($b['current_highest_bid']) ? (float)$b['current_highest_bid'] : (float)$b['starting_price'];
+        $myAmount = (float)$b['amount'];
+        $img = $imagesMap[$aucId] ?? 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+        if (str_starts_with($img, 'data:image/') && strlen($img) <= 350) {
+            $img = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+        }
+
+        // Determine bid status and personal outcome
+        $isPendingBid = ($b['bid_status'] === 'pending');
+        $isRejectedBid = ($b['bid_status'] === 'rejected');
+        $isAuctionClosed = in_array($b['auction_status'], ['closed', 'completed'], true) || !empty($b['winner_confirmed']);
+        $isWinnerConfirmed = !empty($b['winner_confirmed']) && ($b['winner_user_id'] == $user['id'] || $b['awarded_winner_id'] == $user['id']);
+
+        if ($isPendingBid) {
+            $myStatus = 'pending_approval';
+            $pendingBidsCount++;
+        } elseif ($isRejectedBid) {
+            $myStatus = 'rejected';
+        } elseif ($isAuctionClosed) {
+            if ($isWinnerConfirmed || ($myAmount >= $highest && $highest > 0)) {
                 $myStatus = 'won';
-                $wonCount++;
+                $wonAuctionsMap[$aucId] = [
+                    'id' => $aucId,
+                    'title' => $b['auction_title'],
+                    'slug' => $b['auction_slug'],
+                    'winning_amount' => $myAmount,
+                    'emd_amount' => (float)($b['emd_amount'] ?? 0),
+                    'end_time' => $b['end_time'],
+                    'location_city' => $b['location_city'],
+                    'location_state' => $b['location_state'],
+                    'primary_image_url' => $img,
+                    'pdf_url' => $b['pdf_url'],
+                    'awarded_rank' => $b['awarded_winner_type'] ?: 'H1'
+                ];
             } else {
                 $myStatus = 'lost';
             }
         } else {
-            if ($b['current_highest_bid'] == $b['amount']) {
+            // Live auction
+            if ($myAmount >= $highest) {
                 $myStatus = 'winning';
+                if (!isset($seenAuctions[$aucId])) $winningCount++;
             } else {
                 $myStatus = 'outbid';
+                if (!isset($seenAuctions[$aucId])) $outbidCount++;
             }
         }
 
+        $seenAuctions[$aucId] = true;
+
         $recentBidsList[] = [
             'id' => $b['id'],
-            'auction_id' => $b['auction_id'],
-            'auction_title' => $b['auction_title'],
-            'auction_slug' => $b['auction_slug'],
-            'bid_amount' => (float)$b['amount'],
+            'auction_id' => $aucId,
+            'amount' => $myAmount,
+            'bid_amount' => $myAmount,
+            'status' => $b['bid_status'],
             'my_status' => $myStatus,
-            'created_at' => $b['created_at']
+            'created_at' => $b['created_at'],
+            'auction' => [
+                'id' => $aucId,
+                'title' => $b['auction_title'],
+                'slug' => $b['auction_slug'],
+                'status' => $b['auction_status'],
+                'starting_price' => (float)$b['starting_price'],
+                'current_highest_bid' => $highest,
+                'bid_increment' => (float)$b['bid_increment'],
+                'end_time' => $b['end_time'],
+                'location_city' => $b['location_city'],
+                'location_state' => $b['location_state'],
+                'category_name' => $b['category_name'],
+                'primary_image_url' => $img,
+            ]
         ];
     }
 
+    $wonCount = count($wonAuctionsMap);
+    $activeCount = count($seenAuctions);
+
+    // 2. Fetch Tender Requests (Enquiry or Interests)
+    $stmtTenders = $pdo->prepare("
+        SELECT e.*, a.title as auction_title, a.slug as auction_slug, a.starting_price, a.emd_amount, a.end_time, a.status as auction_status
+        FROM enquiry_or_interests e
+        LEFT JOIN auctions a ON e.auction_id = a.id
+        WHERE e.user_id = ?
+        ORDER BY e.id DESC
+    ");
+    $stmtTenders->execute([$user['id']]);
+    $tenderRequests = $stmtTenders->fetchAll();
+
+    // 3. Fetch Sell Scrap Requests
+    $stmtScrap = $pdo->prepare("
+        SELECT * FROM sell_scrap_requests 
+        WHERE user_id = ? OR (seller_email IS NOT NULL AND seller_email = ?)
+        ORDER BY id DESC
+    ");
+    $stmtScrap->execute([$user['id'], $user['email']]);
+    $scrapRequests = $stmtScrap->fetchAll();
+
+    // 4. Fetch User Classified Listings
     $stmtListings = $pdo->prepare("SELECT * FROM classifieds WHERE created_by = ? ORDER BY id DESC");
     $stmtListings->execute([$user['id']]);
     $myListings = $stmtListings->fetchAll();
 
     jsonResponse([
-        'stats' => ['active_bids' => $activeCount, 'auctions_won' => $wonCount, 'watchlist_count' => count($recentBidsList)],
+        'success' => true,
+        'user' => [
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'email' => $user['email'],
+            'phone' => $user['phone'],
+            'company_name' => $user['company_name'],
+            'city' => $user['city'],
+            'state' => $user['state'],
+            'address' => $user['registered_address'] ?? ($user['address'] ?? ''),
+            'registered_address' => $user['registered_address'] ?? ($user['address'] ?? ''),
+            'pincode' => $user['pincode'] ?? '',
+            'gst_number' => $user['gst_number'] ?? '',
+            'pan_number' => $user['pan_number'] ?? '',
+            'login_id' => $user['login_id'] ?? ('SR-' . $user['id']),
+            'role' => $user['role'],
+            'is_verified' => $user['is_verified'],
+            'cheque_file' => $user['cheque_file'] ?? null,
+            'pan_file' => $user['pan_file'] ?? null,
+            'gst_file' => $user['gst_file'] ?? null,
+            'pending_cheque_file' => $user['pending_cheque_file'] ?? null,
+            'pending_pan_file' => $user['pending_pan_file'] ?? null,
+            'pending_gst_file' => $user['pending_gst_file'] ?? null,
+            'kyc_update_requested_at' => $user['kyc_update_requested_at'] ?? null,
+            'created_at' => $user['created_at'],
+        ],
+        'stats' => [
+            'total_bids' => count($rawBids),
+            'active_bids' => $activeCount,
+            'winning_bids' => $winningCount,
+            'outbid_bids' => $outbidCount,
+            'pending_bids' => $pendingBidsCount,
+            'auctions_won' => $wonCount,
+            'tender_requests_count' => count($tenderRequests),
+            'scrap_requests_count' => count($scrapRequests),
+            'listings_count' => count($myListings),
+            'watchlist_count' => count($recentBidsList),
+        ],
         'recent_bids' => $recentBidsList,
-        'my_listings' => $myListings
+        'won_auctions' => array_values($wonAuctionsMap),
+        'tender_requests' => $tenderRequests,
+        'scrap_requests' => $scrapRequests,
+        'my_listings' => $myListings,
+    ]);
+}
+
+// 16b. User Resubmit KYC & Verification: POST /api/v1/user/resubmit-kyc
+if ($method === 'POST' && $uri === '/api/v1/user/resubmit-kyc') {
+    $user = getAuthUser($pdo);
+    if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $name = trim($body['name'] ?? $user['name']);
+    $companyName = trim($body['company_name'] ?? $user['company_name']);
+    $phone = trim($body['phone'] ?? $user['phone']);
+    $city = trim($body['city'] ?? $user['city']);
+    $state = trim($body['state'] ?? $user['state']);
+    $address = trim($body['registered_address'] ?? ($body['address'] ?? ($user['registered_address'] ?? '')));
+    $panNumber = strtoupper(trim($body['pan_number'] ?? ($user['pan_number'] ?? '')));
+    $gstNumber = strtoupper(trim($body['gst_number'] ?? ($user['gst_number'] ?? '')));
+
+    $newChequeSaved = null;
+    if (!empty($body['cheque_file']) && str_starts_with($body['cheque_file'], 'data:')) {
+        $saved = saveBase64Upload($body['cheque_file'], 'kyc', 'cheque');
+        if ($saved) $newChequeSaved = $saved;
+    }
+    $newPanSaved = null;
+    if (!empty($body['pan_file']) && str_starts_with($body['pan_file'], 'data:')) {
+        $saved = saveBase64Upload($body['pan_file'], 'kyc', 'pan');
+        if ($saved) $newPanSaved = $saved;
+    }
+    $newGstSaved = null;
+    if (!empty($body['gst_file']) && str_starts_with($body['gst_file'], 'data:')) {
+        $saved = saveBase64Upload($body['gst_file'], 'kyc', 'gst');
+        if ($saved) $newGstSaved = $saved;
+    }
+
+    $hasExistingCheque = !empty($user['cheque_file']);
+    $hasExistingPan    = !empty($user['pan_file']);
+    $hasExistingGst    = !empty($user['gst_file']);
+
+    // If existing active documents exist, route the newly uploaded files to pending_* so currently verified documents stay active until Admin accepts!
+    $pendingCheque = $newChequeSaved ?? ($user['pending_cheque_file'] ?? null);
+    $pendingPan    = $newPanSaved ?? ($user['pending_pan_file'] ?? null);
+    $pendingGst    = $newGstSaved ?? ($user['pending_gst_file'] ?? null);
+
+    $activeCheque  = $hasExistingCheque ? $user['cheque_file'] : ($newChequeSaved ?? $user['cheque_file'] ?? null);
+    $activePan     = $hasExistingPan ? $user['pan_file'] : ($newPanSaved ?? $user['pan_file'] ?? null);
+    $activeGst     = $hasExistingGst ? $user['gst_file'] : ($newGstSaved ?? $user['gst_file'] ?? null);
+
+    $stmt = $pdo->prepare("
+        UPDATE users SET 
+            name = ?, company_name = ?, phone = ?, city = ?, state = ?,
+            registered_address = ?, pan_number = ?, gst_number = ?,
+            cheque_file = ?, pan_file = ?, gst_file = ?,
+            pending_cheque_file = ?, pending_pan_file = ?, pending_gst_file = ?,
+            kyc_update_requested_at = CURRENT_TIMESTAMP,
+            is_verified = 0, is_active = 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ");
+    $stmt->execute([
+        $name, $companyName, $phone, $city, $state,
+        $address, $panNumber, $gstNumber,
+        $activeCheque, $activePan, $activeGst,
+        $pendingCheque, $pendingPan, $pendingGst,
+        $user['id']
+    ]);
+
+    $stmtFetch = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmtFetch->execute([$user['id']]);
+    $updatedUser = $stmtFetch->fetch();
+    unset($updatedUser['password'], $updatedUser['plain_password']);
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Your document update request has been submitted to the Admin Desk! The Admin will review and accept your updated documents shortly.',
+        'user' => $updatedUser
+    ]);
+}
+
+// 16c. User Update Profile: PUT /api/v1/user/profile
+if ($method === 'PUT' && $uri === '/api/v1/user/profile') {
+    $user = getAuthUser($pdo);
+    if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $name = trim($body['name'] ?? $user['name']);
+    $companyName = trim($body['company_name'] ?? $user['company_name']);
+    $phone = trim($body['phone'] ?? $user['phone']);
+    $city = trim($body['city'] ?? $user['city']);
+    $state = trim($body['state'] ?? $user['state']);
+    $address = trim($body['registered_address'] ?? ($body['address'] ?? ($user['registered_address'] ?? '')));
+    $pincode = trim($body['pincode'] ?? ($user['pincode'] ?? ''));
+
+    $stmt = $pdo->prepare("
+        UPDATE users SET 
+            name = ?, company_name = ?, phone = ?, city = ?, state = ?,
+            registered_address = ?, pincode = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ");
+    $stmt->execute([$name, $companyName, $phone, $city, $state, $address, $pincode, $user['id']]);
+
+    $stmtFetch = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmtFetch->execute([$user['id']]);
+    $updatedUser = $stmtFetch->fetch();
+    unset($updatedUser['password'], $updatedUser['plain_password']);
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Profile updated successfully!',
+        'user' => $updatedUser
+    ]);
+}
+
+// 16d. User Change Password: PUT /api/v1/user/change-password
+if ($method === 'PUT' && $uri === '/api/v1/user/change-password') {
+    $user = getAuthUser($pdo);
+    if (!$user) jsonResponse(['message' => 'Unauthenticated'], 401);
+
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $currentPass = $body['current_password'] ?? '';
+    $newPass = $body['new_password'] ?? '';
+
+    if (empty($newPass) || strlen($newPass) < 6) {
+        jsonResponse(['message' => 'New password must be at least 6 characters.'], 422);
+    }
+
+    if (!password_verify($currentPass, $user['password']) && $currentPass !== ($user['plain_password'] ?? '')) {
+        jsonResponse(['message' => 'Current password does not match our records.'], 422);
+    }
+
+    $passHash = password_hash($newPass, PASSWORD_DEFAULT);
+    $pdo->prepare("UPDATE users SET password = ?, plain_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        ->execute([$passHash, $newPass, $user['id']]);
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Password updated successfully! Please use your new password next time you sign in.'
     ]);
 }
 
@@ -3953,7 +4318,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/users') {
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
-    $stmt = $pdo->query("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users ORDER BY 
+    $stmt = $pdo->query("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users ORDER BY 
         CASE 
             WHEN role = 'master_admin' OR email = 'admin@salvagereef.com' THEN 1
             WHEN role = 'executive_admin' OR role = 'executive_desk_admin' OR (role = 'desk_admin' AND email = 'executive@salvagereef.com') OR email = 'executive@salvagereef.com' THEN 2
@@ -4179,12 +4544,47 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
             ? -1
             : ($body['is_verified'] ? 1 : 0);
         $isActive = ($val === -1) ? 0 : 1;
-        $pdo->prepare("UPDATE users SET is_verified = ?, is_active = ? WHERE id = ?")->execute([$val, $isActive, $targetId]);
+        if ($val === 1) {
+            $pdo->prepare("
+                UPDATE users SET 
+                    cheque_file = CASE WHEN pending_cheque_file IS NOT NULL AND pending_cheque_file != '' THEN pending_cheque_file ELSE cheque_file END,
+                    pan_file = CASE WHEN pending_pan_file IS NOT NULL AND pending_pan_file != '' THEN pending_pan_file ELSE pan_file END,
+                    gst_file = CASE WHEN pending_gst_file IS NOT NULL AND pending_gst_file != '' THEN pending_gst_file ELSE gst_file END,
+                    pending_cheque_file = NULL,
+                    pending_pan_file = NULL,
+                    pending_gst_file = NULL,
+                    kyc_update_requested_at = NULL,
+                    is_verified = 1,
+                    is_active = 1
+                WHERE id = ?
+            ")->execute([$targetId]);
+        } else {
+            $pdo->prepare("UPDATE users SET is_verified = ?, is_active = ? WHERE id = ?")->execute([$val, $isActive, $targetId]);
+        }
     } else {
-        $pdo->prepare("UPDATE users SET is_verified = CASE WHEN is_verified = 1 THEN 0 ELSE 1 END, is_active = 1 WHERE id = ?")->execute([$targetId]);
+        $stmtCurr = $pdo->prepare("SELECT is_verified, pending_cheque_file, pending_pan_file, pending_gst_file FROM users WHERE id = ?");
+        $stmtCurr->execute([$targetId]);
+        $curr = $stmtCurr->fetch();
+        if ($curr && (int)$curr['is_verified'] !== 1) {
+            $pdo->prepare("
+                UPDATE users SET 
+                    cheque_file = CASE WHEN pending_cheque_file IS NOT NULL AND pending_cheque_file != '' THEN pending_cheque_file ELSE cheque_file END,
+                    pan_file = CASE WHEN pending_pan_file IS NOT NULL AND pending_pan_file != '' THEN pending_pan_file ELSE pan_file END,
+                    gst_file = CASE WHEN pending_gst_file IS NOT NULL AND pending_gst_file != '' THEN pending_gst_file ELSE gst_file END,
+                    pending_cheque_file = NULL,
+                    pending_pan_file = NULL,
+                    pending_gst_file = NULL,
+                    kyc_update_requested_at = NULL,
+                    is_verified = 1,
+                    is_active = 1
+                WHERE id = ?
+            ")->execute([$targetId]);
+        } else {
+            $pdo->prepare("UPDATE users SET is_verified = 0, is_active = 1 WHERE id = ?")->execute([$targetId]);
+        }
     }
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
     if ($updatedUser) {
@@ -4209,9 +4609,9 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     }
 
     $targetId = (int)$m[1];
-    $pdo->prepare("UPDATE users SET is_verified = -1, is_active = 0 WHERE id = ?")->execute([$targetId]);
+    $pdo->prepare("UPDATE users SET is_verified = -1, is_active = 0, pending_cheque_file = NULL, pending_pan_file = NULL, pending_gst_file = NULL WHERE id = ?")->execute([$targetId]);
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, is_verified, is_active, created_at FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
     if ($updatedUser) {
@@ -4221,58 +4621,6 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
     }
 
     jsonResponse(['success' => true, 'message' => "User #{$targetId} registration rejected.", 'user' => $updatedUser, 'is_verified' => -1]);
-}
-
-// 18c-4c. User Resubmit KYC & Registration: POST /api/v1/user/resubmit-kyc
-if ($method === 'POST' && $uri === '/api/v1/user/resubmit-kyc') {
-    $authUser = getAuthUser($pdo);
-    if (!$authUser) {
-        jsonResponse(['message' => 'Unauthorized'], 401);
-    }
-
-    $body = getJsonBody();
-    $chequeFile = isset($body['cheque_file']) ? saveBase64Upload($body['cheque_file'], 'kyc', 'cheque') : null;
-    $panFile    = isset($body['pan_file']) ? saveBase64Upload($body['pan_file'], 'kyc', 'pan') : null;
-    $gstFile    = isset($body['gst_file']) ? saveBase64Upload($body['gst_file'], 'kyc', 'gst') : null;
-
-    $stmt = $pdo->prepare("UPDATE users SET 
-        name = COALESCE(?, name), 
-        company_name = COALESCE(?, company_name), 
-        phone = COALESCE(?, phone), 
-        city = COALESCE(?, city), 
-        state = COALESCE(?, state), 
-        cheque_file = COALESCE(?, cheque_file),
-        pan_file = COALESCE(?, pan_file),
-        gst_file = COALESCE(?, gst_file),
-        is_verified = 0, 
-        is_active = 1 
-    WHERE id = ?");
-    $stmt->execute([
-        $body['name'] ?? null,
-        $body['company_name'] ?? null,
-        $body['phone'] ?? null,
-        $body['city'] ?? null,
-        $body['state'] ?? null,
-        $chequeFile,
-        $panFile,
-        $gstFile,
-        $authUser['id']
-    ]);
-
-    $stmtUser = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-    $stmtUser->execute([$authUser['id']]);
-    $freshUser = $stmtUser->fetch();
-    if ($freshUser) {
-        unset($freshUser['password']);
-        $freshUser['is_verified'] = 0;
-        $freshUser['is_active'] = 1;
-    }
-
-    jsonResponse([
-        'success' => true, 
-        'message' => 'Verification details resubmitted successfully! Your account status is now Pending Admin Review.',
-        'user' => $freshUser
-    ]);
 }
 
 // 18c-5. Admin Toggle User Active: PUT /api/v1/admin/users/{id}/toggle-active
@@ -4613,7 +4961,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/analytics/overview') {
     $activeAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status IN ('live', 'upcoming')")->fetchColumn();
     $completedAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status IN ('completed', 'closed') OR winner_confirmed = 1")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalAuctionValue = (float)$pdo->query("SELECT COALESCE(SUM(CASE WHEN current_highest_bid > 0 THEN current_highest_bid ELSE starting_price END), 0) FROM auctions")->fetchColumn();
 
     // 2. Bidding Activity Over Time
@@ -4872,7 +5220,7 @@ if ($method === 'GET' && $uri === '/api/v1/system/db-status') {
     }
 
     try {
-        $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+        $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     } catch (Exception $e) {}
     try {
         $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();

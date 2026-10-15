@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, FileText, Download, Image as ImageIcon, CheckCircle, ArrowRight, X, ShieldCheck, Clock, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import WhatsAppIcon from './WhatsAppIcon';
 
 interface AuthRequiredModalProps {
   isOpen: boolean;
@@ -161,12 +162,12 @@ export default function AuthRequiredModal({
                 </button>
 
                 <a
-                  href="https://wa.me/919820123456?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
+                  href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-2.5 px-4 bg-[#0B192C] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
                 >
-                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                  <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
                   <span>Contact Admin Desk for Fast Approval</span>
                 </a>
               </>

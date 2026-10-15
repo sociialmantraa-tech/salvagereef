@@ -313,3 +313,17 @@ export function getUserEffectiveDocuments(user: any) {
     totalCount: 3
   };
 }
+
+export function getUserPendingDocuments(user: any) {
+  const pendingPanDoc = user?.pending_pan_file ? resolveDocUrl(user.pending_pan_file, () => '') : null;
+  const pendingGstDoc = user?.pending_gst_file ? resolveDocUrl(user.pending_gst_file, () => '') : null;
+  const pendingChequeDoc = user?.pending_cheque_file ? resolveDocUrl(user.pending_cheque_file, () => '') : null;
+  const hasPending = Boolean(pendingPanDoc || pendingGstDoc || pendingChequeDoc || user?.kyc_update_requested_at);
+
+  return {
+    pendingPanDoc,
+    pendingGstDoc,
+    pendingChequeDoc,
+    hasPending,
+  };
+}

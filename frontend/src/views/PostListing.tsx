@@ -9,6 +9,7 @@ import { compressAndSanitizeImage, processUploadFile, isPdfDocument, formatBytes
 import { Tag, PlusCircle, AlertCircle, RefreshCw, UploadCloud, Image as ImageIcon, ShieldCheck, CheckCircle2, Info, Check, XCircle, Lock, Phone, Mail, Building2, MapPin, FileText, ArrowRight, Send } from 'lucide-react';
 import { useCategoryLocationStore, STATE_CITIES_MAP, INDIAN_STATES } from '../store/useCategoryLocationStore';
 import SEOHead from '../components/SEOHead';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -84,11 +85,12 @@ export default function PostListing() {
             <ArrowRight className="w-4 h-4" />
           </Link>
           <a
-            href="https://wa.me/919820123456?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
+            href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2"
           >
+            <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
             <span>Contact Admin Desk</span>
           </a>
         </div>

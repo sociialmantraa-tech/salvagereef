@@ -9,6 +9,7 @@ import { Auction, Bid } from '../types';
 import { formatBidderName } from '../utils/formatUtils';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
 import AuctionTermsModal from './AuctionTermsModal';
+import WhatsAppIcon from './WhatsAppIcon';
 
 interface LiveBiddingWidgetProps {
   auction: Auction;
@@ -18,7 +19,8 @@ interface LiveBiddingWidgetProps {
 export default function LiveBiddingWidget({ auction: initialAuction, onBidSuccess }: LiveBiddingWidgetProps) {
   const { user, isAuthenticated } = useAuthStore();
   const [auction, setAuction] = useState<Auction>(initialAuction);
-  const [bids, setBids] = useState<Bid[]>(initialAuction.bids || []);
+  const [bids, setBids] = useState<Bid[]>((initialAuction.bids || []).filter((b: any) => b.status === 'approved'));
+  const [userPendingBid, setUserPendingBid] = useState<any>(initialAuction?.user_pending_bid || null);
   const [currentHighest, setCurrentHighest] = useState<number>(
     initialAuction.current_highest_bid || initialAuction.starting_price
   );
@@ -27,9 +29,13 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     ? Number(auction.bid_increment)
     : (initialAuction?.bid_increment && Number(initialAuction.bid_increment) > 0 ? Number(initialAuction.bid_increment) : 1000);
 
-  // Robust calculation: Highest bid must NEVER be lower than any bid in the list or auction base
-  const bidsMaxAmount = (bids && bids.length > 0)
-    ? bids.reduce((max, b) => Math.max(max, Number(b.amount) || 0), 0)
+  // Robust calculation: Highest bid must NEVER be lower than any APPROVED bid in the list or auction base
+  const approvedBids = (bids && bids.length > 0)
+    ? bids.filter((b: any) => b.status === 'approved')
+    : [];
+
+  const bidsMaxAmount = (approvedBids.length > 0)
+    ? approvedBids.reduce((max, b) => Math.max(max, Number(b.amount) || 0), 0)
     : 0;
 
   const effectiveHighest = Math.max(
@@ -126,14 +132,16 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
   useEffect(() => {
     setAuction(initialAuction);
-    const incomingBids = initialAuction.bids || [];
+    const incomingBids = (initialAuction.bids || []).filter((b: any) => b.status === 'approved');
     setBids(incomingBids);
+    if (initialAuction.user_pending_bid !== undefined) {
+      setUserPendingBid(initialAuction.user_pending_bid);
+    }
     const maxIncomingBid = incomingBids.reduce((m, b) => Math.max(m, Number(b.amount) || 0), 0);
     const highest = Math.max(
       Number(initialAuction.current_highest_bid) || 0,
       Number(initialAuction.starting_price) || 0,
-      maxIncomingBid,
-      Number(currentHighest) || 0
+      maxIncomingBid
     );
     const step = initialAuction.bid_increment && Number(initialAuction.bid_increment) > 0 ? Number(initialAuction.bid_increment) : 1000;
     setCurrentHighest(highest);
@@ -195,32 +203,48 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             ];
             return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
           });
+          setUserPendingBid((prev: any) => {
+            if (prev && (prev.id === event.payload.bidId || Number(prev.amount) === approvedAmount)) {
+              return null;
+            }
+            return prev;
+          });
           setTimeout(() => setHighlightPulse(false), 2000);
+        } else if (event.payload.status === 'rejected') {
+          setUserPendingBid((prev: any) => {
+            if (prev && (prev.id === event.payload.bidId || Number(prev.amount) === Number(event.payload.amount))) {
+              return null;
+            }
+            return prev;
+          });
         }
       } else if (event.type === 'bid_submitted' && (String(event.payload?.auction_id) === String(auction.id) || String(event.payload?.auctionId) === String(auction.id))) {
-        const submittedAmount = Number(event.payload.amount);
-        if (submittedAmount > 0) {
-          setCurrentHighest((prev) => Math.max(prev, submittedAmount));
-          setBidAmount((prev) => {
-            const pNum = Number(prev);
-            return isNaN(pNum) || pNum <= submittedAmount ? submittedAmount + incrementStep : pNum;
+        // STRICT RULE: Only update public live bid if bid is APPROVED!
+        if (event.payload.status === 'approved') {
+          const submittedAmount = Number(event.payload.amount);
+          if (submittedAmount > 0) {
+            setCurrentHighest((prev) => Math.max(prev, submittedAmount));
+            setBidAmount((prev) => {
+              const pNum = Number(prev);
+              return isNaN(pNum) || pNum <= submittedAmount ? submittedAmount + incrementStep : pNum;
+            });
+            setHighlightPulse(true);
+            setTimeout(() => setHighlightPulse(false), 2000);
+          }
+          setBids((prev) => {
+            const updated = [
+              {
+                id: event.payload.id || Date.now(),
+                amount: submittedAmount,
+                status: 'approved',
+                user: { name: event.payload.bidder_name || event.payload.bidder_company || 'Active Bidder' },
+                created_at: event.payload.created_at || new Date().toISOString(),
+              },
+              ...prev.filter((b) => b.id !== event.payload.id),
+            ];
+            return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
           });
-          setHighlightPulse(true);
-          setTimeout(() => setHighlightPulse(false), 2000);
         }
-        setBids((prev) => {
-          const updated = [
-            {
-              id: event.payload.id || Date.now(),
-              amount: submittedAmount,
-              status: event.payload.status || 'pending',
-              user: { name: event.payload.bidder_name || event.payload.bidder_company || 'Active Bidder' },
-              created_at: event.payload.created_at || new Date().toISOString(),
-            },
-            ...prev.filter((b) => b.id !== event.payload.id),
-          ];
-          return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
-        });
       } else if (event.type === 'auction_updated' && String(event.payload?.id) === String(auction.id)) {
         setAuction((prev) => ({ ...prev, ...event.payload }));
         if (event.payload.current_highest_bid) {
@@ -237,17 +261,19 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         const res = await api.get(`/auctions/${auction.slug || auction.id}`);
         const fresh: Auction = res.data.auction;
         if (fresh) {
-          const freshBids: Bid[] = fresh.bids || [];
+          const freshBids: Bid[] = (fresh.bids || []).filter((b: any) => b.status === 'approved');
           const freshMaxFromBids = freshBids.reduce((m, b) => Math.max(m, Number(b.amount) || 0), 0);
-          const freshHighest = Math.max(Number(fresh.current_highest_bid) || 0, freshMaxFromBids);
+          const baseStartingPrice = Number(fresh.starting_price) || 0;
+          const freshHighest = Math.max(Number(fresh.current_highest_bid) || 0, freshMaxFromBids, baseStartingPrice);
 
-          if (freshHighest > currentHighest) {
+          if (freshHighest > 0 && freshHighest !== currentHighest) {
             setCurrentHighest(freshHighest);
             setHighlightPulse(true);
             setTimeout(() => setHighlightPulse(false), 1500);
           }
-          if (fresh.bids) {
-            setBids(fresh.bids.sort((a: any, b: any) => (Number(b.amount) || 0) - (Number(a.amount) || 0)));
+          setBids(freshBids.sort((a: any, b: any) => (Number(b.amount) || 0) - (Number(a.amount) || 0)));
+          if (fresh.user_pending_bid !== undefined) {
+            setUserPendingBid(fresh.user_pending_bid);
           }
           if (fresh.status !== auction.status || fresh.winner_confirmed !== auction.winner_confirmed) {
             setAuction((prev) => ({
@@ -262,7 +288,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           }
         }
       } catch (e) {}
-    }, 3000);
+    }, 4000);
 
     return () => {
       unsubscribeRealtime();
@@ -308,90 +334,6 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
     try {
       const res = await api.post(`/auctions/${auction.id}/bid`, { amount: numAmount });
       const isPending = res.data?.status === 'pending' || res.data?.requires_admin_approval;
-      
-      // Immediately reflect the placed bid as the highest bid across all displays
-      setCurrentHighest((prev) => Math.max(prev, numAmount));
-      setBidAmount(numAmount + incrementStep);
-      setAuction((prev) => ({
-        ...prev,
-        current_highest_bid: Math.max(Number(prev.current_highest_bid) || 0, numAmount),
-      }));
-
-      if (isPending) {
-        setSuccessMsg(`⏳ Your initial bid of ₹${numAmount.toLocaleString('en-IN')} is submitted for Admin Acceptance. Once accepted, you can freely raise bids on this lot!`);
-      } else {
-        setSuccessMsg(res.data?.message || `✓ Bid of ₹${numAmount.toLocaleString('en-IN')} placed successfully!`);
-      }
-
-      if (res.data?.auction_closed || res.data?.is_closed) {
-        setAuction((prev) => ({
-          ...prev,
-          status: 'closed',
-          winner_confirmed: true,
-          awarded_winner_type: 'H1',
-          current_highest_bid: numAmount,
-          end_time: res.data.new_end_time || new Date().toISOString(),
-        }));
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isClosed: true });
-        try {
-          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
-          const updatedStored = currentStored.map((a: any) =>
-            a.id === auction.id
-              ? {
-                  ...a,
-                  status: 'closed',
-                  winner_confirmed: true,
-                  awarded_winner_type: 'H1',
-                  current_highest_bid: numAmount,
-                  end_time: res.data.new_end_time || new Date().toISOString(),
-                }
-              : a
-          );
-          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
-          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
-        } catch {}
-        broadcastRealtimeEvent('auction_winner_awarded', { auctionId: auction.id, winnerType: 'H1' });
-        broadcastRealtimeEvent('auction_updated', {
-          id: auction.id,
-          status: 'closed',
-          winner_confirmed: true,
-          awarded_winner_type: 'H1',
-          current_highest_bid: numAmount,
-        });
-        setSuccessMsg(res.data?.message || 'Auction has concluded and is now closed.');
-      } else if (res.data?.time_extended && res.data?.new_end_time) {
-        setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
-        try {
-          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
-          const updatedStored = currentStored.map((a: any) =>
-            a.id === auction.id ? { ...a, end_time: res.data.new_end_time, current_highest_bid: numAmount } : a
-          );
-          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
-          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
-        } catch {}
-        broadcastRealtimeEvent('auction_updated', {
-          id: auction.id,
-          end_time: res.data.new_end_time,
-          current_highest_bid: numAmount,
-        });
-        setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minutes! Auction extended by +2:00 minutes.');
-      } else {
-        if (res.data?.new_end_time) {
-          setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
-        }
-        try {
-          const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
-          const updatedStored = currentStored.map((a: any) =>
-            a.id === auction.id ? { ...a, current_highest_bid: Math.max(Number(a.current_highest_bid) || 0, numAmount) } : a
-          );
-          localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
-          localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
-        } catch {}
-        broadcastRealtimeEvent('auction_updated', {
-          id: auction.id,
-          current_highest_bid: numAmount,
-        });
-      }
 
       const newBidObj = {
         id: res.data?.bid?.id || res.data?.bid_id || Date.now(),
@@ -406,13 +348,99 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         created_at: new Date().toISOString(),
       };
 
-      // Add to local state and keep sorted by amount descending
-      setBids((prev) => {
-        const updated = [newBidObj as any, ...prev.filter((b) => b.id !== newBidObj.id)];
-        return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
-      });
+      if (isPending) {
+        setUserPendingBid(newBidObj);
+        setSuccessMsg(
+          res.data?.message ||
+            `⏳ Your initial bid of ₹${numAmount.toLocaleString('en-IN')} is submitted for Admin Acceptance. Once accepted, you can freely raise bids on this lot!`
+        );
+      } else {
+        // ONLY update public highest bid if the bid is APPROVED!
+        setCurrentHighest((prev) => Math.max(prev, numAmount));
+        setBidAmount(numAmount + incrementStep);
+        setAuction((prev) => ({
+          ...prev,
+          current_highest_bid: Math.max(Number(prev.current_highest_bid) || 0, numAmount),
+        }));
+        setSuccessMsg(res.data?.message || `✓ Bid of ₹${numAmount.toLocaleString('en-IN')} placed successfully!`);
 
-      // Save into sr_admin_bids so Admin console sees it immediately
+        // Add to public approved bids list
+        setBids((prev) => {
+          const updated = [newBidObj as any, ...prev.filter((b) => b.id !== newBidObj.id)];
+          return updated.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+        });
+
+        if (res.data?.auction_closed || res.data?.is_closed) {
+          setAuction((prev) => ({
+            ...prev,
+            status: 'closed',
+            winner_confirmed: true,
+            awarded_winner_type: 'H1',
+            current_highest_bid: numAmount,
+            end_time: res.data.new_end_time || new Date().toISOString(),
+          }));
+          setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isClosed: true });
+          try {
+            const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+            const updatedStored = currentStored.map((a: any) =>
+              a.id === auction.id
+                ? {
+                    ...a,
+                    status: 'closed',
+                    winner_confirmed: true,
+                    awarded_winner_type: 'H1',
+                    current_highest_bid: numAmount,
+                    end_time: res.data.new_end_time || new Date().toISOString(),
+                  }
+                : a
+            );
+            localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+            localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+          } catch {}
+          broadcastRealtimeEvent('auction_winner_awarded', { auctionId: auction.id, winnerType: 'H1' });
+          broadcastRealtimeEvent('auction_updated', {
+            id: auction.id,
+            status: 'closed',
+            winner_confirmed: true,
+            awarded_winner_type: 'H1',
+            current_highest_bid: numAmount,
+          });
+        } else if (res.data?.time_extended && res.data?.new_end_time) {
+          setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
+          try {
+            const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+            const updatedStored = currentStored.map((a: any) =>
+              a.id === auction.id ? { ...a, end_time: res.data.new_end_time, current_highest_bid: numAmount } : a
+            );
+            localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+            localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+          } catch {}
+          broadcastRealtimeEvent('auction_updated', {
+            id: auction.id,
+            end_time: res.data.new_end_time,
+            current_highest_bid: numAmount,
+          });
+          setSuccessMsg('⏱️ Anti-Sniping Protection: Bid placed in final minutes! Auction extended by +2:00 minutes.');
+        } else {
+          if (res.data?.new_end_time) {
+            setAuction((prev) => ({ ...prev, end_time: res.data.new_end_time, current_highest_bid: numAmount }));
+          }
+          try {
+            const currentStored = JSON.parse(localStorage.getItem('sr_auctions') || '[]');
+            const updatedStored = currentStored.map((a: any) =>
+              a.id === auction.id ? { ...a, current_highest_bid: Math.max(Number(a.current_highest_bid) || 0, numAmount) } : a
+            );
+            localStorage.setItem('sr_auctions', JSON.stringify(updatedStored));
+            localStorage.setItem('sr_admin_auctions', JSON.stringify(updatedStored));
+          } catch {}
+          broadcastRealtimeEvent('auction_updated', {
+            id: auction.id,
+            current_highest_bid: numAmount,
+          });
+        }
+      }
+
+      // Save into sr_admin_bids so Admin console sees it immediately in moderation
       try {
         const storedBids = JSON.parse(localStorage.getItem('sr_admin_bids') || '[]');
         const updatedBids = [newBidObj, ...storedBids.filter((b: any) => b.id !== newBidObj.id)];
@@ -440,14 +468,14 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
       b.status === 'approved'
   );
 
-  const isUserPendingForLot = bids.some(
+  const isUserPendingForLot = !isUserApprovedForLot && (!!userPendingBid || bids.some(
     (b: any) =>
       (b.user?.name === user?.name ||
         b.bidder_name === user?.name ||
         b.bidder_email === user?.email ||
         Number(b.user_id) === Number(user?.id)) &&
       b.status === 'pending'
-  );
+  ));
 
   const isClosed = auction?.status === 'closed' || auction?.status === 'completed' || !!auction?.winner_confirmed || timeLeft.isClosed;
   const isUpcoming = auction?.status === 'upcoming';
@@ -511,7 +539,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             rel="noopener noreferrer"
             className="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold rounded-xl text-xs text-center uppercase tracking-wider transition-all flex items-center justify-center gap-2"
           >
-            Contact Desk
+            <WhatsAppIcon className="w-4 h-4 text-[#25D366]" /> Contact Desk
           </a>
         </div>
       </div>
@@ -639,7 +667,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition-all"
           >
-            Send WhatsApp Auction Completion Alert
+            <WhatsAppIcon className="w-4 h-4" /> Send WhatsApp Auction Completion Alert
           </a>
         </div>
       ) : isUpcoming ? (
@@ -721,12 +749,12 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
               View Account Status
             </Link>
             <a
-              href="https://wa.me/919820123456?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
+              href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Admin,%20please%20verify%20my%20KYC%20registration."
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
             >
-              Contact Admin Desk
+              <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" /> Contact Admin Desk
             </a>
           </div>
         </div>
@@ -786,8 +814,8 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
                 min={minAllowedBid}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
-                disabled={submitting}
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C] focus:bg-white text-lg font-mono shadow-inner transition-all"
+                disabled={submitting || isUserPendingForLot}
+                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D48B1C] focus:bg-white text-lg font-mono shadow-inner transition-all disabled:opacity-60 disabled:bg-slate-100"
                 placeholder={`e.g. ${minAllowedBid.toLocaleString('en-IN')}`}
                 required
               />
@@ -802,7 +830,7 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
                     key={idx}
                     type="button"
                     onClick={() => handleShortcutClick(stepVal)}
-                    disabled={submitting || isClosed}
+                    disabled={submitting || isClosed || isUserPendingForLot}
                     className={`px-3 py-1.5 text-xs sm:text-sm font-extrabold rounded-xl border transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 ${
                       isActive
                         ? 'bg-amber-100 text-amber-950 border-[#D48B1C] ring-2 ring-[#D48B1C]/40 shadow-xs'
@@ -819,7 +847,8 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
                 <button
                   type="button"
                   onClick={() => setBidAmount(minAllowedBid)}
-                  className="text-[11px] text-slate-400 hover:text-red-500 font-semibold underline underline-offset-2 ml-auto cursor-pointer"
+                  disabled={submitting || isUserPendingForLot}
+                  className="text-[11px] text-slate-400 hover:text-red-500 font-semibold underline underline-offset-2 ml-auto cursor-pointer disabled:opacity-40"
                   title="Reset to minimum allowed bid"
                 >
                   Reset to Min
@@ -888,12 +917,20 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
 
           <button
             type="submit"
-            disabled={submitting}
-            className="w-full py-3.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-black rounded-2xl shadow-lg hover:shadow-xl transition-all transform active:scale-98 flex items-center justify-center gap-2 text-sm uppercase tracking-wider disabled:opacity-50"
+            disabled={submitting || isUserPendingForLot}
+            className={`w-full py-3.5 font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider ${
+              isUserPendingForLot
+                ? 'bg-amber-100 text-amber-900 border-2 border-amber-300 cursor-not-allowed opacity-90'
+                : 'bg-[#D48B1C] hover:bg-[#B87514] text-white hover:shadow-xl transform active:scale-98 disabled:opacity-50'
+            }`}
           >
             {submitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" /> Processing Bid...
+              </>
+            ) : isUserPendingForLot ? (
+              <>
+                <Clock className="w-4 h-4 text-amber-600 animate-pulse" /> Initial Bid Awaiting Admin Acceptance...
               </>
             ) : (
               <>

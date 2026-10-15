@@ -9,7 +9,7 @@ import Logo from '../components/Logo';
 import { INITIAL_AUCTIONS, INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { Auction, Classified } from '../types';
 import { formatDateTime, toLocalInputString, toDbDateTimeString, parseIstDate, getLocalDateTimeString, getFutureDateTimeString } from '../utils/dateUtils';
-import { getUserEffectiveDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
+import { getUserEffectiveDocuments, getUserPendingDocuments, generatePanCardSvg, generateGstCertificateSvg, generateCancelledChequeSvg } from '../utils/kycDocuments';
 import { 
   Gavel, 
   Users, 
@@ -84,6 +84,7 @@ import SEOHead from '../components/SEOHead';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../services/realtimeSync';
 import AdminAnalyticsDashboard from '../components/admin/AdminAnalyticsDashboard';
 import AdminAIAssistant from '../components/admin/AdminAIAssistant';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import { getStoredErrors, saveStoredErrors, logSystemError } from '../services/errorService';
 
 // Strict Role Priority Hierarchy for Descending User Sorting:
@@ -300,7 +301,21 @@ export default function AdminDashboard() {
       if (s) {
         const parsed = JSON.parse(s);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const normalized = normalizeAdminUsers(parsed);
+          // Strictly filter out any obsolete test bidder/automated generator records
+          const sanitized = parsed.filter((u: any) =>
+            u && u.id && u.email &&
+            !String(u.email).toLowerCase().includes('test.bidder') &&
+            !String(u.email).toLowerCase().includes('google.user') &&
+            !String(u.email).toLowerCase().includes('_audit_') &&
+            !String(u.name || '').toLowerCase().includes('test bidder') &&
+            !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+          );
+          if (sanitized.length !== parsed.length) {
+            try {
+              localStorage.setItem('sr_admin_users', JSON.stringify(sanitized));
+            } catch {}
+          }
+          const normalized = normalizeAdminUsers(sanitized);
           return sortUsersByHierarchy(normalized);
         }
       }
@@ -573,6 +588,8 @@ export default function AdminDashboard() {
 
   // Edit Auction Modal State & Handler
   const [editingAuction, setEditingAuction] = useState<any | null>(null);
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const [isUploadingEditPdf, setIsUploadingEditPdf] = useState(false);
 
   const extendEditingAuctionEndTime = (addMinutes: number) => {
     if (!editingAuction) return;
@@ -603,13 +620,32 @@ export default function AdminDashboard() {
     const combinedTitle = code ? `${code} | ${rawTitle}` : rawTitle;
 
     let finalImageUrl = editingAuction.image_url;
+    // Check if image is corrupt truncated base64
+    if (finalImageUrl && finalImageUrl.startsWith('data:image/') && finalImageUrl.length <= 350) {
+      finalImageUrl = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+    } else if (finalImageUrl && finalImageUrl.startsWith('data:image/')) {
+      // If a full base64 string exists, upload to physical server storage before saving
+      try {
+        const blob = await (await fetch(finalImageUrl)).blob();
+        const formData = new FormData();
+        formData.append('file', blob, 'auction_cover.webp');
+        formData.append('type', 'auction');
+        const uploadRes = await uploadFile('/admin/upload', formData);
+        if (uploadRes?.url) {
+          finalImageUrl = uploadRes.url;
+        }
+      } catch (err) {
+        console.warn('Fallback: saving via server base64 handler', err);
+      }
+    }
+
     let finalPdfUrls: string[] = Array.isArray(editingAuction.pdf_urls) ? [...editingAuction.pdf_urls] : [];
     if (editingAuction.pdf_url && !finalPdfUrls.includes(editingAuction.pdf_url)) {
       finalPdfUrls.unshift(editingAuction.pdf_url);
     }
     if (isPdfDocument(finalImageUrl)) {
       if (!finalPdfUrls.includes(finalImageUrl)) finalPdfUrls.push(finalImageUrl);
-      finalImageUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+      finalImageUrl = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
     }
     finalPdfUrls = finalPdfUrls.filter(Boolean);
     const finalPdfUrl = finalPdfUrls[0] || null;
@@ -1714,7 +1750,16 @@ export default function AdminDashboard() {
           localStorage.removeItem('sr_deleted_user_emails');
         } catch {}
 
-        const normalized = normalizeAdminUsers(fetchedUsers);
+        const sanitized = fetchedUsers.filter((u: any) =>
+          u && u.id && u.email &&
+          !String(u.email).toLowerCase().includes('test.bidder') &&
+          !String(u.email).toLowerCase().includes('google.user') &&
+          !String(u.email).toLowerCase().includes('_audit_') &&
+          !String(u.name || '').toLowerCase().includes('test bidder') &&
+          !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+        );
+
+        const normalized = normalizeAdminUsers(sanitized);
         const sorted = sortUsersByHierarchy(normalized);
         setUsers(sorted);
         localStorage.setItem('sr_admin_users', JSON.stringify(sorted));
@@ -1800,7 +1845,7 @@ export default function AdminDashboard() {
     if (activeTab === 'bid-approvals' || activeTab === 'overview' || activeTab === 'auctions') {
       fetchBidsList();
     }
-    if (activeTab === 'users' || activeTab === 'sell-scrap-requests' || activeTab === 'approvals') {
+    if (activeTab === 'users' || activeTab === 'sell-scrap-requests' || activeTab === 'approvals' || activeTab === 'overview') {
       fetchAdminData(true);
     }
   }, [activeTab, bidStatusFilter]);
@@ -1809,6 +1854,24 @@ export default function AdminDashboard() {
     try {
       localStorage.removeItem('sr_deleted_user_ids');
       localStorage.removeItem('sr_deleted_user_emails');
+      const cached = localStorage.getItem('sr_admin_users');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const sanitized = parsed.filter((u: any) =>
+            u && u.id && u.email &&
+            !String(u.email).toLowerCase().includes('test.bidder') &&
+            !String(u.email).toLowerCase().includes('google.user') &&
+            !String(u.email).toLowerCase().includes('_audit_') &&
+            !String(u.name || '').toLowerCase().includes('test bidder') &&
+            !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+          );
+          if (sanitized.length !== parsed.length) {
+            localStorage.setItem('sr_admin_users', JSON.stringify(sanitized));
+            setUsers(sortUsersByHierarchy(normalizeAdminUsers(sanitized)));
+          }
+        }
+      }
     } catch {}
     fetchAdminData(true);
     const unsub = subscribeRealtimeEvents((event) => {
@@ -2337,14 +2400,21 @@ export default function AdminDashboard() {
 
   // Toggle User / Vendor / Bidder / Agent Approval
   const handleToggleUserApproval = (u: any) => {
-    const isApprove = !u.is_verified || !u.is_active;
+    const isApprove = u.is_verified !== 1 && u.is_verified !== '1' && u.is_verified !== true;
+    const hasPendingKyc = Boolean(u.pending_cheque_file || u.pending_pan_file || u.pending_gst_file);
     const roleLabel = u.role === 'agent' ? 'Seller' : u.role === 'bidder' ? 'Vendor / Bidder' : 'User';
     setConfirmActionModal({
-      title: isApprove ? `Approve ${roleLabel} Account?` : `Revoke ${roleLabel} Access?`,
+      title: hasPendingKyc 
+        ? `Approve & Accept Updated KYC Documents?` 
+        : isApprove 
+          ? `Approve ${roleLabel} Account?` 
+          : `Revoke ${roleLabel} Access?`,
       subtitle: `${u.name} • ${u.company_name || roleLabel}`,
-      message: isApprove
-        ? `Approve registration for "${u.name}"? They will be granted full verified access to participate in auctions and tenders.`
-        : `Revoke active verification privileges for "${u.name}"?`,
+      message: hasPendingKyc
+        ? `Accept the replacement KYC documents submitted by "${u.name}"? The new files will become official active documents and the account will remain fully verified.`
+        : isApprove
+          ? `Approve registration for "${u.name}"? They will be granted full verified access to participate in auctions and tenders.`
+          : `Revoke active verification privileges for "${u.name}"?`,
       details: [
         { label: 'User Name', value: u.name },
         { label: 'Login Email', value: u.email },
@@ -2352,21 +2422,33 @@ export default function AdminDashboard() {
         { label: 'Company / Firm', value: u.company_name || 'Individual' },
         { label: 'Operating Location', value: `${u.city || 'Mumbai'}, ${u.state || 'Maharashtra'}` },
         { label: 'Account Role', value: (u.role || 'bidder').toUpperCase(), highlight: true },
+        ...(hasPendingKyc ? [{ label: 'Pending Updates', value: 'New KYC documents submitted for verification', highlight: true }] : []),
       ],
-      confirmText: isApprove ? `Yes, Approve ${roleLabel}` : 'Yes, Revoke Access',
-      confirmColor: isApprove ? 'emerald' : 'red',
-      iconType: isApprove ? 'approve' : 'cross',
+      confirmText: hasPendingKyc ? 'Yes, Accept & Promote Documents' : isApprove ? `Yes, Approve ${roleLabel}` : 'Yes, Revoke Access',
+      confirmColor: hasPendingKyc || isApprove ? 'emerald' : 'red',
+      iconType: hasPendingKyc || isApprove ? 'approve' : 'cross',
       onConfirm: async () => {
         try {
-          await api.put(`/admin/users/${u.id}/verify`, { is_verified: isApprove });
-          setUsers((prev) =>
-            prev.map((user) => (user.id === u.id ? { ...user, is_verified: isApprove, is_active: true } : user))
-          );
+          const res = await api.put(`/admin/users/${u.id}/verify`, { is_verified: isApprove || hasPendingKyc });
+          const updatedUser = res.data?.user;
+          if (updatedUser) {
+            setUsers((prev) => prev.map((user) => (user.id === u.id ? { ...user, ...updatedUser } : user)));
+            setSelectedUserDetailModal(updatedUser);
+          } else {
+            setUsers((prev) =>
+              prev.map((user) => (user.id === u.id ? { ...user, is_verified: (isApprove || hasPendingKyc) ? 1 : 0, is_active: (isApprove || hasPendingKyc) ? true : user.is_active } : user))
+            );
+            setSelectedUserDetailModal((prev: any) =>
+              prev && prev.id === u.id ? { ...prev, is_verified: (isApprove || hasPendingKyc) ? 1 : 0, is_active: (isApprove || hasPendingKyc) ? true : prev.is_active } : prev
+            );
+          }
           await fetchAdminData(true);
           showNotification(
-            isApprove
-              ? `✓ Account for "${u.name}" APPROVED & VERIFIED!`
-              : `Verification for "${u.name}" revoked.`
+            hasPendingKyc
+              ? `✓ Replacement KYC documents for "${u.name}" ACCEPTED and promoted to official active records!`
+              : isApprove
+                ? `✓ Account for "${u.name}" APPROVED & VERIFIED!`
+                : `Verification for "${u.name}" revoked.`
           );
         } catch (err: any) {
           showNotification(err.response?.data?.message || 'Failed to update user status.');
@@ -3728,7 +3810,7 @@ export default function AdminDashboard() {
                         </td>
 
                         {/* Status */}
-                        <td className="p-3.5">
+                        <td className="p-3.5 space-y-1">
                           {u.is_verified === -1 || u.is_verified === '-1' ? (
                             <span className="bg-red-100 text-red-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-300 flex items-center gap-1 w-fit">
                               <XCircle className="w-3 h-3 text-red-600" /> Rejected
@@ -3744,6 +3826,12 @@ export default function AdminDashboard() {
                           ) : (
                             <span className="bg-red-100 text-red-900 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-300 flex items-center gap-1 w-fit">
                               <XCircle className="w-3 h-3 text-red-600" /> Suspended
+                            </span>
+                          )}
+
+                          {Boolean(u.pending_cheque_file || u.pending_pan_file || u.pending_gst_file) && (
+                            <span className="bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full text-[9px] uppercase flex items-center gap-1 w-fit shadow border border-amber-500 animate-pulse">
+                              <Clock className="w-2.5 h-2.5 text-slate-950" /> KYC Update Pending
                             </span>
                           )}
                         </td>
@@ -3779,18 +3867,18 @@ export default function AdminDashboard() {
                             {u.is_verified !== 1 && u.is_verified !== '1' && u.is_verified !== true ? (
                               <button
                                 onClick={() => handleToggleUserApproval(u)}
-                                className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow inline-flex items-center justify-center gap-1 transition-colors"
+                                className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow inline-flex items-center justify-center gap-1 transition-colors active:scale-95"
                                 title="Approve & Verify Account"
                               >
-                                <ShieldCheck className="w-3.5 h-3.5" /> Approve
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve
                               </button>
                             ) : !isTargetMaster && u.role !== 'master_admin' ? (
                               <button
                                 onClick={() => handleToggleUserApproval(u)}
-                                className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px] border border-amber-300 inline-flex items-center justify-center gap-1 transition-colors"
+                                className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px] border border-amber-300 inline-flex items-center justify-center gap-1 transition-colors active:scale-95"
                                 title="Revoke Verification"
                               >
-                                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Revoke
+                                <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Revoke
                               </button>
                             ) : (
                               <span />
@@ -3799,7 +3887,7 @@ export default function AdminDashboard() {
                             {/* Slot 2 — Reject (pending unverified users) | Static Rejected badge if already rejected */}
                             {u.is_verified === -1 || u.is_verified === '-1' ? (
                               <span className="px-2 py-1.5 bg-red-50 text-red-700 font-extrabold rounded-lg text-[10px] border border-red-200 inline-flex items-center justify-center gap-1 opacity-90 cursor-default" title="Account Registration Rejected">
-                                <XCircle className="w-3.5 h-3.5 text-red-600" /> Rejected
+                                <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" /> Rejected
                               </span>
                             ) : (!u.is_verified || u.is_verified === 0 || u.is_verified === '0') && !isTargetMaster ? (
                               <button
@@ -3820,21 +3908,28 @@ export default function AdminDashboard() {
                                     iconType: 'cross',
                                     onConfirm: async () => {
                                       try {
-                                        await api.put(`/admin/users/${u.id}`, { is_verified: -1, is_active: false });
-                                      } catch {}
+                                        await api.put(`/admin/users/${u.id}/reject`);
+                                      } catch {
+                                        try {
+                                          await api.put(`/admin/users/${u.id}`, { is_verified: -1, is_active: false });
+                                        } catch {}
+                                      }
                                       setUsers((prev) =>
                                         prev.map((user) =>
                                           user.id === u.id ? { ...user, is_verified: -1, is_active: false } : user
                                         )
                                       );
+                                      setSelectedUserDetailModal((prev: any) =>
+                                        prev && prev.id === u.id ? { ...prev, is_verified: -1, is_active: false } : prev
+                                      );
                                       showNotification(`Registration for "${u.name}" rejected.`);
                                     },
                                   })
                                 }
-                                className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-extrabold rounded-lg text-[11px] border border-red-300 inline-flex items-center justify-center gap-1 transition-colors"
+                                className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-extrabold rounded-lg text-[11px] border border-red-300 inline-flex items-center justify-center gap-1 transition-colors active:scale-95"
                                 title="Reject Application"
                               >
-                                <XCircle className="w-3.5 h-3.5 text-red-600" /> Reject
+                                <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" /> Reject
                               </button>
                             ) : (
                               <span />
@@ -5590,16 +5685,30 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-xs text-slate-500">Manage published public auctions, private corporate tenders, and group lots.</p>
                 </div>
-                {undoStack.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {undoStack.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePerformUndo}
+                      className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 animate-pulse"
+                      title={`Undo latest action: ${undoStack[0].description}`}
+                    >
+                      <Undo2 className="w-4 h-4 text-slate-950" /> Undo Action ({undoStack.length})
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handlePerformUndo}
-                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 animate-pulse"
-                    title={`Undo latest action: ${undoStack[0].description}`}
+                    onClick={() => {
+                      setPublishType('auction');
+                      setActiveTab('add-product');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                    title="Publish a new forward auction lot"
                   >
-                    <Undo2 className="w-4 h-4 text-slate-950" /> Undo Action ({undoStack.length})
+                    <PlusCircle className="w-4 h-4" /> Add New Auction Lot
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -5713,8 +5822,13 @@ export default function AdminDashboard() {
                                       existingPdfs = [auc.pdf_url];
                                     }
                                   }
+                                  let currentImg = auc.image_url || auc.primary_image_url || (auc.primary_image?.image_path) || '';
+                                  if (currentImg.startsWith('data:image/') && currentImg.length <= 350) {
+                                    currentImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                                  }
                                   setEditingAuction({
                                     ...auc,
+                                    image_url: currentImg,
                                     category: categoryVal,
                                     start_time: auc.start_time ? toDbDateTimeString(auc.start_time) : '',
                                     end_time: auc.end_time ? toDbDateTimeString(auc.end_time) : '',
@@ -5739,6 +5853,27 @@ export default function AdminDashboard() {
                         </tr>
                       );
                     })}
+                    {auctions.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <Gavel className="w-10 h-10 text-slate-300" />
+                            <p className="text-sm font-bold text-slate-600">No auction lots created yet.</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPublishType('auction');
+                                setActiveTab('add-product');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 uppercase tracking-wider active:scale-95"
+                            >
+                              <PlusCircle className="w-4 h-4" /> Create First Auction Lot
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -8022,6 +8157,7 @@ export default function AdminDashboard() {
                   rel="noopener noreferrer"
                   className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow flex items-center justify-center gap-2"
                 >
+                  <WhatsAppIcon className="w-4 h-4" />
                   Send WhatsApp Confirmation Message
                 </a>
               )}
@@ -8086,7 +8222,7 @@ export default function AdminDashboard() {
 
       {/* Universal Delete Confirmation Warning Modal */}
       {deleteConfirmItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-6">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
@@ -8124,7 +8260,7 @@ export default function AdminDashboard() {
 
       {/* Universal Admin Action Confirmation Modal */}
       {confirmActionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-200 space-y-5">
             <div className="text-center space-y-2">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto shadow-inner ${
@@ -8715,75 +8851,109 @@ export default function AdminDashboard() {
               </div>
 
               {/* Auction Lot Image (JPG/WebP/PNG) & Official PDF Document Customizer */}
-              <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-5 shadow-lg">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
-                  <h4 className="font-extrabold text-amber-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
-                    <ImageIcon className="w-4 h-4 text-amber-400" /> Auction Lot Photo & Tender PDF Settings
+              <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-4 shadow-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-slate-800 pb-3">
+                  <h4 className="font-extrabold text-amber-400 text-xs flex items-center gap-2 uppercase tracking-wider whitespace-nowrap">
+                    <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" /> Auction Lot Photo & Tender PDF Settings
                   </h4>
-                  <span className="text-[10px] text-slate-400">Front Image strictly JPG/WebP/PNG &bull; PDF for download only</span>
+                  <span className="text-[11px] text-slate-400 whitespace-nowrap shrink-0">
+                    Front Cover: JPG, WebP, PNG &bull; PDF Documents: Download Only
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                   {/* Left Column: Front Photo Management */}
-                  <div className="space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-slate-200 font-bold text-xs flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-emerald-400" /> Front Cover Photo URL (JPG, WebP, PNG) *
+                  <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-slate-200 font-bold text-xs flex items-center gap-1.5 min-w-0 truncate">
+                        <ImageIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Front Cover Photo URL *
                       </label>
-                      <span className="text-[9px] bg-emerald-950 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-800">
+                      <span className="whitespace-nowrap shrink-0 text-[10px] bg-emerald-950 text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-700/60 shadow-xs">
                         Front Photo
                       </span>
                     </div>
+
                     <input
                       type="text"
                       value={isPdfDocument(editingAuction.image_url) ? '' : (editingAuction.image_url || '')}
                       onChange={(e) => setEditingAuction({ ...editingAuction, image_url: e.target.value })}
-                      placeholder="https://images.unsplash.com/... or upload photo"
-                      className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-100 text-xs focus:ring-2 focus:ring-amber-500"
+                      placeholder="https://images.unsplash.com/... or uploaded URL"
+                      className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-100 text-xs focus:ring-2 focus:ring-amber-500 font-mono truncate"
                     />
 
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1 text-xs">Or Upload New Cover Photo (JPG, WebP, PNG):</label>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-slate-300 font-bold text-xs flex items-center gap-1.5 truncate">
+                          <UploadCloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Upload New Cover Photo (JPG, WebP, PNG)
+                        </label>
+                        {isUploadingEditImage && (
+                          <span className="whitespace-nowrap shrink-0 text-[10px] text-amber-300 font-bold flex items-center gap-1 animate-pulse">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Uploading...
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/jpg"
+                        disabled={isUploadingEditImage}
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
+                            setIsUploadingEditImage(true);
                             try {
                               const res = await compressAndSanitizeImage(file);
-                              setEditingAuction({ ...editingAuction, image_url: res.dataUrl });
+                              const formData = new FormData();
+                              formData.append('file', res.file || file);
+                              formData.append('type', 'auction');
+                              const uploadRes = await uploadFile('/admin/upload', formData);
+                              if (uploadRes?.url) {
+                                setEditingAuction({ ...editingAuction, image_url: uploadRes.url });
+                                showNotification('✓ Cover photo uploaded successfully to server!');
+                              } else if (res.dataUrl) {
+                                setEditingAuction({ ...editingAuction, image_url: res.dataUrl });
+                              }
                             } catch (err: any) {
                               alert(err.message || 'Image processing failed');
+                            } finally {
+                              setIsUploadingEditImage(false);
                             }
                           }
+                          e.target.value = '';
                         }}
-                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 hover:file:bg-emerald-500 file:text-white cursor-pointer disabled:opacity-50 transition-all"
                       />
                     </div>
 
-                    <div className="relative h-36 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shadow-inner">
+                    <div className="relative h-40 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shadow-inner">
+                      {isUploadingEditImage && (
+                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10">
+                          <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" />
+                          <span className="text-xs font-bold text-slate-200">Uploading photo to server...</span>
+                        </div>
+                      )}
                       <img
-                        src={!isPdfDocument(editingAuction.image_url) && editingAuction.image_url ? editingAuction.image_url : "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80"}
+                        src={!isPdfDocument(editingAuction.image_url) && editingAuction.image_url && (!editingAuction.image_url.startsWith('data:image/') || editingAuction.image_url.length > 350)
+                          ? editingAuction.image_url
+                          : "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80"}
                         alt="Auction Lot Preview"
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80";
+                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80";
                         }}
                       />
-                      <div className="absolute bottom-1 right-1 bg-black/70 text-white font-mono text-[9px] px-1.5 py-0.5 rounded backdrop-blur-xs">
-                        Front Card Image
+                      <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-emerald-300 font-mono text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs border border-emerald-900/60 flex items-center gap-1 shadow">
+                        <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" /> Front Card Image
                       </div>
                     </div>
                   </div>
 
                   {/* Right Column: Official Tender PDF Documents (Download Only - Multiple Supported) */}
-                  <div className="space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-slate-200 font-bold text-xs flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-emerald-400" /> Official Tender PDF Documents (Multiple)
+                  <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-slate-200 font-bold text-xs flex items-center gap-1.5 min-w-0 truncate">
+                        <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Official Tender PDF Documents
                       </label>
-                      <span className="text-[9px] bg-emerald-950 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-800">
+                      <span className="whitespace-nowrap shrink-0 text-[10px] bg-emerald-950 text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-700/60 shadow-xs">
                         {(() => {
                           const currentPdfs = Array.isArray(editingAuction.pdf_urls) && editingAuction.pdf_urls.length > 0
                             ? editingAuction.pdf_urls
@@ -8815,46 +8985,48 @@ export default function AdminDashboard() {
                           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                             {currentPdfs.map((pdfUrl, idx) => (
                               <div key={idx} className="bg-slate-900 border border-emerald-900/60 p-2.5 rounded-xl space-y-1.5">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow shrink-0">
-                                    <FileText className="w-3.5 h-3.5" />
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 truncate">
+                                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow shrink-0">
+                                      <FileText className="w-3 h-3" />
+                                    </div>
+                                    <div className="truncate min-w-0">
+                                      <span className="text-xs font-bold text-slate-200 block truncate" title={pdfUrl}>
+                                        Tender PDF #{idx + 1}
+                                      </span>
+                                      <span className="text-[10px] text-emerald-400 font-mono block truncate" title={pdfUrl}>
+                                        {pdfUrl.startsWith('data:') ? 'Document File' : (pdfUrl.split('/').pop() || 'Tender Document.pdf')}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="truncate flex-1 min-w-0">
-                                    <span className="text-xs font-bold text-slate-200 block truncate" title={pdfUrl}>
-                                      Tender PDF #{idx + 1}
-                                    </span>
-                                    <span className="text-[10px] text-emerald-400 font-mono block truncate">
-                                      {pdfUrl.startsWith('data:') ? 'Base64 Uploaded File' : pdfUrl.split('/').pop()}
-                                    </span>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <a
+                                      href={pdfUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-2.5 py-1 bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                    >
+                                      Preview <ExternalLink className="w-2.5 h-2.5" />
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedList = currentPdfs.filter((_, i) => i !== idx);
+                                        const updated = {
+                                          ...editingAuction,
+                                          pdf_urls: updatedList,
+                                          pdf_url: updatedList[0] || null,
+                                        };
+                                        if (isPdfDocument(updated.image_url) && updatedList.length === 0) {
+                                          updated.image_url = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                                        }
+                                        setEditingAuction(updated);
+                                      }}
+                                      className="px-2.5 py-1 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded-lg text-[10px] font-bold border border-slate-700 transition-colors whitespace-nowrap"
+                                    >
+                                      Remove
+                                    </button>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2 pt-0.5">
-                                  <a
-                                    href={pdfUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-2.5 py-1 bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-colors"
-                                  >
-                                    Preview ↗
-                                  </a>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updatedList = currentPdfs.filter((_, i) => i !== idx);
-                                      const updated = {
-                                        ...editingAuction,
-                                        pdf_urls: updatedList,
-                                        pdf_url: updatedList[0] || null,
-                                      };
-                                      if (isPdfDocument(updated.image_url) && updatedList.length === 0) {
-                                        updated.image_url = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-                                      }
-                                      setEditingAuction(updated);
-                                    }}
-                                    className="px-2.5 py-1 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded-lg text-[10px] font-bold border border-slate-700 transition-colors"
-                                  >
-                                    Remove
-                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -8868,22 +9040,44 @@ export default function AdminDashboard() {
                       );
                     })()}
 
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1 text-xs">
-                        + Attach More / Replace PDF Document(s):
-                      </label>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-slate-300 font-bold text-xs flex items-center gap-1.5 truncate">
+                          <PlusCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Attach More / Replace PDF Document(s)
+                        </label>
+                        {isUploadingEditPdf && (
+                          <span className="whitespace-nowrap shrink-0 text-[10px] text-amber-300 font-bold flex items-center gap-1 animate-pulse">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Uploading PDF...
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="file"
                         multiple
                         accept="application/pdf,.pdf"
+                        disabled={isUploadingEditPdf}
                         onChange={async (e) => {
                           const files = Array.from(e.target.files || []);
                           if (files.length > 0) {
+                            setIsUploadingEditPdf(true);
                             try {
                               const newUrls: string[] = [];
                               for (const file of files) {
-                                const res = await processUploadFile(file);
-                                newUrls.push(res.dataUrl);
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  formData.append('type', 'auction_document');
+                                  const uploadRes = await uploadFile('/admin/upload', formData);
+                                  if (uploadRes?.url) {
+                                    newUrls.push(uploadRes.url);
+                                  } else {
+                                    const res = await processUploadFile(file);
+                                    newUrls.push(res.dataUrl);
+                                  }
+                                } catch {
+                                  const res = await processUploadFile(file);
+                                  newUrls.push(res.dataUrl);
+                                }
                               }
                               const existingList: string[] = Array.isArray(editingAuction.pdf_urls)
                                 ? [...editingAuction.pdf_urls]
@@ -8895,16 +9089,19 @@ export default function AdminDashboard() {
                                 pdf_url: merged[0] || null,
                               };
                               if (isPdfDocument(updated.image_url)) {
-                                updated.image_url = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                                updated.image_url = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
                               }
                               setEditingAuction(updated);
+                              showNotification(`✓ Attached ${newUrls.length} PDF document(s) successfully!`);
                             } catch (err: any) {
                               alert(err.message || 'PDF upload failed');
+                            } finally {
+                              setIsUploadingEditPdf(false);
                             }
                           }
                           e.target.value = '';
                         }}
-                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+                        className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer disabled:opacity-50 transition-all"
                       />
                     </div>
                   </div>
@@ -8913,28 +9110,30 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1">Full Description & T&C</label>
+                  <label className="block text-slate-900 font-bold mb-1.5 text-xs">Full Description & T&C</label>
                   <textarea
                     rows={3}
                     value={editingAuction.description || ''}
                     onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 text-xs"
                   ></textarea>
                 </div>
 
                 <div>
-                  <label className="block text-slate-900 font-bold mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-emerald-800">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Lot Condition / Material State
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <label className="text-slate-900 font-bold text-xs flex items-center gap-1.5 text-emerald-800 min-w-0 truncate">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Lot Condition / Material State
+                    </label>
+                    <span className="whitespace-nowrap shrink-0 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
+                      Quality Grade
                     </span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Quality Grade</span>
-                  </label>
+                  </div>
                   <textarea
                     rows={3}
                     value={editingAuction.condition || ''}
                     onChange={(e) => setEditingAuction({ ...editingAuction, condition: e.target.value })}
                     placeholder="e.g. As is where is basis - Grade A clean copper, tested 99.2% purity"
-                    className="w-full p-3 bg-emerald-50/40 border-2 border-emerald-300 focus:border-emerald-500 rounded-xl font-medium text-slate-900"
+                    className="w-full p-3 bg-emerald-50/40 border-2 border-emerald-300 focus:border-emerald-500 rounded-xl font-medium text-slate-900 text-xs"
                   ></textarea>
                 </div>
               </div>
@@ -9373,68 +9572,148 @@ export default function AdminDashboard() {
       )}
 
       {/* FULL USER & SELLER PROFILE DETAILS MODAL */}
-      {selectedUserDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white max-w-4xl w-full rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-0 flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="bg-[#0B192C] text-white p-6 border-b border-slate-800 flex justify-between items-start shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#D48B1C]/20 border border-[#D48B1C]/40 text-[#D48B1C] flex items-center justify-center text-xl font-black shrink-0 uppercase">
-                  {selectedUserDetailModal.name ? selectedUserDetailModal.name.substring(0, 2) : 'US'}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-extrabold text-white text-lg tracking-tight">
-                      {selectedUserDetailModal.name}
-                    </h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
-                      selectedUserDetailModal.role === 'admin' ? 'bg-purple-900/80 text-purple-200 border-purple-700' : selectedUserDetailModal.role === 'agent' ? 'bg-amber-900/80 text-amber-200 border-amber-700' : 'bg-slate-800 text-slate-200 border-slate-700'
-                    }`}>
-                      {selectedUserDetailModal.role === 'agent' ? 'Seller / Agent' : selectedUserDetailModal.role}
-                    </span>
-                  </div>
-                  <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-2">
-                    <span>User ID: #{selectedUserDetailModal.id}</span> &bull; 
-                    <span>Joined: {selectedUserDetailModal.created_at ? selectedUserDetailModal.created_at.split('T')[0] : 'Registered User'}</span>
-                  </p>
-                </div>
-              </div>
+      {selectedUserDetailModal && (() => {
+        const activeModalUser = users.find((u) => u.id === selectedUserDetailModal.id) || selectedUserDetailModal;
+        const isTargetMaster = activeModalUser.role === 'master_admin' || activeModalUser.email === 'admin@salvagereef.com';
+        const isVerified = (activeModalUser.is_verified === 1 || activeModalUser.is_verified === '1' || activeModalUser.is_verified === true) && activeModalUser.is_active;
+        const isRejected = activeModalUser.is_verified === -1 || activeModalUser.is_verified === '-1';
+        const isPending = !isVerified && !isRejected;
+        const userRoleLabel = activeModalUser.role === 'agent' ? 'Seller' : activeModalUser.role === 'bidder' ? 'Bidder' : activeModalUser.role === 'desk_admin' ? 'Desk Admin' : 'User';
+        const hasPendingKyc = Boolean(activeModalUser.pending_cheque_file || activeModalUser.pending_pan_file || activeModalUser.pending_gst_file);
 
-              <button
-                onClick={() => {
-                  setSelectedUserDetailModal(null);
-                  setPasswordRevealInput('');
-                  setPasswordRevealError(null);
-                  setPasswordRevealed(false);
-                  setShowRevealPrompt(false);
-                }}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="p-6 space-y-6 overflow-y-auto text-xs text-slate-700">
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+            <div className="bg-white max-w-4xl w-full rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-0 flex flex-col max-h-[90vh]">
               
-              {/* Account Status Ribbon */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border bg-slate-50">
-                <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">Identity & Security Verification Status</span>
-                {selectedUserDetailModal.is_verified && selectedUserDetailModal.is_active ? (
-                  <span className="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-emerald-300 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Active & Fully KYC Verified
-                  </span>
-                ) : selectedUserDetailModal.role === 'agent' ? (
-                  <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-amber-300 flex items-center gap-1.5 animate-pulse">
-                    <Clock className="w-4 h-4 text-amber-700" /> Pending Seller Approval
-                  </span>
-                ) : (
-                  <span className="bg-red-100 text-red-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-red-300 flex items-center gap-1.5">
-                    <XCircle className="w-4 h-4 text-red-600" /> Account Suspended
-                  </span>
-                )}
+              {/* Modal Header */}
+              <div className="bg-[#0B192C] text-white p-6 border-b border-slate-800 flex justify-between items-start shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#D48B1C]/20 border border-[#D48B1C]/40 text-[#D48B1C] flex items-center justify-center text-xl font-black shrink-0 uppercase">
+                    {activeModalUser.name ? activeModalUser.name.substring(0, 2) : 'US'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-extrabold text-white text-lg tracking-tight">
+                        {activeModalUser.name}
+                      </h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                        activeModalUser.role === 'admin' ? 'bg-purple-900/80 text-purple-200 border-purple-700' : activeModalUser.role === 'agent' ? 'bg-amber-900/80 text-amber-200 border-amber-700' : 'bg-slate-800 text-slate-200 border-slate-700'
+                      }`}>
+                        {activeModalUser.role === 'agent' ? 'Seller / Agent' : activeModalUser.role === 'bidder' ? 'Bidder / Buyer' : activeModalUser.role}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-2">
+                      <span>User ID: #{activeModalUser.id}</span> &bull; 
+                      <span>Joined: {activeModalUser.created_at ? activeModalUser.created_at.split('T')[0] : 'Registered User'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedUserDetailModal(null);
+                    setPasswordRevealInput('');
+                    setPasswordRevealError(null);
+                    setPasswordRevealed(false);
+                    setShowRevealPrompt(false);
+                  }}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
+
+              {/* Modal Scrollable Body */}
+              <div className="p-6 space-y-6 overflow-y-auto text-xs text-slate-700">
+                
+                {/* Account Status Ribbon */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl border bg-slate-50 gap-3">
+                  <div>
+                    <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] block">Identity & Security Verification Status</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Platform KYC compliance and live bidding authorization</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {hasPendingKyc && (
+                      <span className="bg-amber-400 text-slate-950 px-3 py-1 rounded-full text-xs font-black uppercase border border-amber-500 flex items-center gap-1.5 animate-pulse shadow-sm">
+                        <Clock className="w-4 h-4 text-slate-950 shrink-0" /> KYC Update Requested
+                      </span>
+                    )}
+
+                    {isRejected ? (
+                      <span className="bg-red-100 text-red-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-red-300 flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4 text-red-600 shrink-0" /> Registration Rejected
+                      </span>
+                    ) : isVerified ? (
+                      <span className="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Active & Fully KYC Verified
+                      </span>
+                    ) : isPending ? (
+                      <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-amber-300 flex items-center gap-1.5 animate-pulse">
+                        <Clock className="w-4 h-4 text-amber-700 shrink-0" /> Pending Approval ({userRoleLabel})
+                      </span>
+                    ) : (
+                      <span className="bg-red-100 text-red-900 px-3 py-1 rounded-full text-xs font-black uppercase border border-red-300 flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4 text-red-600 shrink-0" /> Account Suspended
+                      </span>
+                    )}
+
+                    {!isReadOnlyAdmin && !isTargetMaster && (
+                      <>
+                        {!isVerified || hasPendingKyc ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleUserApproval(activeModalUser)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow transition-all inline-flex items-center gap-1.5 active:scale-95"
+                            title={hasPendingKyc ? "Accept & Promote Updated KYC Documents" : "Approve & Verify Account"}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-white" /> {hasPendingKyc ? "Accept Documents" : "Approve"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleUserApproval(activeModalUser)}
+                            className="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl text-xs border border-amber-300 transition-all inline-flex items-center gap-1.5 active:scale-95"
+                            title="Revoke Verification"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Revoke
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner when replacement documents are awaiting approval */}
+                {hasPendingKyc && (
+                  <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-black text-xs text-amber-950 uppercase tracking-wide">
+                            Replacement KYC Documents Submitted by User
+                          </h5>
+                          <span className="text-[10px] font-bold bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full">
+                            Pending Admin Review
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-amber-900 font-medium mt-0.5">
+                          The user has submitted updated KYC documents for administrative verification. Inspect the replacement files below and click &quot;Accept &amp; Promote Documents&quot; to update official records.
+                        </p>
+                      </div>
+                    </div>
+                    {!isReadOnlyAdmin && !isTargetMaster && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserApproval(activeModalUser)}
+                        className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shadow transition-all whitespace-nowrap shrink-0 active:scale-95 flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-slate-950" /> Accept &amp; Promote Documents
+                      </button>
+                    )}
+                  </div>
+                )}
 
               {/* Grid 1: Personal & Contact Information */}
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
@@ -9461,6 +9740,7 @@ export default function AdminDashboard() {
                           rel="noreferrer"
                           className="text-emerald-700 font-bold bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 text-[10px] flex items-center gap-1"
                         >
+                          <WhatsAppIcon className="w-3 h-3 text-[#25D366]" />
                           WhatsApp Direct
                         </a>
                       )}
@@ -9632,6 +9912,7 @@ export default function AdminDashboard() {
               {/* Grid 2.5: Uploaded KYC Verification Documents & Proofs */}
               {(() => {
                 const userDocs = getUserEffectiveDocuments(selectedUserDetailModal);
+                const pendingDocs = getUserPendingDocuments(selectedUserDetailModal);
                 const panDoc = userDocs.panDoc;
                 const gstDoc = userDocs.gstDoc;
                 const chequeDoc = userDocs.chequeDoc;
@@ -9640,10 +9921,233 @@ export default function AdminDashboard() {
                 const isChequePdf = isPdfDocument(chequeDoc);
 
                 return (
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-5">
+                    {/* If pending replacement documents exist */}
+                    {pendingDocs.hasPending && (
+                      <div className="bg-amber-50/80 border-2 border-amber-400 p-4 rounded-2xl space-y-3 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-300 pb-2">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-amber-700 animate-spin" />
+                            <h4 className="font-extrabold text-amber-950 text-xs uppercase tracking-wider">
+                              New Replacement Documents Submitted by User
+                            </h4>
+                          </div>
+                          <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full border border-amber-500">
+                            Awaiting Admin Review &amp; Approval
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* 1. Pending PAN */}
+                          {pendingDocs.pendingPanDoc ? (
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-amber-400 space-y-2 shadow-sm flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> New PAN Card
+                                  </span>
+                                  <span className="text-[9px] bg-amber-100 text-amber-950 font-black px-1.5 py-0.5 rounded uppercase border border-amber-300">
+                                    Pending
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Submitted replacement PAN card</p>
+                              </div>
+
+                              <div
+                                onClick={() => setPreviewDocumentModal({
+                                  title: `Pending Replacement PAN Card — ${selectedUserDetailModal.name}`,
+                                  type: 'Pending Replacement PAN Card Proof',
+                                  url: pendingDocs.pendingPanDoc!,
+                                  userName: selectedUserDetailModal.name
+                                })}
+                                className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                              >
+                                {isPdfDocument(pendingDocs.pendingPanDoc) ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-center p-3">
+                                    <FileText className="w-8 h-8 text-red-600 mb-1" />
+                                    <span className="text-[11px] font-bold text-red-900">PDF Document</span>
+                                    <span className="text-[9px] text-red-700">Click to view/download</span>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={pendingDocs.pendingPanDoc}
+                                    alt="Pending PAN Preview"
+                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                                  <Eye className="w-5 h-5 text-amber-400" />
+                                  <span>{isPdfDocument(pendingDocs.pendingPanDoc) ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                <span className="text-amber-700 font-bold flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" /> New File Uploaded
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewDocumentModal({
+                                    title: `Pending Replacement PAN Card — ${selectedUserDetailModal.name}`,
+                                    type: 'Pending Replacement PAN Card Proof',
+                                    url: pendingDocs.pendingPanDoc!,
+                                    userName: selectedUserDetailModal.name
+                                  })}
+                                  className="text-[#D48B1C] font-extrabold hover:underline"
+                                >
+                                  Inspect →
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-white/60 p-4 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-400 text-xs">
+                              <span className="font-bold">No PAN update submitted</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Existing PAN remains active</span>
+                            </div>
+                          )}
+
+                          {/* 2. Pending GST */}
+                          {pendingDocs.pendingGstDoc ? (
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-amber-400 space-y-2 shadow-sm flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                                    <Building2 className="w-3.5 h-3.5 text-[#D48B1C]" /> New GST Cert
+                                  </span>
+                                  <span className="text-[9px] bg-amber-100 text-amber-950 font-black px-1.5 py-0.5 rounded uppercase border border-amber-300">
+                                    Pending
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Submitted replacement GST certificate</p>
+                              </div>
+
+                              <div
+                                onClick={() => setPreviewDocumentModal({
+                                  title: `Pending Replacement GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
+                                  type: 'Pending Replacement GST Certificate (REG-06)',
+                                  url: pendingDocs.pendingGstDoc!,
+                                  userName: selectedUserDetailModal.name
+                                })}
+                                className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                              >
+                                {isPdfDocument(pendingDocs.pendingGstDoc) ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-center p-3">
+                                    <FileText className="w-8 h-8 text-blue-600 mb-1" />
+                                    <span className="text-[11px] font-bold text-blue-900">PDF Document</span>
+                                    <span className="text-[9px] text-blue-700">Click to view/download</span>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={pendingDocs.pendingGstDoc}
+                                    alt="Pending GST Preview"
+                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                                  <Eye className="w-5 h-5 text-amber-400" />
+                                  <span>{isPdfDocument(pendingDocs.pendingGstDoc) ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                <span className="text-amber-700 font-bold flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" /> New File Uploaded
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewDocumentModal({
+                                    title: `Pending Replacement GST Certificate — ${selectedUserDetailModal.company_name || selectedUserDetailModal.name}`,
+                                    type: 'Pending Replacement GST Certificate (REG-06)',
+                                    url: pendingDocs.pendingGstDoc!,
+                                    userName: selectedUserDetailModal.name
+                                  })}
+                                  className="text-[#D48B1C] font-extrabold hover:underline"
+                                >
+                                  Inspect →
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-white/60 p-4 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-400 text-xs">
+                              <span className="font-bold">No GST update submitted</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Existing GST remains active</span>
+                            </div>
+                          )}
+
+                          {/* 3. Pending Cheque */}
+                          {pendingDocs.pendingChequeDoc ? (
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-amber-400 space-y-2 shadow-sm flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-[#D48B1C]" /> New Cancelled Cheque
+                                  </span>
+                                  <span className="text-[9px] bg-amber-100 text-amber-950 font-black px-1.5 py-0.5 rounded uppercase border border-amber-300">
+                                    Pending
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Submitted replacement cancelled cheque</p>
+                              </div>
+
+                              <div
+                                onClick={() => setPreviewDocumentModal({
+                                  title: `Pending Replacement Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
+                                  type: 'Pending Replacement Cancelled Cheque',
+                                  url: pendingDocs.pendingChequeDoc!,
+                                  userName: selectedUserDetailModal.name
+                                })}
+                                className="h-32 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative flex items-center justify-center shadow-inner"
+                              >
+                                {isPdfDocument(pendingDocs.pendingChequeDoc) ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-50 text-center p-3">
+                                    <FileText className="w-8 h-8 text-emerald-600 mb-1" />
+                                    <span className="text-[11px] font-bold text-emerald-900">PDF Document</span>
+                                    <span className="text-[9px] text-emerald-700">Click to view/download</span>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={pendingDocs.pendingChequeDoc}
+                                    alt="Pending Cheque Preview"
+                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 bg-white"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-black text-xs gap-1">
+                                  <Eye className="w-5 h-5 text-amber-400" />
+                                  <span>{isPdfDocument(pendingDocs.pendingChequeDoc) ? 'Open PDF Viewer' : 'Click to Enlarge'}</span>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                                <span className="text-amber-700 font-bold flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" /> New File Uploaded
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewDocumentModal({
+                                    title: `Pending Replacement Cancelled Cheque — ${selectedUserDetailModal.bank_name || selectedUserDetailModal.name}`,
+                                    type: 'Pending Replacement Cancelled Cheque',
+                                    url: pendingDocs.pendingChequeDoc!,
+                                    userName: selectedUserDetailModal.name
+                                  })}
+                                  className="text-[#D48B1C] font-extrabold hover:underline"
+                                >
+                                  Inspect →
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-white/60 p-4 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-400 text-xs">
+                              <span className="font-bold">No Cheque update submitted</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Existing Cheque remains active</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                       <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-[#D48B1C]" /> Uploaded KYC Documents & Verification Proofs
+                        <FileText className="w-4 h-4 text-[#D48B1C]" /> {pendingDocs.hasPending ? 'Current Active Official Documents On File' : 'Uploaded KYC Documents & Verification Proofs'}
                       </h4>
                       <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 3 Documents Attached (Verified KYC)
@@ -9892,97 +10396,101 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => {
-                        setEditingUser({ ...selectedUserDetailModal });
+                        setEditingUser({ ...activeModalUser });
                         setSelectedUserDetailModal(null);
                       }}
                       className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow whitespace-nowrap shrink-0 active:scale-95"
                     >
-                      <Edit className="w-4 h-4" /> Edit Account Profile
+                      <Edit className="w-4 h-4 shrink-0" /> Edit Account Profile
                     </button>
 
-                    {/* Pending agent: show Approve + Reject */}
-                    {selectedUserDetailModal.role === 'agent' && (!selectedUserDetailModal.is_verified || !selectedUserDetailModal.is_active) && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleToggleUserApproval(selectedUserDetailModal);
-                            setSelectedUserDetailModal(null);
-                          }}
-                          className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md whitespace-nowrap shrink-0 active:scale-95"
-                        >
-                          <ShieldCheck className="w-4 h-4" /> Approve Seller Account
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const u = selectedUserDetailModal;
-                            setSelectedUserDetailModal(null);
-                            setConfirmActionModal({
-                              title: 'Reject Seller Registration?',
-                              subtitle: `${u.name} • ${u.company_name || 'Seller'}`,
-                              message: `Decline seller application for "${u.name}"? They will not be verified to post scrap lots.`,
-                              details: [
-                                { label: 'Applicant Name', value: u.name },
-                                { label: 'Login Email', value: u.email },
-                                { label: 'Contact Phone', value: u.phone || 'N/A' },
-                                { label: 'Company / Firm', value: u.company_name || 'Individual Seller' },
-                                { label: 'Location', value: `${u.city || 'Mumbai'}, ${u.state || 'Maharashtra'}` },
-                              ],
-                              confirmText: 'Yes, Reject Application',
-                              confirmColor: 'red',
-                              iconType: 'cross',
-                              onConfirm: () => {
-                                setUsers((prev) => {
-                                  const updated = prev.map((user) =>
-                                    user.id === u.id
-                                      ? { ...user, is_verified: false, is_active: false }
-                                      : user
-                                  );
-                                  localStorage.setItem('sr_admin_users', JSON.stringify(updated));
-                                  return updated;
-                                });
-                                showNotification(`Seller registration for "${u.name}" rejected.`);
-                              },
-                            });
-                          }}
-                          className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
-                        >
-                          <XCircle className="w-4 h-4 text-red-600" /> Reject Application
-                        </button>
-                      </>
+                    {/* Unverified / Pending / Rejected or Pending KYC Documents: Show Approve Button */}
+                    {!isTargetMaster && (!isVerified || hasPendingKyc) && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserApproval(activeModalUser)}
+                        className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md whitespace-nowrap shrink-0 active:scale-95"
+                        title={hasPendingKyc ? "Accept & Promote Updated KYC Documents" : "Approve & Verify Account"}
+                      >
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-white" /> {hasPendingKyc ? "Accept & Promote Documents" : `Approve ${userRoleLabel} Account`}
+                      </button>
                     )}
 
-                    {/* Approved agent: show Revoke */}
-                    {selectedUserDetailModal.role === 'agent' && selectedUserDetailModal.is_verified && selectedUserDetailModal.is_active && (
+                    {/* Pending / Unverified: Show Reject Button if not already rejected */}
+                    {!isTargetMaster && !isVerified && !isRejected && (
                       <button
                         type="button"
                         onClick={() => {
-                          handleToggleUserApproval(selectedUserDetailModal);
-                          setSelectedUserDetailModal(null);
+                          const u = activeModalUser;
+                          setConfirmActionModal({
+                            title: `Reject ${userRoleLabel} Registration?`,
+                            subtitle: `${u.name} • ${u.company_name || userRoleLabel}`,
+                            message: `Decline registration application for "${u.name}"? They will not be verified to participate on SalvageReef.`,
+                            details: [
+                              { label: 'Applicant Name', value: u.name },
+                              { label: 'Login Email', value: u.email },
+                              { label: 'Contact Phone', value: u.phone || 'N/A' },
+                              { label: 'Company / Firm', value: u.company_name || 'Individual' },
+                              { label: 'Location', value: `${u.city || 'Mumbai'}, ${u.state || 'Maharashtra'}` },
+                              { label: 'Account Role', value: (u.role || 'bidder').toUpperCase(), highlight: true },
+                            ],
+                            confirmText: 'Yes, Reject Application',
+                            confirmColor: 'red',
+                            iconType: 'cross',
+                            onConfirm: async () => {
+                              try {
+                                await api.put(`/admin/users/${u.id}/reject`);
+                              } catch {
+                                try {
+                                  await api.put(`/admin/users/${u.id}`, { is_verified: -1, is_active: false });
+                                } catch {}
+                              }
+                              setUsers((prev) =>
+                                prev.map((user) =>
+                                  user.id === u.id ? { ...user, is_verified: -1, is_active: false } : user
+                                )
+                              );
+                              setSelectedUserDetailModal((prev: any) =>
+                                prev && prev.id === u.id ? { ...prev, is_verified: -1, is_active: false } : prev
+                              );
+                              showNotification(`Registration for "${u.name}" rejected.`);
+                            },
+                          });
                         }}
-                        className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 whitespace-nowrap shrink-0 active:scale-95"
+                        className="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
                       >
-                        <ShieldAlert className="w-4 h-4" /> Revoke Approval
+                        <XCircle className="w-4 h-4 text-red-600 shrink-0" /> Reject Application
+                      </button>
+                    )}
+
+                    {/* Approved: Show Revoke Button */}
+                    {!isTargetMaster && isVerified && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserApproval(activeModalUser)}
+                        className="px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 whitespace-nowrap shrink-0 active:scale-95"
+                        title="Revoke Verification Privileges"
+                      >
+                        <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" /> Revoke Approval
                       </button>
                     )}
 
                     {/* Delete button (Protected for Master Admin) */}
-                    {selectedUserDetailModal.role === 'master_admin' || selectedUserDetailModal.email === 'admin@salvagereef.com' ? (
+                    {isTargetMaster ? (
                       <span className="px-4 py-2.5 bg-amber-50 text-amber-950 border border-amber-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0">
-                        <Lock className="w-4 h-4 text-[#D48B1C]" /> Protected Master Account
+                        <Lock className="w-4 h-4 text-[#D48B1C] shrink-0" /> Protected Master Account
                       </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => {
-                          const u = selectedUserDetailModal;
+                          const u = activeModalUser;
                           setSelectedUserDetailModal(null);
                           setDeleteConfirmItem({ type: 'user', id: u.id, name: u.name });
                         }}
                         className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
                       >
-                        <Trash2 className="w-4 h-4 text-red-600" /> Remove / Delete User
+                        <Trash2 className="w-4 h-4 text-red-600 shrink-0" /> Remove / Delete User
                       </button>
                     )}
                   </>
@@ -10000,7 +10508,8 @@ export default function AdminDashboard() {
 
           </div>
         </div>
-      )}
+      );
+    })()}
 
       {/* H1, H2, H3 MULTI-WINNER SELECTION & CUSTOMIZABLE EMAIL MODAL */}
       {confirmWinnerAuction && (
@@ -10214,7 +10723,7 @@ export default function AdminDashboard() {
 
       {/* KYC Document High-Resolution Lightbox Viewer Modal */}
       {previewDocumentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
             
             {/* Lightbox Header */}

@@ -591,22 +591,6 @@ export default function Register() {
       };
       const tokenToSave = res.data?.token || 'registered-user-token-' + Date.now();
 
-      // Store in users lists so Admin Panel displays all uploaded KYC proofs
-      try {
-        const storedAdminUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
-        const updatedAdminUsers = [
-          userToSave,
-          ...storedAdminUsers.filter((u: any) => u.email !== userToSave.email && u.id !== userToSave.id),
-        ];
-        localStorage.setItem('sr_admin_users', JSON.stringify(updatedAdminUsers));
-
-        const storedAllUsers = JSON.parse(localStorage.getItem('sr_all_users') || '[]');
-        const updatedAllUsers = [
-          userToSave,
-          ...storedAllUsers.filter((u: any) => u.email !== userToSave.email && u.id !== userToSave.id),
-        ];
-        localStorage.setItem('sr_all_users', JSON.stringify(updatedAllUsers));
-      } catch {}
 
       localStorage.setItem('salvagereef_user', JSON.stringify(userToSave));
       localStorage.setItem('salvagereef_token', tokenToSave);

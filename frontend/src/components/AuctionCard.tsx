@@ -20,16 +20,22 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
   const isPrivate = auction.auction_type === 'private';
   const isGroup = auction.auction_type === 'group';
 
+  const isValidAuctionImg = (path?: string) => {
+    if (!path || isPdfDocument(path)) return false;
+    if (path.startsWith('data:image/') && path.length <= 350) return false;
+    return true;
+  };
+
   // Resolve valid non-PDF image for the front thumbnail (JPG, WebP, PNG)
   const resolveFrontImage = () => {
-    if (auction.primary_image?.image_path && !isPdfDocument(auction.primary_image.image_path)) {
-      return auction.primary_image.image_path;
+    if (isValidAuctionImg(auction.primary_image?.image_path)) {
+      return auction.primary_image!.image_path;
     }
     if (auction.images && auction.images.length > 0) {
-      const nonPdf = auction.images.find((img) => img.image_path && !isPdfDocument(img.image_path));
+      const nonPdf = auction.images.find((img) => isValidAuctionImg(img.image_path));
       if (nonPdf?.image_path) return nonPdf.image_path;
     }
-    if ((auction as any).image_url && !isPdfDocument((auction as any).image_url)) {
+    if (isValidAuctionImg((auction as any).image_url)) {
       return (auction as any).image_url;
     }
     return FALLBACK_AUCTION_IMG;

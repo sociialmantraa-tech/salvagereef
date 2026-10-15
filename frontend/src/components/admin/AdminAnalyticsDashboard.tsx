@@ -151,18 +151,28 @@ export default function AdminAnalyticsDashboard({
       // Fallback: Construct accurate local aggregate if network error occurs
       try {
         const storedAuctions = JSON.parse(localStorage.getItem('sr_admin_auctions') || localStorage.getItem('sr_auctions') || '[]');
-        const storedUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
+        const rawStoredUsers = JSON.parse(localStorage.getItem('sr_admin_users') || '[]');
+        const storedUsers = Array.isArray(rawStoredUsers)
+          ? rawStoredUsers.filter((u: any) =>
+              u && u.id && u.email &&
+              !String(u.email).toLowerCase().includes('test.bidder') &&
+              !String(u.email).toLowerCase().includes('google.user') &&
+              !String(u.email).toLowerCase().includes('_audit_') &&
+              !String(u.name || '').toLowerCase().includes('test bidder') &&
+              !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+            )
+          : [];
         const storedBids = JSON.parse(localStorage.getItem('sr_admin_bids') || '[]');
 
-        const totAuc = storedAuctions.length || auctionsCount || 6;
-        const actAuc = storedAuctions.filter((a: any) => a.status === 'live' || a.status === 'upcoming').length || 4;
-        const compAuc = storedAuctions.filter((a: any) => a.status === 'completed' || a.status === 'closed' || a.winner_confirmed).length || 2;
-        const totUsr = storedUsers.length || usersCount || 6;
-        const totBid = storedBids.length || bidsCount || 28;
+        const totAuc = auctionsCount ?? (storedAuctions.length || 3);
+        const actAuc = storedAuctions.filter((a: any) => a.status === 'live' || a.status === 'upcoming').length || Math.min(totAuc, 3);
+        const compAuc = storedAuctions.filter((a: any) => a.status === 'completed' || a.status === 'closed' || a.winner_confirmed).length || 0;
+        const totUsr = usersCount ?? (storedUsers.length || 3);
+        const totBid = bidsCount ?? (storedBids.length || 0);
         const totVal = storedAuctions.reduce(
           (acc: number, a: any) => acc + Number(a.current_highest_bid || a.starting_price || 0),
           0
-        ) || 12850000;
+        ) || 0;
 
         // Dynamically compute bidding activity points from all stored bids
         const activityMap: Record<string, { count: number; total: number }> = {};
@@ -511,7 +521,7 @@ export default function AdminAnalyticsDashboard({
             {loading ? (
               <div className="h-7 sm:h-8 w-14 bg-slate-200 animate-pulse rounded-lg" />
             ) : (
-              formatNumber(data?.kpi?.total_users || 0)
+              formatNumber(usersCount !== undefined && usersCount > 0 ? usersCount : (data?.kpi?.total_users || 0))
             )}
           </div>
           <div className="text-[9px] sm:text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-lg w-fit">

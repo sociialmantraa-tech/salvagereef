@@ -186,15 +186,21 @@ export default function AuctionDetail() {
   const attachedPdfUrl = attachedPdfUrls[0] || null;
   const hasPdf = attachedPdfUrls.length > 0;
 
-  // Gallery Photos (JPG, WebP, PNG only - PDF documents excluded from photo slider)
+  // Gallery Photos (JPG, WebP, PNG only - PDF documents and truncated base64 excluded from photo slider)
+  const isValidPhoto = (path?: string) => {
+    if (!path || isPdfDocument(path)) return false;
+    if (path.startsWith('data:image/') && path.length <= 350) return false;
+    return true;
+  };
+
   const rawImagePaths = auction.images && auction.images.length > 0
     ? auction.images.map((img) => img.image_path)
-    : [(auction as any).image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
+    : [(auction as any).image_url];
 
-  const nonPdfImages = rawImagePaths.filter((path) => path && !isPdfDocument(path));
-  const images = nonPdfImages.length > 0
-    ? nonPdfImages
-    : ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'];
+  const validPhotos = rawImagePaths.filter(isValidPhoto);
+  const images = validPhotos.length > 0
+    ? validPhotos
+    : ['https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80'];
 
   const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
 
@@ -352,7 +358,7 @@ export default function AuctionDetail() {
                 alt={auction.title}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
                 }}
                 className="w-full h-full object-cover transition-transform duration-300"
               />
@@ -408,7 +414,7 @@ export default function AuctionDetail() {
                       alt="" 
                       onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
                       }}
                       className="w-full h-full object-cover" 
                     />

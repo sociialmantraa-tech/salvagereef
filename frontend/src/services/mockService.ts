@@ -940,8 +940,15 @@ export function handleMockApi(config: any): any {
 
   // 10-analytics. GET /admin/analytics/overview
   if (url.includes('/admin/analytics/overview') && method === 'get') {
-    const auctions = getItem<Auction[]>('sr_admin_auctions', getMockAuctions());
-    const users = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const rawUsers = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const users = (Array.isArray(rawUsers) ? rawUsers : []).filter((u: any) =>
+      u && u.id && u.email &&
+      !String(u.email).toLowerCase().includes('test.bidder') &&
+      !String(u.email).toLowerCase().includes('google.user') &&
+      !String(u.email).toLowerCase().includes('_audit_') &&
+      !String(u.name || '').toLowerCase().includes('test bidder') &&
+      !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+    );
     const storedBids = getItem('sr_admin_bids', [
       { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: 102, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1420000, bidder_name: 'Western Heavy Recyclers', bidder_company: 'Western Recyclers', status: 'approved', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -1070,8 +1077,16 @@ export function handleMockApi(config: any): any {
   // 10b. GET /admin/users
   if (cleanUrl.includes('/admin/users') && method === 'get') {
     const rawUsers = getItem('sr_admin_users', getItem('sr_all_users', INITIAL_USERS));
+    const cleanRawUsers = (Array.isArray(rawUsers) ? rawUsers : []).filter((u: any) =>
+      u && u.id && u.email &&
+      !String(u.email).toLowerCase().includes('test.bidder') &&
+      !String(u.email).toLowerCase().includes('google.user') &&
+      !String(u.email).toLowerCase().includes('_audit_') &&
+      !String(u.name || '').toLowerCase().includes('test bidder') &&
+      !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+    );
     let masterFound = false;
-    const users = (Array.isArray(rawUsers) ? rawUsers : []).map((u: any) => {
+    const users = cleanRawUsers.map((u: any) => {
       const nameLower = (u.name || '').toLowerCase();
       const emailLower = (u.email || '').toLowerCase();
       const roleLower = (u.role || '').toLowerCase();
