@@ -22,51 +22,10 @@ export default function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-      {/* TOP SEO KEYWORD & INDUSTRY STRIP */}
-      <div className="bg-slate-900 text-slate-300 border-b border-slate-800 text-[11px] py-1.5 px-4 hidden md:block">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 overflow-x-auto py-0.5">
-            <span className="font-black text-[#D48B1C] uppercase tracking-wider text-[10px] bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
-              India B2B Portal
-            </span>
-            <div className="flex items-center gap-2.5 text-slate-300 font-medium whitespace-nowrap text-[11px]">
-              <Link to="/auctions?search=Salvage+Auction" className="hover:text-amber-400 transition-colors font-semibold">
-                Salvage Auctions India
-              </Link>
-              <span className="text-slate-600">&bull;</span>
-              <Link to="/auctions?search=HMS+Scrap" className="hover:text-amber-400 transition-colors font-semibold">
-                HMS Steel Scrap
-              </Link>
-              <span className="text-slate-600">&bull;</span>
-              <Link to="/auctions?search=Accident+Vehicles" className="hover:text-amber-400 transition-colors font-semibold">
-                Accident Fleet Salvage
-              </Link>
-              <span className="text-slate-600">&bull;</span>
-              <Link to="/auctions?search=Plant+Machinery" className="hover:text-amber-400 transition-colors font-semibold">
-                Plant Machinery Liquidation
-              </Link>
-              <span className="text-slate-600">&bull;</span>
-              <Link to="/auctions?search=Copper+Scrap" className="hover:text-amber-400 transition-colors font-semibold">
-                Copper & Metal Scrap
-              </Link>
-              <span className="text-slate-600">&bull;</span>
-              <Link to="/auctions" className="hover:text-amber-400 transition-colors font-semibold">
-                E-Tender Auctions
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 text-slate-400 font-medium text-[11px]">
-            <span className="hidden lg:inline text-slate-400">Desk: <strong className="text-slate-200">+91 7304481166</strong></span>
-            <span className="hidden lg:inline text-slate-700">|</span>
-            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Verified B2B Network
-            </span>
-          </div>
-        </div>
-      </div>
-
+    <header
+      className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm w-full"
+      style={{ position: 'sticky', top: 0, zIndex: 50 }}
+    >
       {/* TOP ANNOUNCEMENT / OFFER BANNER (ABOVE HEADER) */}
       {content.offerBannerEnabled && content.offerBannerText && (
         <div
@@ -281,81 +240,69 @@ export default function Navbar() {
         />
       )}
 
-      {/* Mobile & Tablet Slide-over Sidebar (Starts below navbar at top-16, takes Half Screen Width & Half Screen Height) */}
+      {/* Mobile & Tablet Slide-over Sidebar (Starts below navbar at top-16, increased width & height) */}
       <aside
-        className={`fixed top-16 right-0 w-1/2 h-1/2 landscape:h-[calc(100vh-4rem)] z-40 bg-white shadow-2xl xl:hidden flex flex-col justify-between overflow-y-auto overflow-x-hidden border-l border-b border-slate-200 rounded-bl-2xl transition-transform duration-300 ease-in-out ${
+        className={`fixed top-16 right-0 w-[70%] sm:w-80 max-w-sm h-[65vh] landscape:h-[calc(100vh-4rem)] z-40 bg-white shadow-2xl xl:hidden flex flex-col justify-between overflow-y-auto overflow-x-hidden border-l border-b border-slate-200 rounded-bl-3xl transition-transform duration-300 ease-in-out ${
           mobileMenuOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
         aria-label="Mobile Navigation Sidebar"
       >
-        {/* Quick Sell CTA at Top of Sidebar */}
-        <div className="p-2.5 border-b border-slate-100 bg-amber-50/60 shrink-0">
-          <Link
-            to="/sell-scrap"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center justify-center gap-1.5 w-full py-2 px-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black text-xs shadow-xs hover:shadow transition-all uppercase tracking-wider"
-          >
-            <PlusCircle className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Sell Your Scrap</span>
-          </Link>
-        </div>
-
         {/* Nav Links Body */}
-        <div className="p-2.5 space-y-0.5 overflow-y-auto overflow-x-hidden flex-1">
+        <div className="p-3 sm:p-4 space-y-1 overflow-y-auto overflow-x-hidden flex-1">
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
               isActive('/') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Home className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <Home className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">{content.navHomeText || 'Home'}</span>
           </Link>
           <Link
             to="/auctions"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
               isActive('/auctions') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Gavel className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <Gavel className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">{content.navAuctionsText || 'Auction'}</span>
           </Link>
           <Link
             to="/classifieds"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
               isActive('/classifieds') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Tag className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <Tag className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">{content.navClassifiedsText || 'Classifieds'}</span>
           </Link>
           <Link
             to="/about"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
               isActive('/about') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Info className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <Info className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">{content.navAboutText || 'About Us'}</span>
           </Link>
           <Link
             to="/contact"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
               isActive('/contact') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <Phone className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <Phone className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">{content.navContactText || 'Contact Us'}</span>
           </Link>
         </div>
 
         {/* Bottom Auth & Account Section */}
-        <div className="p-2.5 border-t border-slate-100 bg-slate-50/70 shrink-0 space-y-1.5">
+        <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/80 shrink-0 space-y-2">
           {isAuthenticated ? (
             <>
               {(() => {
@@ -370,9 +317,9 @@ export default function Navbar() {
                   <Link
                     to={isAdmin ? '/admin' : '/dashboard'}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-200/60 transition-colors"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-200/60 transition-colors"
                   >
-                    <LayoutDashboard className="w-3.5 h-3.5 text-[#1D70B8] shrink-0" />
+                    <LayoutDashboard className="w-4 h-4 text-[#1D70B8] shrink-0" />
                     <div className="min-w-0">
                       <span className="block truncate font-black">{isAdmin ? 'Admin Desk' : 'Dashboard'}</span>
                       {user?.name && <span className="block text-[10px] text-slate-400 font-medium truncate">{user.name}</span>}
@@ -385,25 +332,25 @@ export default function Navbar() {
                   setMobileMenuOpen(false);
                   setShowLogoutConfirm(true);
                 }}
-                className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5 shrink-0" />
                 <span>Sign Out</span>
               </button>
             </>
           ) : (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               <Link
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center py-1.5 px-2 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="w-full text-center py-2 px-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 {content.navSignInText || 'Sign In'}
               </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center py-1.5 px-2 rounded-lg bg-[#D48B1C] text-white text-xs font-bold shadow-xs hover:bg-[#b87614] transition-colors uppercase tracking-wider text-[10px]"
+                className="w-full text-center py-2 px-2 rounded-xl bg-[#D48B1C] text-white text-xs font-bold shadow-xs hover:bg-[#b87614] transition-colors uppercase tracking-wider text-[10px]"
               >
                 {content.navRegisterText && content.navRegisterText.trim() !== 'Register Free'
                   ? content.navRegisterText
@@ -411,7 +358,7 @@ export default function Navbar() {
               </Link>
             </div>
           )}
-          <p className="text-[9px] text-slate-400 text-center truncate">
+          <p className="text-[10px] text-slate-400 text-center truncate pt-0.5">
             SalvageReef &copy; 2026
           </p>
         </div>

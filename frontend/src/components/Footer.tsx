@@ -124,16 +124,17 @@ export default function Footer() {
       <div className="bg-[#081220] py-4 border-t border-slate-800 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <span>{content.footerCopyrightText || '© 2026 SalvageReef Auctions & Classifieds. All rights reserved.'}</span>
-          <div className="flex items-center gap-4 text-[11px]">
-            <Link to="/terms" className="hover:text-[#D48B1C]">Terms</Link>
-            <span>&bull;</span>
-            <Link to="/privacy-policy" className="hover:text-[#D48B1C]">Privacy</Link>
-            <span>&bull;</span>
-            <Link to="/disclaimer" className="hover:text-[#D48B1C]">Disclaimer</Link>
-            <span>&bull;</span>
-            <Link to="/copyright-policy" className="hover:text-[#D48B1C]">Copyright</Link>
+          <div className="text-[11px] text-slate-400 font-medium">
+            Design and Developed by{' '}
+            <a
+              href="https://sociialmantraa.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#D48B1C] font-bold hover:underline hover:text-amber-400 transition-colors"
+            >
+              Sociial Mantraa
+            </a>
           </div>
-          <span className="text-[#D48B1C] font-bold">BUILDING A CLEANER TOMORROW</span>
         </div>
       </div>
     </footer>

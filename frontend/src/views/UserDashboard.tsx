@@ -498,50 +498,50 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-20 relative overflow-hidden">
       {/* ── TOP HERO HEADER & BUYER IDENTITY BANNER (CLEAN WHITE EXECUTIVE CARD) ── */}
       <div className="bg-white border-b border-slate-200 text-slate-900 shadow-xs relative z-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 sm:gap-6 min-w-0 max-w-full">
             {/* User Profile Identity */}
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 max-w-full flex-1 overflow-hidden">
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 max-w-full flex-1">
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#D48B1C] to-amber-600 text-white flex items-center justify-center font-black text-2xl sm:text-3xl shadow-md border-2 border-amber-300/60 shrink-0">
                 {user?.company_name ? user.company_name.charAt(0).toUpperCase() : (user?.name?.charAt(0).toUpperCase() || 'B')}
               </div>
-              <div className="space-y-1 min-w-0 max-w-full flex-1 overflow-hidden">
-                {/* All Tags in a Single Line */}
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto no-scrollbar max-w-full pb-0.5">
-                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#D48B1C] bg-amber-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1 shadow-2xs shrink-0 whitespace-nowrap">
-                    <Sparkles className="w-3 h-3 text-[#D48B1C]" /> B2B Commercial Buyer
+              <div className="space-y-1.5 min-w-0 max-w-full flex-1">
+                {/* Badges / Status Tags (Wrap to next line if needed so everything is visible) */}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap max-w-full">
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#D48B1C] bg-amber-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-amber-200 inline-flex items-center gap-1 shadow-2xs">
+                    <Sparkles className="w-3 h-3 text-[#D48B1C] shrink-0" /> B2B Commercial Buyer
                   </span>
-                  <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs shrink-0 whitespace-nowrap">
+                  <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
                     ID: {(user as any)?.login_id || `SR-BIDDER-${user?.id}`}
                   </span>
-                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs shrink-0 whitespace-nowrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                     Live Connected
                   </span>
                 </div>
 
                 {/* Company / User Title */}
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 truncate max-w-full">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 break-words max-w-full py-0.5">
                   {user?.company_name || user?.name}
                 </h1>
 
-                {/* All Contact Details in Same Single Line */}
-                <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600 flex-nowrap overflow-x-auto no-scrollbar font-medium pt-0.5 max-w-full whitespace-nowrap">
-                  <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
-                    <UserIcon className="w-3 h-3 text-[#D48B1C]" /> {user?.name}
+                {/* All Contact Details (Wrap cleanly to next line on mobile) */}
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600 flex-wrap font-medium pt-0.5 max-w-full">
+                  <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700">
+                    <UserIcon className="w-3 h-3 text-[#D48B1C] shrink-0" /> {user?.name}
                   </span>
                   {user?.email && (
-                    <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
-                      <Mail className="w-3 h-3 text-blue-600" /> {user?.email}
+                    <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 break-all sm:break-normal">
+                      <Mail className="w-3 h-3 text-blue-600 shrink-0" /> {user?.email}
                     </span>
                   )}
                   {user?.phone && (
-                    <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
-                      <Phone className="w-3 h-3 text-emerald-600" /> {user.phone}
+                    <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700">
+                      <Phone className="w-3 h-3 text-emerald-600 shrink-0" /> {user.phone}
                     </span>
                   )}
-                  <span className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-amber-800 font-semibold shrink-0 whitespace-nowrap">
-                    <MapPin className="w-3 h-3 text-[#D48B1C]" /> {user?.city || 'Mumbai'}, {user?.state || 'Maharashtra'}
+                  <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-amber-800 font-semibold">
+                    <MapPin className="w-3 h-3 text-[#D48B1C] shrink-0" /> {user?.city || 'Mumbai'}, {user?.state || 'Maharashtra'}
                   </span>
                 </div>
               </div>
@@ -904,21 +904,26 @@ export default function UserDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left 2 Cols: Live Bidding Activity */}
               <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                  <div>
+                <div className="flex justify-between items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="min-w-0 flex-1">
                     <h3 className="font-black text-slate-900 text-base sm:text-lg flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-amber-50 text-[#D48B1C] flex items-center justify-center border border-amber-200">
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 text-[#D48B1C] flex items-center justify-center border border-amber-200 shrink-0">
                         <Gavel className="w-4 h-4" />
                       </div>
-                      Live Bidding Activity
+                      <span className="truncate">Live Bidding Activity</span>
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Real-time status of your active lots and ongoing bids</p>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate sm:text-clip">Real-time status of your active lots and ongoing bids</p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setActiveTab('bids')}
-                    className="text-xs font-bold text-[#D48B1C] hover:text-amber-600 flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-xs font-bold text-[#D48B1C] hover:text-amber-600 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                    style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                   >
-                    View All ({recent_bids.length}) <ChevronRight className="w-4 h-4" />
+                    <span className="whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>
+                      View All ({recent_bids.length})
+                    </span>
+                    <ChevronRight className="w-4 h-4 shrink-0" />
                   </button>
                 </div>
 

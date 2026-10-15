@@ -109,6 +109,7 @@ export default function Home() {
       <SEOHead
         title={content.siteBrandName ? `${content.siteBrandName} — B2B Salvage Auctions & Heavy Scrap Marketplace` : undefined}
         description={content.homeHeroTitle ? `${content.homeHeroTitle} on SalvageReef. Bid on industrial scrap metal, damaged plant equipment, and commercial lots across India.` : undefined}
+        keywords="Salvage Auctions India, HMS Steel Scrap, Accident Fleet Salvage, Plant Machinery Liquidation, Copper & Metal Scrap, E-Tender Auctions, India B2B Portal, salvage auction india, scrap metal bidding, industrial scrap buyers, insurance salvage vehicles, accident car auction india, plant machinery liquidation, B2B scrap marketplace"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'WebSite',
