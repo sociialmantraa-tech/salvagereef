@@ -486,57 +486,57 @@ export default function UserDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070E1A] flex flex-col items-center justify-center space-y-4 text-white">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center space-y-4 text-slate-800">
         <div className="w-14 h-14 border-4 border-[#D48B1C] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-bold text-slate-300 tracking-wide">Loading your Buyer Command Center...</p>
+        <p className="text-sm font-bold text-slate-600 tracking-wide">Loading your Buyer Command Center...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0A1628] text-slate-100 pb-20 relative overflow-hidden">
-      {/* ── TOP HERO HEADER & BUYER IDENTITY BANNER (SOLID EXECUTIVE NAVY) ── */}
-      <div className="bg-[#0F223D] border-b border-[#1E3A5F] text-white shadow-md relative z-10">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-20 relative overflow-hidden">
+      {/* ── TOP HERO HEADER & BUYER IDENTITY BANNER (CLEAN WHITE EXECUTIVE CARD) ── */}
+      <div className="bg-white border-b border-slate-200 text-slate-900 shadow-xs relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-9">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             {/* User Profile Identity */}
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-[#D48B1C] text-slate-950 flex items-center justify-center font-black text-2xl sm:text-3xl shadow-md border-2 border-amber-300/40 shrink-0">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-[#D48B1C] to-amber-600 text-white flex items-center justify-center font-black text-2xl sm:text-3xl shadow-md border-2 border-amber-300/60 shrink-0">
                 {user?.company_name ? user.company_name.charAt(0).toUpperCase() : (user?.name?.charAt(0).toUpperCase() || 'B')}
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[#D48B1C] bg-[#162C4E] px-3 py-1 rounded-full border border-[#1E3A5F] flex items-center gap-1.5">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#D48B1C] bg-amber-50 px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1.5 shadow-xs">
                     <Sparkles className="w-3 h-3 text-[#D48B1C]" /> B2B Commercial Buyer
                   </span>
-                  <span className="text-xs font-mono font-bold text-slate-200 bg-[#162C4E] px-3 py-1 rounded-full border border-[#1E3A5F] shadow-xs">
+                  <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 shadow-xs">
                     ID: {(user as any)?.login_id || `SR-BIDDER-${user?.id}`}
                   </span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-[#162C4E] px-2.5 py-1 rounded-full border border-[#1E3A5F] shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     Live Connected
                   </span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-2">
                   {user?.company_name || user?.name}
                 </h1>
 
-                <div className="flex items-center gap-3 text-xs text-slate-300 flex-wrap font-medium pt-0.5">
-                  <span className="flex items-center gap-1.5 bg-[#162C4E] border border-[#1E3A5F] px-2.5 py-1 rounded-lg">
+                <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap font-medium pt-0.5">
+                  <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
                     <UserIcon className="w-3.5 h-3.5 text-[#D48B1C]" /> {user?.name}
                   </span>
                   {user?.email && (
-                    <span className="flex items-center gap-1.5 bg-[#162C4E] border border-[#1E3A5F] px-2.5 py-1 rounded-lg">
-                      <Mail className="w-3.5 h-3.5 text-[#D48B1C]" /> {user?.email}
+                    <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
+                      <Mail className="w-3.5 h-3.5 text-blue-600" /> {user?.email}
                     </span>
                   )}
                   {user?.phone && (
-                    <span className="flex items-center gap-1.5 bg-[#162C4E] border border-[#1E3A5F] px-2.5 py-1 rounded-lg">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" /> {user.phone}
+                    <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" /> {user.phone}
                     </span>
                   )}
-                  <span className="flex items-center gap-1.5 bg-[#162C4E] border border-[#1E3A5F] px-2.5 py-1 rounded-lg text-amber-300">
+                  <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-amber-800 font-semibold">
                     <MapPin className="w-3.5 h-3.5 text-[#D48B1C]" /> {user?.city || 'Mumbai'}, {user?.state || 'Maharashtra'}
                   </span>
                 </div>
@@ -546,27 +546,27 @@ export default function UserDashboard() {
             {/* Verification Badge & Quick Actions */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
               {isVerified ? (
-                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-[#0B1E33] border border-emerald-500/40 text-emerald-300 shadow-md">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 shadow-xs">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider block">KYC Verified Enterprise</span>
-                    <span className="text-[11px] text-emerald-200/80 block">Unlimited B2B bidding enabled</span>
+                    <span className="text-xs font-black uppercase tracking-wider block text-emerald-900">KYC Verified Enterprise</span>
+                    <span className="text-[11px] text-emerald-700 block">Unlimited B2B bidding enabled</span>
                   </div>
                 </div>
               ) : isPending ? (
-                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-[#1C1F2E] border border-amber-500/40 text-amber-300 shadow-md">
-                  <Clock className="w-6 h-6 text-amber-400 shrink-0 animate-pulse" />
+                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 shadow-xs">
+                  <Clock className="w-6 h-6 text-amber-600 shrink-0 animate-pulse" />
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider block">KYC Under Review</span>
-                    <span className="text-[11px] text-amber-200/80 block">Admin approval in progress</span>
+                    <span className="text-xs font-black uppercase tracking-wider block text-amber-900">KYC Under Review</span>
+                    <span className="text-[11px] text-amber-700 block">Admin approval in progress</span>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-[#26151E] border border-red-500/40 text-red-300 shadow-md">
-                  <XCircle className="w-6 h-6 text-red-400 shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 shadow-xs">
+                  <XCircle className="w-6 h-6 text-rose-600 shrink-0" />
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider block">Verification Required</span>
-                    <span className="text-[11px] text-red-200/80 block">Action required to unlock bidding</span>
+                    <span className="text-xs font-black uppercase tracking-wider block text-rose-900">Verification Required</span>
+                    <span className="text-[11px] text-rose-700 block">Action required to unlock bidding</span>
                   </div>
                 </div>
               )}
@@ -574,14 +574,14 @@ export default function UserDashboard() {
               <div className="flex items-center gap-2">
                 <Link
                   to="/auctions"
-                  className="flex-1 sm:flex-none px-4 py-3 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
+                  className="flex-1 sm:flex-none px-4 py-3 bg-[#D48B1C] hover:bg-amber-500 text-slate-950 text-xs font-black rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 active:scale-95"
                 >
                   <Gavel className="w-4 h-4 text-slate-950" /> Browse Live Auctions
                 </Link>
                 <button
                   onClick={() => fetchDashboard(true)}
                   disabled={refreshing}
-                  className="p-3 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-300 hover:text-white rounded-xl border border-[#1E3A5F] transition-colors shadow-sm cursor-pointer"
+                  className="p-3 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 transition-colors shadow-xs cursor-pointer"
                   title="Refresh Dashboard Data"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#D48B1C]' : ''}`} />
@@ -593,21 +593,21 @@ export default function UserDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6 relative z-10">
-        {/* ── CONDITIONAL KYC ALERTS (SOLID CORPORATE COLORS) ── */}
+        {/* ── CONDITIONAL KYC ALERTS (CLEAN MODERN PALETTE) ── */}
         {isRejected && (
-          <div className="bg-[#241219] border border-red-500/60 rounded-3xl p-5 sm:p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 sm:p-6 text-rose-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-md">
+              <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-black text-sm text-red-200 flex items-center gap-2">
+                <h3 className="font-black text-sm text-rose-950 flex items-center gap-2">
                   Account Verification Declined by Admin
-                  <span className="px-2 py-0.5 bg-red-500/30 text-red-200 font-extrabold text-[10px] rounded-full uppercase border border-red-500/40">
+                  <span className="px-2 py-0.5 bg-rose-200/60 text-rose-800 font-extrabold text-[10px] rounded-full uppercase border border-rose-300">
                     Action Required
                   </span>
                 </h3>
-                <p className="text-xs text-red-200/90 mt-1 leading-relaxed max-w-2xl">
+                <p className="text-xs text-rose-800/90 mt-1 leading-relaxed max-w-2xl">
                   Your submitted vendor registration details or KYC documents were declined by the Admin Desk. Please review your company name, GST/PAN numbers, and re-upload clear photos of your Cancelled Cheque and documents to reactivate your bidding privileges.
                 </p>
               </div>
@@ -615,7 +615,7 @@ export default function UserDashboard() {
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <button
                 onClick={openKycModal}
-                className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl shadow-sm transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" /> Re-Upload KYC Documents
               </button>
@@ -623,28 +623,28 @@ export default function UserDashboard() {
                 href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Desk%2C%20my%20KYC%20verification%20was%20declined%20and%20I%20would%20like%20assistance%20to%20get%20approved."
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-white text-xs font-bold rounded-xl transition-all border border-[#1E3A5F] flex items-center gap-1.5"
+                className="px-3 py-2.5 bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl border border-emerald-300 flex items-center gap-1.5 transition-colors shadow-xs"
               >
-                <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Support
+                <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp Support
               </a>
             </div>
           </div>
         )}
 
         {isPending && (
-          <div className="bg-[#241C10] border border-amber-500/60 rounded-3xl p-5 sm:p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 sm:p-6 text-amber-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-[#D48B1C] text-slate-950 flex items-center justify-center shrink-0 shadow-md">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-sm">
                 <Clock className="w-5 h-5 animate-pulse" />
               </div>
               <div>
-                <h3 className="font-black text-sm text-amber-200 flex items-center gap-2">
+                <h3 className="font-black text-sm text-amber-950 flex items-center gap-2">
                   KYC Verification Pending Admin Review
-                  <span className="px-2 py-0.5 bg-amber-500/30 text-amber-200 font-extrabold text-[10px] rounded-full uppercase border border-amber-500/40">
+                  <span className="px-2 py-0.5 bg-amber-200 text-amber-900 font-extrabold text-[10px] rounded-full uppercase border border-amber-300">
                     Under Review
                   </span>
                 </h3>
-                <p className="text-xs text-amber-200/90 mt-1 leading-relaxed max-w-2xl">
+                <p className="text-xs text-amber-800/90 mt-1 leading-relaxed max-w-2xl">
                   Your submitted profile and KYC documents are currently in the Admin verification queue. Once approved, full bidding privileges across all public and private auction lots will unlock automatically.
                 </p>
               </div>
@@ -652,15 +652,15 @@ export default function UserDashboard() {
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <button
                 onClick={openKycModal}
-                className="px-4 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
+                className="px-4 py-2.5 bg-white hover:bg-amber-100 text-amber-900 text-xs font-bold rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                Update Details
+                <FileText className="w-4 h-4 text-amber-600" /> View Submitted Documents
               </button>
               <a
                 href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Desk%2C%20I%20am%20following%20up%20on%20my%20KYC%20verification."
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-md"
+                className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-colors"
               >
                 <WhatsAppIcon className="w-3.5 h-3.5" /> Fast-Track on WhatsApp
               </a>
@@ -668,121 +668,121 @@ export default function UserDashboard() {
           </div>
         )}
 
-        {/* ── 6 KEY EXECUTIVE KPI METRIC CARDS (SOLID UNIFIED CORPORATE NAVY PALETTE) ── */}
+        {/* ── 6 KEY EXECUTIVE KPI METRIC CARDS (CLEAN WHITE CARDS WITH VIBRANT COLOR ACCENTS) ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          {/* 1. Active Bids */}
+          {/* 1. Active Bids (Blue) */}
           <div
             onClick={() => { setActiveTab('bids'); setBidFilter('all'); }}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-blue-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Active Bids</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-blue-600 transition-colors">Active Bids</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 group-hover:scale-105 transition-transform">
                 <Gavel className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 block font-mono group-hover:text-blue-600 transition-colors">
               {stats.active_bids}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">Ongoing lot bids</span>
           </div>
 
-          {/* 2. Winning Bids (Leading H1) */}
+          {/* 2. Winning Bids (Emerald) */}
           <div
             onClick={() => { setActiveTab('bids'); setBidFilter('winning'); }}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-emerald-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Winning (H1)</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-emerald-600 transition-colors">Winning (H1)</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 group-hover:scale-105 transition-transform">
                 <Flame className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-emerald-600 block font-mono transition-colors">
               {stats.winning_bids}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Highest Bidder
+            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Highest Bidder
             </span>
           </div>
 
-          {/* 3. Outbid Bids */}
+          {/* 3. Outbid Bids (Rose) */}
           <div
             onClick={() => { setActiveTab('bids'); setBidFilter('outbid'); }}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-rose-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Outbid</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-rose-600 transition-colors">Outbid</span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 group-hover:scale-105 transition-transform">
                 <AlertCircle className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-rose-600 block font-mono transition-colors">
               {stats.outbid_bids}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">Click to counter-bid</span>
+            <span className="text-[10px] text-rose-500 font-medium">Click to counter-bid</span>
           </div>
 
-          {/* 4. Pending Verification */}
+          {/* 4. Pending Verification (Amber) */}
           <div
             onClick={() => { setActiveTab('bids'); setBidFilter('pending'); }}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-amber-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Pending</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-amber-600 transition-colors">Pending</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 group-hover:scale-105 transition-transform">
                 <Clock className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-amber-600 block font-mono transition-colors">
               {stats.pending_bids}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">1-time approval</span>
+            <span className="text-[10px] text-amber-600 font-medium">1-time approval</span>
           </div>
 
-          {/* 5. Won Auctions */}
+          {/* 5. Won Auctions (Gold/Amber) */}
           <div
             onClick={() => setActiveTab('won')}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-yellow-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Won Lots</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-[#D48B1C] transition-colors">Won Lots</span>
+              <div className="w-8 h-8 rounded-xl bg-yellow-50 text-[#D48B1C] flex items-center justify-center border border-yellow-200 group-hover:scale-105 transition-transform">
                 <Trophy className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-[#D48B1C] block font-mono transition-colors">
               {stats.auctions_won}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">Commercial dossiers</span>
           </div>
 
-          {/* 6. Tender Clearances & Scrap */}
+          {/* 6. Tender Clearances & Scrap (Teal) */}
           <div
             onClick={() => setActiveTab('tenders')}
-            className="bg-[#0F223D] rounded-2xl p-4 border border-[#1E3A5F] hover:border-[#D48B1C] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white rounded-2xl p-4 border border-slate-200 hover:border-teal-400 shadow-xs hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[11px] uppercase font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Tenders</span>
-              <div className="w-8 h-8 rounded-xl bg-[#162C4E] text-[#D48B1C] flex items-center justify-center border border-[#1E3A5F] group-hover:scale-105 transition-transform">
+              <span className="text-[11px] uppercase font-bold text-slate-500 group-hover:text-teal-600 transition-colors">Tenders</span>
+              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 group-hover:scale-105 transition-transform">
                 <Key className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-white block font-mono group-hover:text-[#D48B1C] transition-colors">
+            <span className="text-2xl sm:text-3xl font-black text-teal-700 block font-mono transition-colors">
               {stats.tender_requests_count}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">Private clearances</span>
           </div>
         </div>
 
-        {/* ── MAIN DASHBOARD TABS BAR (SOLID CORPORATE TABS) ── */}
-        <div className="bg-[#0F223D] rounded-2xl p-1.5 border border-[#1E3A5F] shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        {/* ── MAIN DASHBOARD TABS BAR (CLEAN WHITE TABS) ── */}
+        <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs flex items-center gap-1.5 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Building className="w-4 h-4" /> Overview
@@ -792,14 +792,14 @@ export default function UserDashboard() {
             onClick={() => setActiveTab('bids')}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'bids'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Gavel className="w-4 h-4" />
             <span>My Bids</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'bids' ? 'bg-slate-900 text-white' : 'bg-[#162C4E] text-slate-300'
+              activeTab === 'bids' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
             }`}>
               {recent_bids.length}
             </span>
@@ -809,8 +809,8 @@ export default function UserDashboard() {
             onClick={() => setActiveTab('won')}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'won'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Trophy className="w-4 h-4" />
@@ -826,14 +826,14 @@ export default function UserDashboard() {
             onClick={() => setActiveTab('tenders')}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'tenders'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Key className="w-4 h-4" />
             <span>Tender Requests</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'tenders' ? 'bg-slate-900 text-white' : 'bg-[#162C4E] text-slate-300'
+              activeTab === 'tenders' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
             }`}>
               {tender_requests.length}
             </span>
@@ -843,14 +843,14 @@ export default function UserDashboard() {
             onClick={() => setActiveTab('scrap')}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'scrap'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Tag className="w-4 h-4" />
             <span>Sell Scrap & Listings</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'scrap' ? 'bg-slate-900 text-white' : 'bg-[#162C4E] text-slate-300'
+              activeTab === 'scrap' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
             }`}>
               {scrap_requests.length + my_listings.length}
             </span>
@@ -861,8 +861,8 @@ export default function UserDashboard() {
               onClick={() => setActiveTab('profile')}
               className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'profile'
-                  ? 'bg-[#D48B1C] text-slate-950 font-black shadow-md'
-                  : 'text-slate-300 hover:text-white hover:bg-[#162C4E]'
+                  ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <ShieldCheck className="w-4 h-4 text-[#D48B1C]" />
@@ -876,20 +876,20 @@ export default function UserDashboard() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left 2 Cols: Live Bidding Activity */}
-              <div className="lg:col-span-2 bg-[#0D1D35]/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl space-y-5">
-                <div className="flex justify-between items-center border-b border-slate-700/70 pb-4">
+              <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="font-black text-white text-base sm:text-lg flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                    <h3 className="font-black text-slate-900 text-base sm:text-lg flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 text-[#D48B1C] flex items-center justify-center border border-amber-200">
                         <Gavel className="w-4 h-4" />
                       </div>
                       Live Bidding Activity
                     </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Real-time status of your active lots and ongoing bids</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Real-time status of your active lots and ongoing bids</p>
                   </div>
                   <button
                     onClick={() => setActiveTab('bids')}
-                    className="text-xs font-bold text-[#D48B1C] hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-xs font-bold text-[#D48B1C] hover:text-amber-600 flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     View All ({recent_bids.length}) <ChevronRight className="w-4 h-4" />
                   </button>
@@ -897,16 +897,16 @@ export default function UserDashboard() {
 
                 {recent_bids.length === 0 ? (
                   <div className="py-14 text-center space-y-3.5">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto border border-slate-700">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
                       <Gavel className="w-7 h-7" />
                     </div>
-                    <h4 className="font-bold text-white text-base">No bids placed yet</h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    <h4 className="font-bold text-slate-900 text-base">No bids placed yet</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
                       Explore our live scrap lots, inspect technical specifications, and start placing bids to grow your salvage portfolio.
                     </p>
                     <Link
                       to="/auctions"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-500 text-slate-950 text-xs font-black rounded-xl shadow-sm transition-all"
                     >
                       <Gavel className="w-4 h-4 text-slate-950" /> Browse Live Auctions
                     </Link>
@@ -922,11 +922,11 @@ export default function UserDashboard() {
                       return (
                         <div
                           key={bid.id}
-                          className="p-4 rounded-2xl border border-slate-700/60 hover:border-amber-500/50 transition-all bg-[#0A1628]/80 hover:bg-[#0F223D] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 group shadow-md"
+                          className="p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition-all bg-white hover:bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 group shadow-xs"
                         >
                           <div className="flex items-start gap-3.5">
                             {/* Lot Thumbnail */}
-                            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-slate-700/80 bg-slate-950 flex items-center justify-center shadow-inner">
+                            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center shadow-inner">
                               <img
                                 src={resolveAuctionImg(bid.auction?.primary_image_url)}
                                 alt={bid.auction?.title || "Lot Thumbnail"}
@@ -941,18 +941,18 @@ export default function UserDashboard() {
                             <div>
                               <Link
                                 to={`/auctions/${bid.auction?.slug || bid.auction_id}`}
-                                className="font-extrabold text-white text-sm group-hover:text-amber-400 transition-colors line-clamp-1"
+                                className="font-extrabold text-slate-900 text-sm group-hover:text-[#D48B1C] transition-colors line-clamp-1"
                               >
                                 {bid.auction?.title || `Auction Lot #${bid.auction_id}`}
                               </Link>
-                              <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                                <span className="font-mono text-slate-300">
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
+                                <span className="font-mono text-slate-600">
                                   {formatDateTime(bid.created_at)}
                                 </span>
                                 {bid.auction?.location_city && (
                                   <>
                                     <span>&bull;</span>
-                                    <span className="text-amber-300/90">{bid.auction.location_city}</span>
+                                    <span className="text-amber-700 font-semibold">{bid.auction.location_city}</span>
                                   </>
                                 )}
                               </div>
@@ -962,34 +962,34 @@ export default function UserDashboard() {
                           <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                             <div className="text-right">
                               <span className="text-[10px] uppercase font-bold text-slate-400 block">Your Bid</span>
-                              <span className="font-black text-amber-400 text-base font-mono">
+                              <span className="font-black text-slate-900 text-base font-mono">
                                 ₹{Number(bid.amount || bid.bid_amount).toLocaleString('en-IN')}
                               </span>
                             </div>
 
                             <div>
                               {isWinning ? (
-                                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-emerald-500/40 shadow-xs">
-                                  <Flame className="w-4 h-4 text-emerald-400" /> Leading (H1)
+                                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-emerald-200 shadow-xs">
+                                  <Flame className="w-4 h-4 text-emerald-600" /> Leading (H1)
                                 </span>
                               ) : isOutbid ? (
                                 <Link
                                   to={`/auctions/${bid.auction?.slug || bid.auction_id}`}
-                                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+                                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
                                   title="Raise your bid now"
                                 >
                                   <AlertCircle className="w-4 h-4" /> Outbid &rarr;
                                 </Link>
                               ) : isPendingApp ? (
-                                <span className="px-3 py-1.5 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-amber-500/40">
-                                  <Clock className="w-4 h-4 text-amber-400 animate-pulse" /> Pending
+                                <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-bold rounded-xl uppercase tracking-wider flex items-center gap-1.5 border border-purple-200">
+                                  <Clock className="w-4 h-4 text-purple-600 animate-pulse" /> Pending
                                 </span>
                               ) : isWon ? (
-                                <span className="px-3 py-1.5 bg-[#D48B1C] text-slate-950 text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-md">
+                                <span className="px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-black rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
                                   <Trophy className="w-4 h-4 text-slate-950" /> Won Lot
                                 </span>
                               ) : (
-                                <span className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl uppercase border border-slate-700">
+                                <span className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl uppercase border border-slate-200">
                                   Ended
                                 </span>
                               )}
@@ -1005,44 +1005,44 @@ export default function UserDashboard() {
               {/* Right Col: Quick Profile & Support Desk */}
               <div className="space-y-6">
                 {/* Account Credentials Card */}
-                <div className="bg-[#0F223D] rounded-3xl p-6 border border-[#1E3A5F] shadow-xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-3">
-                    <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-[#D48B1C]" /> Vendor Credentials
                     </h3>
                     <button
                       onClick={openProfileModal}
-                      className="text-xs font-bold text-[#D48B1C] hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                      className="text-xs font-bold text-[#D48B1C] hover:text-amber-600 flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Edit className="w-3.5 h-3.5" /> Edit
                     </button>
                   </div>
 
                   <div className="space-y-3 text-xs">
-                    <div className="flex justify-between items-center py-1 border-b border-[#1E3A5F]">
-                      <span className="text-slate-400 font-medium">Company Name:</span>
-                      <span className="font-bold text-white text-right">{user?.company_name || 'Individual'}</span>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Company Name:</span>
+                      <span className="font-bold text-slate-900 text-right">{user?.company_name || 'Individual'}</span>
                     </div>
-                    <div className="flex justify-between items-center py-1 border-b border-[#1E3A5F]">
-                      <span className="text-slate-400 font-medium">GSTIN:</span>
-                      <span className="font-mono font-bold text-amber-300">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">GSTIN:</span>
+                      <span className="font-mono font-bold text-amber-700">
                         {(user as any)?.gst_number || 'Not provided'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-1 border-b border-[#1E3A5F]">
-                      <span className="text-slate-400 font-medium">PAN Number:</span>
-                      <span className="font-mono font-bold text-slate-200">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">PAN Number:</span>
+                      <span className="font-mono font-bold text-slate-800">
                         {(user as any)?.pan_number || 'Not provided'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-1 border-b border-[#1E3A5F]">
-                      <span className="text-slate-400 font-medium">Account Status:</span>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Account Status:</span>
                       <span className={`font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full border ${
                         isVerified 
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                           : isPending 
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
-                            : 'bg-red-500/20 text-red-300 border-red-500/40'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
                       }`}>
                         {isVerified ? 'KYC Verified' : isPending ? 'Pending Review' : 'Declined'}
                       </span>
@@ -1052,31 +1052,31 @@ export default function UserDashboard() {
                   <div className="pt-2 flex flex-col gap-2.5">
                     <button
                       onClick={openKycModal}
-                      className="w-full py-2.5 px-3 bg-[#162C4E] hover:bg-[#1E3A5F] text-white font-bold text-xs rounded-xl border border-[#1E3A5F] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                      className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
                       <UploadCloud className="w-4 h-4 text-[#D48B1C]" /> Manage KYC Documents
                     </button>
                     <button
                       onClick={openPasswordModal}
-                      className="w-full py-2.5 px-3 bg-[#0A1628] hover:bg-[#162C4E] text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-[#1E3A5F] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <Key className="w-3.5 h-3.5 text-slate-400" /> Change Password
+                      <Key className="w-3.5 h-3.5 text-slate-500" /> Change Password
                     </button>
                   </div>
                 </div>
 
                 {/* 24/7 Operations Desk Help */}
-                <div className="bg-[#0F223D] text-white rounded-3xl p-6 border border-[#1E3A5F] shadow-xl space-y-3.5 relative overflow-hidden">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-3.5 relative overflow-hidden">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#162C4E] text-[#D48B1C] border border-[#1E3A5F] flex items-center justify-center font-bold shadow-md">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold shadow-xs">
                       <Phone className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="font-black text-sm text-white">Operations Desk Helpline</h4>
-                      <p className="text-[11px] text-slate-300">Direct assistance for bidding & tenders</p>
+                      <h4 className="font-black text-sm text-slate-900">Operations Desk Helpline</h4>
+                      <p className="text-[11px] text-slate-500">Direct assistance for bidding & tenders</p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     Need instant yard inspection booking, H1 allotment status, or document verification support?
                   </p>
                   <div className="pt-1 flex items-center gap-2.5">
@@ -1084,13 +1084,13 @@ export default function UserDashboard() {
                       href="https://wa.me/917304481166?text=Hello%20SalvageReef%20Desk%2C%20I%20need%20assistance%20with%20my%20bids."
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md text-center flex items-center justify-center gap-1.5 transition-all"
+                      className="flex-1 py-2.5 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-xs rounded-xl shadow-sm text-center flex items-center justify-center gap-1.5 transition-all"
                     >
                       <WhatsAppIcon className="w-4 h-4" /> WhatsApp Support
                     </a>
                     <a
                       href="tel:+917304481166"
-                      className="py-2.5 px-3.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-200 font-bold text-xs rounded-xl border border-[#1E3A5F]"
+                      className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 transition-colors"
                     >
                       Call Desk
                     </a>
@@ -1101,15 +1101,15 @@ export default function UserDashboard() {
 
             {/* Won Auctions Showcase (if any) */}
             {won_auctions.length > 0 && (
-              <div className="bg-[#0F223D] rounded-3xl p-6 border border-[#D48B1C]/50 shadow-xl space-y-4">
+              <div className="bg-white rounded-3xl p-6 border-2 border-amber-300 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#162C4E] text-[#D48B1C] border border-[#1E3A5F] flex items-center justify-center shadow-md font-black shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] border border-amber-200 flex items-center justify-center shadow-xs font-black shrink-0">
                       <Trophy className="w-6 h-6" />
                     </div>
                     <div>
-                      <h3 className="font-black text-white text-base sm:text-lg">You Have Won {won_auctions.length} Auction Lot(s)!</h3>
-                      <p className="text-xs text-slate-300">Congratulations! Follow commercial payment and lifting terms below.</p>
+                      <h3 className="font-black text-slate-900 text-base sm:text-lg">You Have Won {won_auctions.length} Auction Lot(s)!</h3>
+                      <p className="text-xs text-slate-500">Congratulations! Follow commercial payment and lifting terms below.</p>
                     </div>
                   </div>
                   <button
@@ -1126,13 +1126,13 @@ export default function UserDashboard() {
 
         {/* ── TAB 2: MY BIDS & LIVE PARTICIPATION ── */}
         {activeTab === 'bids' && (
-          <div className="bg-[#0D1D35]/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700/70 pb-5">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
               <div>
-                <h3 className="font-black text-white text-lg flex items-center gap-2">
+                <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                   <Gavel className="w-5 h-5 text-[#D48B1C]" /> My Bidding Portfolio ({recent_bids.length})
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Track current highest bids, winning positions, and raise bids instantly.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Track current highest bids, winning positions, and raise bids instantly.</p>
               </div>
 
               {/* Search Bar + Filter Tabs */}
@@ -1144,20 +1144,20 @@ export default function UserDashboard() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by lot title or city..."
-                    className="w-full bg-[#0A1628] border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-amber-400 transition-colors"
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                    <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="flex bg-[#0A1628] p-1.5 rounded-xl text-xs font-bold gap-1 border border-slate-700/80 overflow-x-auto w-full sm:w-auto">
+                <div className="flex bg-slate-100 p-1.5 rounded-xl text-xs font-bold gap-1 border border-slate-200 overflow-x-auto w-full sm:w-auto">
                   <button
                     onClick={() => setBidFilter('all')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      bidFilter === 'all' ? 'bg-[#D48B1C] text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                      bidFilter === 'all' ? 'bg-[#D48B1C] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     All ({recent_bids.length})
@@ -1165,7 +1165,7 @@ export default function UserDashboard() {
                   <button
                     onClick={() => setBidFilter('winning')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      bidFilter === 'winning' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                      bidFilter === 'winning' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     Winning ({stats.winning_bids})
@@ -1173,7 +1173,7 @@ export default function UserDashboard() {
                   <button
                     onClick={() => setBidFilter('outbid')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      bidFilter === 'outbid' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                      bidFilter === 'outbid' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     Outbid ({stats.outbid_bids})
@@ -1181,7 +1181,7 @@ export default function UserDashboard() {
                   <button
                     onClick={() => setBidFilter('pending')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      bidFilter === 'pending' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                      bidFilter === 'pending' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     Pending ({stats.pending_bids})
@@ -1189,7 +1189,7 @@ export default function UserDashboard() {
                   <button
                     onClick={() => setBidFilter('won')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      bidFilter === 'won' ? 'bg-amber-500 text-slate-950 font-black shadow-xs' : 'text-slate-400 hover:text-white'
+                      bidFilter === 'won' ? 'bg-amber-500 text-slate-950 font-black shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     Won ({stats.auctions_won})
@@ -1200,14 +1200,14 @@ export default function UserDashboard() {
 
             {filteredBids.length === 0 ? (
               <div className="py-14 text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto border border-slate-700">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
                   <Gavel className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-white text-base">No bids found for this filter</h4>
-                <p className="text-xs text-slate-400">Explore live scrap auctions and start bidding!</p>
+                <h4 className="font-bold text-slate-900 text-base">No bids found for this filter</h4>
+                <p className="text-xs text-slate-500">Explore live scrap auctions and start bidding!</p>
                 <Link
                   to="/auctions"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   Explore Live Auctions
                 </Link>
@@ -1216,7 +1216,7 @@ export default function UserDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-700/80 text-slate-400 font-bold uppercase text-[10px]">
+                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] bg-slate-50/70">
                       <th className="py-3.5 px-3">Auction Lot & Location</th>
                       <th className="py-3.5 px-3 text-right">My Bid</th>
                       <th className="py-3.5 px-3 text-right">Current Highest</th>
@@ -1225,7 +1225,7 @@ export default function UserDashboard() {
                       <th className="py-3.5 px-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {filteredBids.map((b) => {
                       const isWinning = b.my_status === 'winning';
                       const isOutbid = b.my_status === 'outbid';
@@ -1234,10 +1234,10 @@ export default function UserDashboard() {
                       const currentHighest = b.auction?.current_highest_bid || b.auction?.starting_price || 0;
 
                       return (
-                        <tr key={b.id} className="hover:bg-[#112440]/70 transition-colors group">
+                        <tr key={b.id} className="hover:bg-amber-50/30 transition-colors group">
                           <td className="py-4 px-3">
                             <div className="flex items-center gap-3.5">
-                              <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-700 bg-slate-950 flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
                                 <img
                                   src={resolveAuctionImg(b.auction?.primary_image_url)}
                                   alt="Lot"
@@ -1251,50 +1251,50 @@ export default function UserDashboard() {
                               <div>
                                 <Link
                                   to={`/auctions/${b.auction?.slug || b.auction_id}`}
-                                  className="font-bold text-white hover:text-amber-400 transition-colors line-clamp-1 text-xs"
+                                  className="font-bold text-slate-900 hover:text-[#D48B1C] transition-colors line-clamp-1 text-xs"
                                 >
                                   {b.auction?.title || `Auction Lot #${b.auction_id}`}
                                 </Link>
-                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                <span className="text-[10px] text-slate-500 block mt-0.5">
                                   {b.auction?.location_city || 'India'} &bull; {b.auction?.category_name || 'General Scrap'}
                                 </span>
                               </div>
                             </div>
                           </td>
 
-                          <td className="py-4 px-3 text-right font-black text-amber-400 font-mono text-xs">
+                          <td className="py-4 px-3 text-right font-black text-amber-600 font-mono text-xs">
                             ₹{Number(b.amount || b.bid_amount).toLocaleString('en-IN')}
                           </td>
 
-                          <td className="py-4 px-3 text-right font-black text-slate-200 font-mono text-xs">
+                          <td className="py-4 px-3 text-right font-black text-slate-900 font-mono text-xs">
                             ₹{Number(currentHighest).toLocaleString('en-IN')}
                           </td>
 
                           <td className="py-4 px-3 text-center">
                             {isWinning ? (
-                              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-black rounded-lg uppercase border border-emerald-500/40 inline-flex items-center gap-1 shadow-xs">
-                                <Flame className="w-3.5 h-3.5 text-emerald-400" /> Leading (H1)
+                              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-black rounded-lg uppercase border border-emerald-200 inline-flex items-center gap-1 shadow-xs">
+                                <Flame className="w-3.5 h-3.5 text-emerald-600" /> Leading (H1)
                               </span>
                             ) : isOutbid ? (
-                              <span className="px-2.5 py-1 bg-rose-500/20 text-rose-300 text-[11px] font-black rounded-lg uppercase border border-rose-500/40 inline-flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-rose-400" /> Outbid
+                              <span className="px-2.5 py-1 bg-rose-50 text-rose-700 text-[11px] font-black rounded-lg uppercase border border-rose-200 inline-flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Outbid
                               </span>
                             ) : isPendingApp ? (
-                              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 text-[11px] font-bold rounded-lg uppercase border border-amber-500/40 inline-flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" /> Pending
+                              <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[11px] font-bold rounded-lg uppercase border border-amber-200 inline-flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Pending
                               </span>
                             ) : isWon ? (
-                              <span className="px-2.5 py-1 bg-[#D48B1C] text-slate-950 text-[11px] font-black rounded-lg uppercase inline-flex items-center gap-1 shadow-xs">
-                                <Trophy className="w-3.5 h-3.5 text-slate-950" /> Won
+                              <span className="px-2.5 py-1 bg-amber-100 text-amber-900 text-[11px] font-black rounded-lg uppercase border border-amber-300 inline-flex items-center gap-1 shadow-xs">
+                                <Trophy className="w-3.5 h-3.5 text-amber-600" /> Won
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 bg-slate-800 text-slate-400 text-[11px] font-bold rounded-lg uppercase border border-slate-700">
+                              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg uppercase border border-slate-200">
                                 Ended
                               </span>
                             )}
                           </td>
 
-                          <td className="py-4 px-3 text-right font-mono text-slate-400 text-[11px]">
+                          <td className="py-4 px-3 text-right font-mono text-slate-500 text-[11px]">
                             {formatDateTime(b.created_at)}
                           </td>
 
@@ -1302,14 +1302,14 @@ export default function UserDashboard() {
                             {isOutbid ? (
                               <Link
                                 to={`/auctions/${b.auction?.slug || b.auction_id}`}
-                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md inline-flex items-center gap-1 transition-all active:scale-95"
+                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-xs inline-flex items-center gap-1 transition-all active:scale-95"
                               >
                                 Raise Bid &rarr;
                               </Link>
                             ) : (
                               <Link
                                 to={`/auctions/${b.auction?.slug || b.auction_id}`}
-                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors inline-flex items-center gap-1"
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors inline-flex items-center gap-1"
                               >
                                 View Lot
                               </Link>
@@ -1327,28 +1327,28 @@ export default function UserDashboard() {
 
         {/* ── TAB 3: WON AUCTIONS & COMMERCIAL DOSSIER ── */}
         {activeTab === 'won' && (
-          <div className="bg-[#0D1D35]/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl space-y-6">
-            <div className="border-b border-slate-700/70 pb-4">
-              <h3 className="font-black text-white text-lg flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber-400" /> Won Auctions & Commercial Allotment Dossiers ({won_auctions.length})
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-[#D48B1C]" /> Won Auctions & Commercial Allotment Dossiers ({won_auctions.length})
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Official award certificates, payment settlement schedules, and lifting protocols for your awarded salvage lots.
               </p>
             </div>
 
             {won_auctions.length === 0 ? (
               <div className="py-14 text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-[#D48B1C] flex items-center justify-center mx-auto border border-amber-200">
                   <Trophy className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-white text-base">No won auctions yet</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <h4 className="font-bold text-slate-900 text-base">No won auctions yet</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   Keep placing bids on live auction lots to win high-grade industrial scrap and idle machinery!
                 </p>
                 <Link
                   to="/auctions"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   Explore Live Auctions
                 </Link>
@@ -1358,14 +1358,14 @@ export default function UserDashboard() {
                 {won_auctions.map((won) => (
                   <div
                     key={won.id}
-                    className="bg-[#0F223D] rounded-3xl p-6 border border-[#1E3A5F] shadow-xl space-y-4 relative overflow-hidden"
+                    className="bg-white rounded-3xl p-6 border-2 border-amber-300 shadow-xs space-y-4 relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 bg-[#D48B1C] text-slate-950 font-black text-[10px] px-3.5 py-1 rounded-bl-xl uppercase tracking-wider shadow">
                       Awarded {won.awarded_rank || 'H1'}
                     </div>
 
                     <div className="flex items-start gap-4 pt-2">
-                      <div className="w-18 h-18 rounded-2xl overflow-hidden shrink-0 border border-slate-700 bg-slate-950 flex items-center justify-center shadow-inner">
+                      <div className="w-18 h-18 rounded-2xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center shadow-inner">
                         <img
                           src={resolveAuctionImg(won.primary_image_url)}
                           alt="Lot"
@@ -1377,37 +1377,37 @@ export default function UserDashboard() {
                         />
                       </div>
                       <div>
-                        <h4 className="font-black text-white text-sm sm:text-base line-clamp-2">{won.title}</h4>
-                        <span className="text-[11px] text-slate-400 font-medium block mt-1">
+                        <h4 className="font-black text-slate-900 text-sm sm:text-base line-clamp-2">{won.title}</h4>
+                        <span className="text-[11px] text-slate-500 font-medium block mt-1">
                           {won.location_city}, {won.location_state} &bull; Concluded: {formatDateTime(won.end_time)}
                         </span>
                       </div>
                     </div>
 
                     {/* Commercial Terms Summary */}
-                    <div className="bg-[#071322] p-4 rounded-2xl border border-slate-700/80 grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-2 gap-3 text-xs">
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Final Winning Bid</span>
-                        <span className="font-black text-emerald-400 text-lg font-mono">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">Final Winning Bid</span>
+                        <span className="font-black text-emerald-600 text-lg font-mono">
                           ₹{Number(won.winning_amount).toLocaleString('en-IN')}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Retained EMD</span>
-                        <span className="font-black text-amber-400 text-lg font-mono">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">Retained EMD</span>
+                        <span className="font-black text-amber-600 text-lg font-mono">
                           ₹{Number(won.emd_amount).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
 
                     {/* Commercial Lifting & Payment Terms Protocol */}
-                    <div className="space-y-2 text-xs border-t border-slate-800 pt-3 text-slate-300">
+                    <div className="space-y-2 text-xs border-t border-slate-100 pt-3 text-slate-600">
                       <div className="flex items-center gap-2">
-                        <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <CheckCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span><strong>Standard 3-Day Payment:</strong> Balance remittance within 72 hrs.</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+                        <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
                         <span><strong>Standard 10-Day Lifting:</strong> Material extraction within 10 days of release.</span>
                       </div>
                     </div>
@@ -1417,13 +1417,13 @@ export default function UserDashboard() {
                         href={`https://wa.me/917304481166?text=Hello%20SalvageReef%20Desk%2C%20I%20am%20the%20confirmed%20H1%20winner%20for%20Lot%3A%20${encodeURIComponent(won.title)}%20(Login%20ID%3A%20${(user as any)?.login_id || user?.id}).%20Please%20issue%20my%20allotment%20letter%20and%20bank%20details.`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md text-center flex items-center justify-center gap-1.5 transition-all"
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-xs text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       >
                         <WhatsAppIcon className="w-4 h-4" /> Request Allotment Letter
                       </a>
                       <Link
                         to={`/auctions/${won.slug || won.id}`}
-                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors"
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors"
                       >
                         Lot Dossier
                       </Link>
@@ -1437,28 +1437,28 @@ export default function UserDashboard() {
 
         {/* ── TAB 4: PRIVATE TENDER CLEARANCES ── */}
         {activeTab === 'tenders' && (
-          <div className="bg-[#0D1D35]/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl space-y-6">
-            <div className="border-b border-slate-700/70 pb-4">
-              <h3 className="font-black text-white text-lg flex items-center gap-2">
-                <Key className="w-5 h-5 text-blue-400" /> Private Auction & Closed Tender Authorizations ({tender_requests.length})
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                <Key className="w-5 h-5 text-teal-600" /> Private Auction & Closed Tender Authorizations ({tender_requests.length})
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Track status of your access clearances to bid in closed corporate tenders and private enterprise salvage sales.
               </p>
             </div>
 
             {tender_requests.length === 0 ? (
               <div className="py-14 text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30">
+                <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto border border-teal-200">
                   <Key className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-white text-base">No tender requests submitted</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <h4 className="font-bold text-slate-900 text-base">No tender requests submitted</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   Private enterprise tenders require pre-clearance from our operations desk. Discover private tenders in the auction directory.
                 </p>
                 <Link
                   to="/auctions"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   Browse Private Tenders
                 </Link>
@@ -1468,16 +1468,16 @@ export default function UserDashboard() {
                 {tender_requests.map((tender) => (
                   <div
                     key={tender.id}
-                    className="p-5 rounded-2xl border border-[#1E3A5F] bg-[#0A1628]/85 hover:bg-[#102442] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                    className="p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100/70 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
                   >
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">
                         Tender Clearance Request #{tender.id}
                       </span>
-                      <h4 className="font-black text-white text-sm mt-0.5">
+                      <h4 className="font-black text-slate-900 text-sm mt-0.5">
                         {tender.auction_title || `Auction Lot #${tender.auction_id}`}
                       </h4>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         Requested on {formatDateTime(tender.created_at)}
                       </p>
                     </div>
@@ -1485,10 +1485,10 @@ export default function UserDashboard() {
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase border ${
                         tender.status === 'approved'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : tender.status === 'rejected'
-                            ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}>
                         {tender.status === 'approved' ? 'Access Granted' : tender.status === 'rejected' ? 'Declined' : 'Under Review'}
                       </span>
@@ -1496,7 +1496,7 @@ export default function UserDashboard() {
                       {tender.status === 'approved' && tender.auction_slug && (
                         <Link
                           to={`/auctions/${tender.auction_slug}`}
-                          className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all"
+                          className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                         >
                           Enter Tender Room &rarr;
                         </Link>
@@ -1513,17 +1513,17 @@ export default function UserDashboard() {
         {activeTab === 'scrap' && (
           <div className="space-y-6">
             {/* Scrap Pickup Requests */}
-            <div className="bg-[#0F223D] rounded-3xl p-6 sm:p-7 border border-[#1E3A5F] shadow-xl space-y-5">
-              <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-4">
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-white text-lg flex items-center gap-2">
+                  <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                     <Tag className="w-5 h-5 text-[#D48B1C]" /> Doorstep Scrap Pickup Bookings ({scrap_requests.length})
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Direct pickup requests submitted for corporate yard clearance.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Direct pickup requests submitted for corporate yard clearance.</p>
                 </div>
                 <Link
                   to="/post-listing"
-                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all"
+                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   + Book Scrap Pickup
                 </Link>
@@ -1531,26 +1531,26 @@ export default function UserDashboard() {
 
               {scrap_requests.length === 0 ? (
                 <div className="py-12 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#162C4E] text-[#D48B1C] border border-[#1E3A5F] flex items-center justify-center mx-auto">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#D48B1C] border border-amber-200 flex items-center justify-center mx-auto">
                     <Tag className="w-6 h-6" />
                   </div>
-                  <h4 className="font-bold text-white text-sm">No scrap collection requests yet</h4>
-                  <p className="text-xs text-slate-400">Have commercial scrap or plant machinery to liquidate?</p>
+                  <h4 className="font-bold text-slate-900 text-sm">No scrap collection requests yet</h4>
+                  <p className="text-xs text-slate-500">Have commercial scrap or plant machinery to liquidate?</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {scrap_requests.map((req) => (
                     <div
                       key={req.id}
-                      className="p-4 rounded-2xl border border-[#1E3A5F] bg-[#0A1628]/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-colors"
                     >
                       <div>
-                        <h4 className="font-bold text-white text-sm">{req.title}</h4>
-                        <span className="text-[11px] text-slate-400 block mt-0.5">
+                        <h4 className="font-bold text-slate-900 text-sm">{req.title}</h4>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
                           {req.quantity} {req.unit || 'LOT'} &bull; {req.location_city || 'India'} &bull; Booked on {formatDateTime(req.created_at)}
                         </span>
                       </div>
-                      <span className="px-3 py-1 bg-amber-500/20 text-amber-300 font-bold text-xs rounded-lg uppercase border border-amber-500/30">
+                      <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold text-xs rounded-lg uppercase border border-amber-200">
                         {req.status}
                       </span>
                     </div>
@@ -1560,17 +1560,17 @@ export default function UserDashboard() {
             </div>
 
             {/* Classified Listings */}
-            <div className="bg-[#0F223D] rounded-3xl p-6 sm:p-7 border border-[#1E3A5F] shadow-xl space-y-5">
-              <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-4">
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-white text-lg flex items-center gap-2">
+                  <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                     <Building className="w-5 h-5 text-[#D48B1C]" /> My Classified Equipment Listings ({my_listings.length})
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Classified industrial machinery ads published on SalvageReef.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Classified industrial machinery ads published on SalvageReef.</p>
                 </div>
                 <Link
                   to="/post-listing"
-                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all"
+                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   + Post Classified Ad
                 </Link>
@@ -1578,20 +1578,20 @@ export default function UserDashboard() {
 
               {my_listings.length === 0 ? (
                 <div className="py-12 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto border border-slate-700">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
                     <Building className="w-6 h-6" />
                   </div>
-                  <h4 className="font-bold text-white text-sm">No classified items listed</h4>
-                  <p className="text-xs text-slate-400">List idle machinery and industrial lots for direct buyer inquiries.</p>
+                  <h4 className="font-bold text-slate-900 text-sm">No classified items listed</h4>
+                  <p className="text-xs text-slate-500">List idle machinery and industrial lots for direct buyer inquiries.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {my_listings.map((item) => (
-                    <div key={item.id} className="bg-[#0A1628] rounded-2xl p-4 border border-slate-700 space-y-3">
-                      <h4 className="font-bold text-white text-sm line-clamp-1">{item.title}</h4>
+                    <div key={item.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                      <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{item.title}</h4>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-mono font-black text-amber-400">₹{Number(item.price).toLocaleString('en-IN')}</span>
-                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 font-bold text-[10px] rounded-full uppercase border border-emerald-500/30">
+                        <span className="font-mono font-black text-amber-600">₹{Number(item.price).toLocaleString('en-IN')}</span>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-full uppercase border border-emerald-200">
                           {item.status}
                         </span>
                       </div>
@@ -1607,19 +1607,19 @@ export default function UserDashboard() {
         {activeTab === 'profile' && (
           <div className="space-y-6">
             {/* KYC Documents Section */}
-            <div className="bg-[#0F223D] rounded-3xl p-6 sm:p-7 border border-[#1E3A5F] shadow-xl space-y-5">
-              <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-4">
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-white text-lg flex items-center gap-2">
+                  <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-[#D48B1C]" /> Verified Corporate KYC Documents
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Official tax and banking records required under Indian compliance laws for salvage auction participation.
                   </p>
                 </div>
                 <button
                   onClick={openKycModal}
-                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                  className="px-4 py-2 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   Update / Re-Upload Documents
                 </button>
@@ -1627,19 +1627,19 @@ export default function UserDashboard() {
 
               {/* Pending Update Notification Banner */}
               {Boolean((user as any)?.pending_pan_file || (user as any)?.pending_gst_file || (user as any)?.pending_cheque_file) && (
-                <div className="bg-[#132238] border border-amber-500/60 rounded-2xl p-4 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-amber-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/40">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-300">
                       <Clock className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
-                      <strong className="text-white text-xs block">KYC Document Update Request Sent to Admin Desk</strong>
-                      <span className="text-[11px] text-amber-200/90">Your updated documents were submitted for verification. They will take effect officially once accepted by an Administrator.</span>
+                      <strong className="text-slate-900 text-xs block">KYC Document Update Request Sent to Admin Desk</strong>
+                      <span className="text-[11px] text-amber-800">Your updated documents were submitted for verification. They will take effect officially once accepted by an Administrator.</span>
                     </div>
                   </div>
                   <button
                     onClick={openKycModal}
-                    className="px-3.5 py-1.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shrink-0 cursor-pointer shadow-sm"
+                    className="px-3.5 py-1.5 bg-[#D48B1C] hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shrink-0 cursor-pointer shadow-xs"
                   >
                     View / Manage Update
                   </button>
@@ -1651,24 +1651,24 @@ export default function UserDashboard() {
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {/* 1. PAN Card */}
-                    <div className="bg-[#0A1628] rounded-2xl p-4 border border-[#1E3A5F] space-y-3">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                       <div className="flex justify-between items-center">
                         <div>
-                          <span className="font-bold text-xs text-white block">Company PAN Card</span>
+                          <span className="font-bold text-xs text-slate-900 block">Company PAN Card</span>
                           {(user as any)?.pending_pan_file && (
-                            <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
                               Update Pending Admin Approval
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 bg-[#162C4E] text-[#D48B1C] rounded-md border border-[#1E3A5F]">
+                        <span className="text-[10px] font-mono px-2 py-0.5 bg-white text-slate-800 rounded-md border border-slate-200 font-bold">
                           {(user as any)?.pan_number || 'ABCDE1234F'}
                         </span>
                       </div>
 
                       <div
                         onClick={() => setPreviewDocUrl(effectiveDocs.panDoc)}
-                        className="h-32 rounded-xl bg-[#071322] border border-[#1E3A5F] flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
+                        className="h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
                       >
                         <img
                           src={effectiveDocs.panDoc}
@@ -1678,31 +1678,31 @@ export default function UserDashboard() {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
                           <Eye className="w-4 h-4" /> Click to Preview
                         </div>
                       </div>
                     </div>
 
                     {/* 2. GST Certificate */}
-                    <div className="bg-[#0A1628] rounded-2xl p-4 border border-[#1E3A5F] space-y-3">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                       <div className="flex justify-between items-center">
                         <div>
-                          <span className="font-bold text-xs text-white block">GSTIN Certificate</span>
+                          <span className="font-bold text-xs text-slate-900 block">GSTIN Certificate</span>
                           {(user as any)?.pending_gst_file && (
-                            <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
                               Update Pending Admin Approval
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 bg-[#162C4E] text-[#D48B1C] rounded-md border border-[#1E3A5F]">
+                        <span className="text-[10px] font-mono px-2 py-0.5 bg-white text-slate-800 rounded-md border border-slate-200 font-bold">
                           {(user as any)?.gst_number || '27ABCDE1234F1Z5'}
                         </span>
                       </div>
 
                       <div
                         onClick={() => setPreviewDocUrl(effectiveDocs.gstDoc)}
-                        className="h-32 rounded-xl bg-[#071322] border border-[#1E3A5F] flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
+                        className="h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
                       >
                         <img
                           src={effectiveDocs.gstDoc}
@@ -1712,31 +1712,31 @@ export default function UserDashboard() {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
                           <Eye className="w-4 h-4" /> Click to Preview
                         </div>
                       </div>
                     </div>
 
                     {/* 3. Cancelled Bank Cheque */}
-                    <div className="bg-[#0A1628] rounded-2xl p-4 border border-[#1E3A5F] space-y-3">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                       <div className="flex justify-between items-center">
                         <div>
-                          <span className="font-bold text-xs text-white block">Cancelled Cheque</span>
+                          <span className="font-bold text-xs text-slate-900 block">Cancelled Cheque</span>
                           {(user as any)?.pending_cheque_file && (
-                            <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
                               Update Pending Admin Approval
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-md border border-emerald-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200">
                           EMD Refund Account
                         </span>
                       </div>
 
                       <div
                         onClick={() => setPreviewDocUrl(effectiveDocs.chequeDoc)}
-                        className="h-32 rounded-xl bg-[#071322] border border-[#1E3A5F] flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
+                        className="h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#D48B1C] transition-colors relative group"
                       >
                         <img
                           src={effectiveDocs.chequeDoc}
@@ -1746,7 +1746,7 @@ export default function UserDashboard() {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
                           <Eye className="w-4 h-4" /> Click to Preview
                         </div>
                       </div>
@@ -1759,77 +1759,77 @@ export default function UserDashboard() {
             {/* Profile Information & Password Forms */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Profile Details Form */}
-              <div className="bg-[#0F223D] rounded-3xl p-6 border border-[#1E3A5F] shadow-xl space-y-4">
-                <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-3">
-                  <h4 className="font-black text-white text-sm flex items-center gap-2">
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
                     <Building className="w-4 h-4 text-[#D48B1C]" /> Registered Company Details
                   </h4>
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="space-y-3.5 text-xs">
                   {profileSuccess && (
-                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl font-bold flex items-center gap-2">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold flex items-center gap-2">
                       <Check className="w-4 h-4" /> {profileSuccess}
                     </div>
                   )}
                   {profileError && (
-                    <div className="p-3 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl font-bold flex items-center gap-2">
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-bold flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" /> {profileError}
                     </div>
                   )}
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Company / Enterprise Name</label>
+                    <label className="text-slate-700 font-bold block mb-1">Company / Enterprise Name</label>
                     <input
                       type="text"
                       value={profileForm.company_name}
                       onChange={(e) => setProfileForm({ ...profileForm, company_name: e.target.value })}
                       required
-                      className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Authorized SPOC Name</label>
+                    <label className="text-slate-700 font-bold block mb-1">Authorized SPOC Name</label>
                     <input
                       type="text"
                       value={profileForm.name}
                       onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                       required
-                      className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-slate-300 font-bold block mb-1">City</label>
+                      <label className="text-slate-700 font-bold block mb-1">City</label>
                       <input
                         type="text"
                         value={profileForm.city}
                         onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
                         required
-                        className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="text-slate-300 font-bold block mb-1">State</label>
+                      <label className="text-slate-700 font-bold block mb-1">State</label>
                       <input
                         type="text"
                         value={profileForm.state}
                         onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
                         required
-                        className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Registered Business Address</label>
+                    <label className="text-slate-700 font-bold block mb-1">Registered Business Address</label>
                     <textarea
                       value={profileForm.registered_address}
                       onChange={(e) => setProfileForm({ ...profileForm, registered_address: e.target.value })}
                       rows={2}
-                      className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                     />
                   </div>
 
@@ -1844,27 +1844,27 @@ export default function UserDashboard() {
               </div>
 
               {/* Password Change Form */}
-              <div className="bg-[#0F223D] rounded-3xl p-6 border border-[#1E3A5F] shadow-xl space-y-4">
-                <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-3">
-                  <h4 className="font-black text-white text-sm flex items-center gap-2">
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
                     <Lock className="w-4 h-4 text-[#D48B1C]" /> Security & Password
                   </h4>
                 </div>
 
                 <form onSubmit={handleChangePassword} className="space-y-3.5 text-xs">
                   {passwordSuccess && (
-                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl font-bold flex items-center gap-2">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-bold flex items-center gap-2">
                       <Check className="w-4 h-4" /> {passwordSuccess}
                     </div>
                   )}
                   {passwordError && (
-                    <div className="p-3 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl font-bold flex items-center gap-2">
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-bold flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" /> {passwordError}
                     </div>
                   )}
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Current Password</label>
+                    <label className="text-slate-700 font-bold block mb-1">Current Password</label>
                     <div className="relative">
                       <input
                         type={showCurrentPassword ? 'text' : 'password'}
@@ -1872,21 +1872,21 @@ export default function UserDashboard() {
                         onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
                         required
                         placeholder="••••••••"
-                        className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                         title={showCurrentPassword ? 'Hide Password' : 'Show Password'}
                       >
-                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">New Password (Min. 6 chars)</label>
+                    <label className="text-slate-700 font-bold block mb-1">New Password (Min. 6 chars)</label>
                     <div className="relative">
                       <input
                         type={showNewPassword ? 'text' : 'password'}
@@ -1894,21 +1894,21 @@ export default function UserDashboard() {
                         onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
                         required
                         placeholder="••••••••"
-                        className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                         title={showNewPassword ? 'Hide Password' : 'Show Password'}
                       >
-                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Confirm New Password</label>
+                    <label className="text-slate-700 font-bold block mb-1">Confirm New Password</label>
                     <div className="relative">
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
@@ -1916,15 +1916,15 @@ export default function UserDashboard() {
                         onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
                         required
                         placeholder="••••••••"
-                        className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                         title={showConfirmPassword ? 'Hide Password' : 'Show Password'}
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                       </button>
                     </div>
                   </div>
@@ -1949,22 +1949,22 @@ export default function UserDashboard() {
         const pendingDocs = getUserPendingDocuments(user);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-[#0F223D] border border-[#1E3A5F] rounded-3xl max-w-2xl w-full p-6 text-white space-y-5 shadow-2xl relative my-8">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 text-slate-900 space-y-5 shadow-2xl relative my-8">
               {/* Header */}
-              <div className="flex justify-between items-start border-b border-[#1E3A5F] pb-4">
+              <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-base sm:text-lg flex items-center gap-2 text-white">
+                  <h3 className="font-black text-base sm:text-lg flex items-center gap-2 text-slate-900">
                     <UploadCloud className="w-5 h-5 text-[#D48B1C]" /> Update / Re-Upload KYC Documents
                   </h3>
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Preview your current verified documents or submit replacement files to the Admin Desk for review.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowResubmitModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#162C4E] transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1972,32 +1972,32 @@ export default function UserDashboard() {
 
               {/* Workflow Notice Banner */}
               {pendingDocs.hasPending ? (
-                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-2xl text-xs space-y-1">
+                <div className="p-3.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-2xl text-xs space-y-1">
                   <div className="font-bold flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-400" /> Pending Admin Review in Progress
+                    <Clock className="w-4 h-4 text-amber-600" /> Pending Admin Review in Progress
                   </div>
-                  <p className="text-amber-200/90 text-[11px] leading-relaxed">
+                  <p className="text-amber-800 text-[11px] leading-relaxed">
                     You have submitted updated documents that are currently in the Admin verification queue. Your existing verified documents remain active until an Administrator reviews and approves the new documents.
                   </p>
                 </div>
               ) : (
-                <div className="p-3.5 bg-[#162C4E] border border-[#1E3A5F] text-slate-300 rounded-2xl text-xs space-y-1">
-                  <div className="font-bold text-white flex items-center gap-2">
+                <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl text-xs space-y-1">
+                  <div className="font-bold text-blue-950 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-[#D48B1C]" /> Two-Step Verification Policy
                   </div>
-                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                  <p className="text-blue-800 text-[11px] leading-relaxed">
                     To maintain strict B2B compliance, updated documents are securely submitted to the Admin Desk. Once approved by Admin, your updated documents will replace the current files on record.
                   </p>
                 </div>
               )}
 
               {kycSuccess && (
-                <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2">
                   <Check className="w-4 h-4" /> {kycSuccess}
                 </div>
               )}
               {kycError && (
-                <div className="p-3 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl text-xs font-bold flex items-center gap-2">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" /> {kycError}
                 </div>
               )}
@@ -2006,23 +2006,23 @@ export default function UserDashboard() {
                 {/* Identification Numbers */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">Company PAN Number</label>
+                    <label className="text-slate-700 font-bold block mb-1">Company PAN Number</label>
                     <input
                       type="text"
                       value={resubmitForm.pan_number}
                       onChange={(e) => setResubmitForm({ ...resubmitForm, pan_number: e.target.value.toUpperCase() })}
                       placeholder="ABCDE1234F"
-                      className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white uppercase focus:outline-none focus:border-[#D48B1C] font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 uppercase focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">GSTIN Number</label>
+                    <label className="text-slate-700 font-bold block mb-1">GSTIN Number</label>
                     <input
                       type="text"
                       value={resubmitForm.gst_number}
                       onChange={(e) => setResubmitForm({ ...resubmitForm, gst_number: e.target.value.toUpperCase() })}
                       placeholder="27ABCDE1234F1Z5"
-                      className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white uppercase focus:outline-none focus:border-[#D48B1C] font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 uppercase focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                     />
                   </div>
                 </div>
@@ -2030,22 +2030,22 @@ export default function UserDashboard() {
                 {/* 3 Document Slots: Cancelled Cheque, PAN Card, GST Certificate */}
                 <div className="space-y-3.5 pt-1">
                   {/* Slot 1: Cancelled Bank Cheque */}
-                  <div className="bg-[#0A1628] border border-[#1E3A5F] rounded-2xl p-4 space-y-3">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-[#D48B1C]" />
-                        <span className="font-bold text-white text-xs">1. Cancelled Cheque (EMD Refund Account)</span>
+                        <span className="font-bold text-slate-900 text-xs">1. Cancelled Cheque (EMD Refund Account)</span>
                       </div>
                       {(user as any)?.pending_cheque_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-300">
                           Pending Admin Review
                         </span>
                       ) : (user as any)?.cheque_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
                           Active on File
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-600 rounded border border-slate-300">
                           Not Provided
                         </span>
                       )}
@@ -2053,23 +2053,23 @@ export default function UserDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                       {/* Left: Current Active Document Preview */}
-                      <div className="bg-[#071322] border border-[#1E3A5F] rounded-xl p-2.5 flex items-center justify-between gap-3">
+                      <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={effectiveDocs.chequeDoc}
                             alt="Current Cheque"
-                            className="w-12 h-10 object-cover rounded-lg border border-[#1E3A5F] shrink-0 bg-slate-900"
+                            className="w-12 h-10 object-cover rounded-lg border border-slate-200 shrink-0 bg-slate-100"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                           <div className="min-w-0">
-                            <span className="text-[11px] font-bold text-white block truncate">Current Document</span>
-                            <span className="text-[10px] text-slate-400 block truncate">On file with SalvageReef</span>
+                            <span className="text-[11px] font-bold text-slate-900 block truncate">Current Document</span>
+                            <span className="text-[10px] text-slate-500 block truncate">On file with SalvageReef</span>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setPreviewDocUrl(effectiveDocs.chequeDoc)}
-                          className="px-2.5 py-1.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-[#D48B1C] hover:text-white rounded-lg text-[11px] font-bold border border-[#1E3A5F] flex items-center gap-1 transition-colors shrink-0"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold border border-slate-200 flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
                           title="View Current Cheque"
                         >
                           <Eye className="w-3.5 h-3.5" /> View
@@ -2079,25 +2079,25 @@ export default function UserDashboard() {
                       {/* Right: Upload Replacement */}
                       <div>
                         {selectedFilesMeta['cheque_file'] ? (
-                          <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                               <div className="min-w-0">
-                                <span className="text-[11px] font-bold text-emerald-300 block truncate">{selectedFilesMeta['cheque_file'].name}</span>
-                                <span className="text-[10px] text-emerald-400/80 block">{selectedFilesMeta['cheque_file'].size} • Ready for Admin Review</span>
+                                <span className="text-[11px] font-bold text-emerald-800 block truncate">{selectedFilesMeta['cheque_file'].name}</span>
+                                <span className="text-[10px] text-emerald-600 block">{selectedFilesMeta['cheque_file'].size} • Ready for Admin Review</span>
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => clearSelectedFile('cheque_file')}
-                              className="p-1 text-slate-400 hover:text-red-400 rounded cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                               title="Remove replacement"
                             >
                               <X className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-200 hover:text-white font-bold rounded-xl border border-[#1E3A5F] border-dashed cursor-pointer transition-all text-[11px]">
+                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-amber-50 text-slate-700 hover:text-slate-900 font-bold rounded-xl border border-slate-300 border-dashed cursor-pointer transition-all text-[11px]">
                             <Upload className="w-3.5 h-3.5 text-[#D48B1C]" />
                             <span>Choose Replacement Cheque</span>
                             <input
@@ -2113,22 +2113,22 @@ export default function UserDashboard() {
                   </div>
 
                   {/* Slot 2: PAN Card */}
-                  <div className="bg-[#0A1628] border border-[#1E3A5F] rounded-2xl p-4 space-y-3">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-[#D48B1C]" />
-                        <span className="font-bold text-white text-xs">2. Company / Enterprise PAN Card</span>
+                        <span className="font-bold text-slate-900 text-xs">2. Company / Enterprise PAN Card</span>
                       </div>
                       {(user as any)?.pending_pan_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-300">
                           Pending Admin Review
                         </span>
                       ) : (user as any)?.pan_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
                           Active on File
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-600 rounded border border-slate-300">
                           Not Provided
                         </span>
                       )}
@@ -2136,23 +2136,23 @@ export default function UserDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                       {/* Left: Current Active Document Preview */}
-                      <div className="bg-[#071322] border border-[#1E3A5F] rounded-xl p-2.5 flex items-center justify-between gap-3">
+                      <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={effectiveDocs.panDoc}
                             alt="Current PAN"
-                            className="w-12 h-10 object-cover rounded-lg border border-[#1E3A5F] shrink-0 bg-slate-900"
+                            className="w-12 h-10 object-cover rounded-lg border border-slate-200 shrink-0 bg-slate-100"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                           <div className="min-w-0">
-                            <span className="text-[11px] font-bold text-white block truncate">Current Document</span>
-                            <span className="text-[10px] text-slate-400 block truncate">On file with SalvageReef</span>
+                            <span className="text-[11px] font-bold text-slate-900 block truncate">Current Document</span>
+                            <span className="text-[10px] text-slate-500 block truncate">On file with SalvageReef</span>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setPreviewDocUrl(effectiveDocs.panDoc)}
-                          className="px-2.5 py-1.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-[#D48B1C] hover:text-white rounded-lg text-[11px] font-bold border border-[#1E3A5F] flex items-center gap-1 transition-colors shrink-0"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold border border-slate-200 flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
                           title="View Current PAN"
                         >
                           <Eye className="w-3.5 h-3.5" /> View
@@ -2162,25 +2162,25 @@ export default function UserDashboard() {
                       {/* Right: Upload Replacement */}
                       <div>
                         {selectedFilesMeta['pan_file'] ? (
-                          <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                               <div className="min-w-0">
-                                <span className="text-[11px] font-bold text-emerald-300 block truncate">{selectedFilesMeta['pan_file'].name}</span>
-                                <span className="text-[10px] text-emerald-400/80 block">{selectedFilesMeta['pan_file'].size} • Ready for Admin Review</span>
+                                <span className="text-[11px] font-bold text-emerald-800 block truncate">{selectedFilesMeta['pan_file'].name}</span>
+                                <span className="text-[10px] text-emerald-600 block">{selectedFilesMeta['pan_file'].size} • Ready for Admin Review</span>
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => clearSelectedFile('pan_file')}
-                              className="p-1 text-slate-400 hover:text-red-400 rounded cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                               title="Remove replacement"
                             >
                               <X className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-200 hover:text-white font-bold rounded-xl border border-[#1E3A5F] border-dashed cursor-pointer transition-all text-[11px]">
+                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-amber-50 text-slate-700 hover:text-slate-900 font-bold rounded-xl border border-slate-300 border-dashed cursor-pointer transition-all text-[11px]">
                             <Upload className="w-3.5 h-3.5 text-[#D48B1C]" />
                             <span>Choose Replacement PAN Card</span>
                             <input
@@ -2196,22 +2196,22 @@ export default function UserDashboard() {
                   </div>
 
                   {/* Slot 3: GST Registration Certificate */}
-                  <div className="bg-[#0A1628] border border-[#1E3A5F] rounded-2xl p-4 space-y-3">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <Building className="w-4 h-4 text-[#D48B1C]" />
-                        <span className="font-bold text-white text-xs">3. GSTIN Registration Certificate</span>
+                        <span className="font-bold text-slate-900 text-xs">3. GSTIN Registration Certificate</span>
                       </div>
                       {(user as any)?.pending_gst_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-300">
                           Pending Admin Review
                         </span>
                       ) : (user as any)?.gst_file ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
                           Active on File
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-600 rounded border border-slate-300">
                           Not Provided
                         </span>
                       )}
@@ -2219,23 +2219,23 @@ export default function UserDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                       {/* Left: Current Active Document Preview */}
-                      <div className="bg-[#071322] border border-[#1E3A5F] rounded-xl p-2.5 flex items-center justify-between gap-3">
+                      <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={effectiveDocs.gstDoc}
                             alt="Current GST"
-                            className="w-12 h-10 object-cover rounded-lg border border-[#1E3A5F] shrink-0 bg-slate-900"
+                            className="w-12 h-10 object-cover rounded-lg border border-slate-200 shrink-0 bg-slate-100"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                           <div className="min-w-0">
-                            <span className="text-[11px] font-bold text-white block truncate">Current Document</span>
-                            <span className="text-[10px] text-slate-400 block truncate">On file with SalvageReef</span>
+                            <span className="text-[11px] font-bold text-slate-900 block truncate">Current Document</span>
+                            <span className="text-[10px] text-slate-500 block truncate">On file with SalvageReef</span>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setPreviewDocUrl(effectiveDocs.gstDoc)}
-                          className="px-2.5 py-1.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-[#D48B1C] hover:text-white rounded-lg text-[11px] font-bold border border-[#1E3A5F] flex items-center gap-1 transition-colors shrink-0"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold border border-slate-200 flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
                           title="View Current GST"
                         >
                           <Eye className="w-3.5 h-3.5" /> View
@@ -2245,25 +2245,25 @@ export default function UserDashboard() {
                       {/* Right: Upload Replacement */}
                       <div>
                         {selectedFilesMeta['gst_file'] ? (
-                          <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                               <div className="min-w-0">
-                                <span className="text-[11px] font-bold text-emerald-300 block truncate">{selectedFilesMeta['gst_file'].name}</span>
-                                <span className="text-[10px] text-emerald-400/80 block">{selectedFilesMeta['gst_file'].size} • Ready for Admin Review</span>
+                                <span className="text-[11px] font-bold text-emerald-800 block truncate">{selectedFilesMeta['gst_file'].name}</span>
+                                <span className="text-[10px] text-emerald-600 block">{selectedFilesMeta['gst_file'].size} • Ready for Admin Review</span>
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => clearSelectedFile('gst_file')}
-                              className="p-1 text-slate-400 hover:text-red-400 rounded cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                               title="Remove replacement"
                             >
                               <X className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-200 hover:text-white font-bold rounded-xl border border-[#1E3A5F] border-dashed cursor-pointer transition-all text-[11px]">
+                          <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-amber-50 text-slate-700 hover:text-slate-900 font-bold rounded-xl border border-slate-300 border-dashed cursor-pointer transition-all text-[11px]">
                             <Upload className="w-3.5 h-3.5 text-[#D48B1C]" />
                             <span>Choose Replacement GST Certificate</span>
                             <input
@@ -2280,11 +2280,11 @@ export default function UserDashboard() {
                 </div>
 
                 {/* Footer Action Buttons */}
-                <div className="pt-3 border-t border-[#1E3A5F] flex justify-end items-center gap-3">
+                <div className="pt-3 border-t border-slate-100 flex justify-end items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setShowResubmitModal(false)}
-                    className="px-4 py-2.5 bg-[#162C4E] hover:bg-[#1E3A5F] text-slate-300 hover:text-white rounded-xl font-bold cursor-pointer transition-colors"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
@@ -2326,92 +2326,92 @@ export default function UserDashboard() {
 
       {/* ── MODAL: EDIT REGISTERED COMPANY PROFILE ── */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#0F223D] border border-[#1E3A5F] rounded-3xl max-w-lg w-full p-6 text-white space-y-4 shadow-2xl relative my-8">
-            <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-3">
-              <h3 className="font-black text-base flex items-center gap-2">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 text-slate-900 space-y-4 shadow-2xl relative my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-black text-base flex items-center gap-2 text-slate-900">
                 <Building className="w-5 h-5 text-[#D48B1C]" /> Edit Registered Company Details
               </h3>
-              <button onClick={() => setShowProfileModal(false)} className="text-slate-400 hover:text-white p-1 cursor-pointer">
+              <button onClick={() => setShowProfileModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {profileSuccess && (
-              <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2">
                 <Check className="w-4 h-4" /> {profileSuccess}
               </div>
             )}
             {profileError && (
-              <div className="p-3 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl text-xs font-bold flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" /> {profileError}
               </div>
             )}
 
             <form onSubmit={handleUpdateProfile} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Company / Enterprise Name</label>
+                <label className="text-slate-700 font-bold block mb-1">Company / Enterprise Name</label>
                 <input
                   type="text"
                   value={profileForm.company_name}
                   onChange={(e) => setProfileForm({ ...profileForm, company_name: e.target.value })}
                   required
-                  className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                 />
               </div>
 
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Authorized SPOC Name</label>
+                <label className="text-slate-700 font-bold block mb-1">Authorized SPOC Name</label>
                 <input
                   type="text"
                   value={profileForm.name}
                   onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                   required
-                  className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                 />
               </div>
 
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Contact Mobile Number</label>
+                <label className="text-slate-700 font-bold block mb-1">Contact Mobile Number</label>
                 <input
                   type="tel"
                   value={profileForm.phone}
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                   placeholder="10-digit mobile number"
-                  className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">City</label>
+                  <label className="text-slate-700 font-bold block mb-1">City</label>
                   <input
                     type="text"
                     value={profileForm.city}
                     onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
                     required
-                    className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">State</label>
+                  <label className="text-slate-700 font-bold block mb-1">State</label>
                   <input
                     type="text"
                     value={profileForm.state}
                     onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
                     required
-                    className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Registered Business Address</label>
+                <label className="text-slate-700 font-bold block mb-1">Registered Business Address</label>
                 <textarea
                   value={profileForm.registered_address}
                   onChange={(e) => setProfileForm({ ...profileForm, registered_address: e.target.value })}
                   rows={2}
-                  className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 text-white focus:outline-none focus:border-[#D48B1C] font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-medium transition-colors"
                 />
               </div>
 
@@ -2419,7 +2419,7 @@ export default function UserDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowProfileModal(false)}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold cursor-pointer transition-colors"
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -2438,31 +2438,31 @@ export default function UserDashboard() {
 
       {/* ── MODAL: CHANGE ACCOUNT PASSWORD ── */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#0F223D] border border-[#1E3A5F] rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl relative my-8">
-            <div className="flex justify-between items-center border-b border-[#1E3A5F] pb-3">
-              <h3 className="font-black text-base flex items-center gap-2">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 text-slate-900 space-y-4 shadow-2xl relative my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-black text-base flex items-center gap-2 text-slate-900">
                 <Lock className="w-5 h-5 text-[#D48B1C]" /> Change Account Password
               </h3>
-              <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-white p-1 cursor-pointer">
+              <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {passwordSuccess && (
-              <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2">
                 <Check className="w-4 h-4" /> {passwordSuccess}
               </div>
             )}
             {passwordError && (
-              <div className="p-3 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl text-xs font-bold flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" /> {passwordError}
               </div>
             )}
 
             <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Current Password</label>
+                <label className="text-slate-700 font-bold block mb-1">Current Password</label>
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? 'text' : 'password'}
@@ -2470,20 +2470,20 @@ export default function UserDashboard() {
                     onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
                     required
                     placeholder="Enter current password"
-                    className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
-                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-300 font-bold block mb-1">New Password (Min. 6 chars)</label>
+                <label className="text-slate-700 font-bold block mb-1">New Password (Min. 6 chars)</label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
@@ -2491,20 +2491,20 @@ export default function UserDashboard() {
                     onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
                     required
                     placeholder="Enter new strong password"
-                    className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Confirm New Password</label>
+                <label className="text-slate-700 font-bold block mb-1">Confirm New Password</label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -2512,15 +2512,15 @@ export default function UserDashboard() {
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
                     required
                     placeholder="Re-type new password"
-                    className="w-full bg-[#0A1628] border border-[#1E3A5F] rounded-xl p-2.5 pr-10 text-white focus:outline-none focus:border-[#D48B1C] font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 text-slate-900 focus:bg-white focus:outline-none focus:border-[#D48B1C] font-mono transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                     title={showConfirmPassword ? 'Hide Password' : 'Show Password'}
                   >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
                   </button>
                 </div>
               </div>
@@ -2529,7 +2529,7 @@ export default function UserDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold cursor-pointer transition-colors"
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>

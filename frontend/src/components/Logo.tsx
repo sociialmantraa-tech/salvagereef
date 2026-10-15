@@ -39,10 +39,10 @@ export default function Logo({
 
       {showText && (
         <div className="flex flex-col leading-tight shrink-0 justify-center">
-          <span className={`text-xl font-black tracking-tight ${isLight ? 'text-white' : 'text-[#0B192C]'}`}>
+          <span className={`text-base sm:text-xl font-black tracking-tight ${isLight ? 'text-white' : 'text-[#0B192C]'}`}>
             {content.siteBrandName || 'SalvageReef'}
           </span>
-          <span className={`text-[9px] tracking-widest font-bold uppercase ${isLight ? 'text-slate-300' : 'text-slate-500'}`}>
+          <span className={`text-[8px] sm:text-[9px] tracking-widest font-bold uppercase ${isLight ? 'text-slate-300' : 'text-slate-500'}`}>
             {content.siteTagline || 'AUCTIONS & CLASSIFIEDS'}
           </span>
         </div>

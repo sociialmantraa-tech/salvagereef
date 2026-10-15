@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useContentStore } from '../store/useContentStore';
-import { LogOut, LayoutDashboard, Menu, X, PlusCircle, AlertCircle } from 'lucide-react';
+import { LogOut, LayoutDashboard, Menu, X, PlusCircle, AlertCircle, Home, Gavel, Tag, Info, Phone } from 'lucide-react';
 import Logo from './Logo';
 
 export default function Navbar() {
@@ -23,6 +23,50 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      {/* TOP SEO KEYWORD & INDUSTRY STRIP */}
+      <div className="bg-slate-900 text-slate-300 border-b border-slate-800 text-[11px] py-1.5 px-4 hidden md:block">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 overflow-x-auto py-0.5">
+            <span className="font-black text-[#D48B1C] uppercase tracking-wider text-[10px] bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
+              India B2B Portal
+            </span>
+            <div className="flex items-center gap-2.5 text-slate-300 font-medium whitespace-nowrap text-[11px]">
+              <Link to="/auctions?search=Salvage+Auction" className="hover:text-amber-400 transition-colors font-semibold">
+                Salvage Auctions India
+              </Link>
+              <span className="text-slate-600">&bull;</span>
+              <Link to="/auctions?search=HMS+Scrap" className="hover:text-amber-400 transition-colors font-semibold">
+                HMS Steel Scrap
+              </Link>
+              <span className="text-slate-600">&bull;</span>
+              <Link to="/auctions?search=Accident+Vehicles" className="hover:text-amber-400 transition-colors font-semibold">
+                Accident Fleet Salvage
+              </Link>
+              <span className="text-slate-600">&bull;</span>
+              <Link to="/auctions?search=Plant+Machinery" className="hover:text-amber-400 transition-colors font-semibold">
+                Plant Machinery Liquidation
+              </Link>
+              <span className="text-slate-600">&bull;</span>
+              <Link to="/auctions?search=Copper+Scrap" className="hover:text-amber-400 transition-colors font-semibold">
+                Copper & Metal Scrap
+              </Link>
+              <span className="text-slate-600">&bull;</span>
+              <Link to="/auctions" className="hover:text-amber-400 transition-colors font-semibold">
+                E-Tender Auctions
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 text-slate-400 font-medium text-[11px]">
+            <span className="hidden lg:inline text-slate-400">Desk: <strong className="text-slate-200">+91 7304481166</strong></span>
+            <span className="hidden lg:inline text-slate-700">|</span>
+            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Verified B2B Network
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* TOP ANNOUNCEMENT / OFFER BANNER (ABOVE HEADER) */}
       {content.offerBannerEnabled && content.offerBannerText && (
         <div
@@ -53,11 +97,11 @@ export default function Navbar() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-2">
           {/* Logo & Brand on Left */}
-          <Link to="/" className="flex items-center group">
-            <Logo className="w-10 h-10" showText={true} />
+          <Link to="/" className="flex items-center group shrink-0 min-w-0">
+            <Logo className="w-8 h-8 sm:w-10 sm:h-10" showText={true} />
           </Link>
 
           {/* Navigation Links */}
@@ -169,72 +213,163 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile & Tablet Drawer Toggle */}
-          <div className="xl:hidden flex items-center">
+          {/* Mobile & Tablet Navbar Action Buttons & Drawer Toggle */}
+          <div className="xl:hidden flex items-center gap-1.5 xs:gap-2 shrink-0">
+            {/* Quick "+ Sell" Button in Mobile Navbar */}
+            <Link
+              to="/sell-scrap"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xs shadow-xs transition-all shrink-0 whitespace-nowrap uppercase tracking-wider"
+              title="Sell Your Scrap"
+            >
+              <PlusCircle className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[11px] font-black">Sell</span>
+            </Link>
+
+            {/* Quick Auth / Dashboard Button in Mobile Navbar */}
+            {isAuthenticated ? (
+              (() => {
+                const isAdmin =
+                  user?.role === 'admin' ||
+                  user?.role === 'master_admin' ||
+                  user?.role === 'desk_admin' ||
+                  user?.role === 'read_only_admin' ||
+                  user?.email === 'admin@salvagereef.com' ||
+                  user?.email === 'executive@salvagereef.com';
+                return (
+                  <Link
+                    to={isAdmin ? '/admin' : '/dashboard'}
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs shrink-0 whitespace-nowrap transition-colors border border-slate-200"
+                    title={isAdmin ? 'Admin Desk' : 'Dashboard'}
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 text-[#1D70B8] shrink-0" />
+                    <span className="hidden xs:inline text-[11px] font-bold">{isAdmin ? 'Admin' : 'Desk'}</span>
+                  </Link>
+                );
+              })()
+            ) : (
+              <Link
+                to="/login"
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:border-[#1D70B8] text-slate-700 hover:text-[#1D70B8] font-bold text-[11px] shrink-0 whitespace-nowrap transition-colors bg-slate-50/50"
+              >
+                {content.navSignInText || 'Sign In'}
+              </Link>
+            )}
+
+            {/* Mobile Sidebar Hamburger Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-slate-700 hover:text-slate-900 p-2"
-              aria-label="Toggle Navigation Menu"
+              className="p-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+              aria-label="Toggle Navigation Sidebar"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 text-slate-900" /> : <Menu className="w-5 h-5 text-slate-900" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile & Tablet Drawer */}
+      {/* Mobile & Tablet Slide-over Backdrop */}
       {mobileMenuOpen && (
-        <div className="xl:hidden bg-white border-b border-slate-200 px-4 py-4 space-y-3 text-sm font-bold shadow-lg animate-fade-in">
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 xl:hidden transition-opacity duration-300"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile & Tablet Slide-over Sidebar (Takes Half Screen / 50% width in portrait and horizontal/landscape form) */}
+      <aside
+        className={`fixed top-0 right-0 h-full w-1/2 z-50 bg-white shadow-2xl xl:hidden flex flex-col justify-between overflow-y-auto overflow-x-hidden border-l border-slate-200 transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
+        aria-label="Mobile Navigation Sidebar"
+      >
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-3.5 border-b border-slate-100 bg-slate-50/80 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Logo className="w-7 h-7 shrink-0" showText={false} />
+            <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight truncate">
+              Menu
+            </span>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0"
+            aria-label="Close Navigation Sidebar"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
+          </button>
+        </div>
+
+        {/* Nav Links Body */}
+        <div className="p-3 space-y-1 overflow-y-auto overflow-x-hidden flex-1">
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100"
+            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              isActive('/') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            {content.navHomeText || 'Home'}
+            <Home className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="truncate">{content.navHomeText || 'Home'}</span>
           </Link>
           <Link
             to="/auctions"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100"
+            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              isActive('/auctions') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            {content.navAuctionsText || 'Auction'}
+            <Gavel className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="truncate">{content.navAuctionsText || 'Auction'}</span>
           </Link>
           <Link
             to="/classifieds"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100"
+            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              isActive('/classifieds') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            {content.navClassifiedsText || 'Classifieds'}
+            <Tag className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="truncate">{content.navClassifiedsText || 'Classifieds'}</span>
           </Link>
           <Link
             to="/about"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100"
+            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              isActive('/about') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            {content.navAboutText || 'About Us'}
+            <Info className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="truncate">{content.navAboutText || 'About Us'}</span>
           </Link>
           <Link
             to="/contact"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-slate-700 py-2 border-b border-slate-100 text-[#1D70B8]"
+            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              isActive('/contact') ? 'bg-blue-50 text-[#1D70B8]' : 'text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            {content.navContactText || 'Contact Us'}
+            <Phone className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="truncate">{content.navContactText || 'Contact Us'}</span>
           </Link>
 
-          {/* Mobile "Sell Your Scrap" Button */}
+          {/* Mobile "Sell Your Scrap" Action Button */}
           <Link
             to="/sell-scrap"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-1.5 text-amber-700 py-2 border-b border-slate-100 font-bold"
+            className="flex items-center justify-center gap-1.5 w-full mt-3 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-extrabold text-xs shadow-xs hover:shadow transition-all uppercase tracking-wider"
           >
-            <PlusCircle className="w-4 h-4 text-[#D48B1C]" />
-            <span>
+            <PlusCircle className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">
               {content.navPostListingButton && !content.navPostListingButton.includes('Post Listing')
                 ? content.navPostListingButton.replace(/^\+\s*/, '')
                 : 'Sell Your Scrap'}
             </span>
           </Link>
+        </div>
 
+        {/* Bottom Auth & Account Section */}
+        <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2">
           {isAuthenticated ? (
             <>
               {(() => {
@@ -249,9 +384,13 @@ export default function Navbar() {
                   <Link
                     to={isAdmin ? '/admin' : '/dashboard'}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block text-slate-800 py-2 border-b border-slate-100 font-bold"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-200/60 transition-colors"
                   >
-                    {isAdmin ? 'Admin Desk' : 'Dashboard'} ({user?.name})
+                    <LayoutDashboard className="w-4 h-4 text-[#1D70B8] shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block truncate font-black">{isAdmin ? 'Admin Desk' : 'Dashboard'}</span>
+                      {user?.name && <span className="block text-[10px] text-slate-400 font-medium truncate">{user.name}</span>}
+                    </div>
                   </Link>
                 );
               })()}
@@ -260,24 +399,25 @@ export default function Navbar() {
                   setMobileMenuOpen(false);
                   setShowLogoutConfirm(true);
                 }}
-                className="block text-red-600 py-2 w-full text-left font-bold"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
               >
-                Sign Out
+                <LogOut className="w-3.5 h-3.5 shrink-0" />
+                <span>Sign Out</span>
               </button>
             </>
           ) : (
-            <div className="pt-2 flex gap-4 text-slate-700">
+            <div className="grid grid-cols-1 gap-1.5">
               <Link
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-[#1D70B8] font-bold"
+                className="w-full text-center py-2 px-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
               >
-                {content.navSignInText || 'Login'}
+                {content.navSignInText || 'Sign In'}
               </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-[#1D70B8] font-bold"
+                className="w-full text-center py-2 px-2 rounded-xl bg-[#D48B1C] text-white text-xs font-bold shadow-xs hover:bg-[#b87614] transition-colors uppercase tracking-wider text-[10px]"
               >
                 {content.navRegisterText && content.navRegisterText.trim() !== 'Register Free'
                   ? content.navRegisterText
@@ -285,8 +425,11 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+          <p className="text-[9px] text-slate-400 text-center truncate pt-1">
+            SalvageReef &copy; 2026
+          </p>
         </div>
-      )}
+      </aside>
 
       {/* LOGOUT CONFIRMATION MODAL */}
       {showLogoutConfirm && (
