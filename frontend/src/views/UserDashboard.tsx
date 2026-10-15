@@ -25,6 +25,7 @@ import {
   Key,
   ExternalLink,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
   Edit,
   Mail,
@@ -778,31 +779,56 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* ── MAIN DASHBOARD TABS BAR (CLEAN WHITE TABS) ── */}
-        <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        {/* ── MOBILE SELECTION DROPDOWN (sm:hidden) ── */}
+        <div className="sm:hidden bg-white rounded-2xl p-2.5 border border-slate-200 shadow-xs">
+          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 px-1">
+            Dashboard View Selection
+          </label>
+          <div className="relative">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+              className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-black text-slate-900 pr-10 focus:outline-none focus:ring-2 focus:ring-[#D48B1C] cursor-pointer"
+            >
+              <option value="overview">🏢 Overview (Executive Summary)</option>
+              <option value="bids">🔨 My Bids ({recent_bids.length} Lots)</option>
+              <option value="won">🏆 Won Auctions ({won_auctions.length} Lots)</option>
+              <option value="tenders">🔑 Tender Requests ({tender_requests.length})</option>
+              <option value="scrap">🏷️ Sell Scrap & Listings ({scrap_requests.length + my_listings.length})</option>
+              <option value="profile">🛡️ KYC & Profile (Verification)</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-[#D48B1C]">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* ── RESPONSIVE GRID FORM TABS (2 Cols on Mobile, 3 Cols on Tablet, 6 Cols on Desktop) ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-white rounded-2xl p-2 border border-slate-200 shadow-xs">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
             }`}
           >
-            <Building className="w-4 h-4" /> Overview
+            <Building className="w-4 h-4 shrink-0 text-[#D48B1C]" />
+            <span className="truncate">Overview</span>
           </button>
 
           <button
             onClick={() => setActiveTab('bids')}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'bids'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
             }`}
           >
-            <Gavel className="w-4 h-4" />
-            <span>My Bids</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'bids' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
+            <Gavel className="w-4 h-4 shrink-0 text-blue-600" />
+            <span className="truncate">My Bids</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+              activeTab === 'bids' ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {recent_bids.length}
             </span>
@@ -810,16 +836,16 @@ export default function UserDashboard() {
 
           <button
             onClick={() => setActiveTab('won')}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'won'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
             }`}
           >
-            <Trophy className="w-4 h-4" />
-            <span>Won Auctions</span>
+            <Trophy className="w-4 h-4 shrink-0 text-yellow-600" />
+            <span className="truncate">Won Lots</span>
             {won_auctions.length > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-500 text-white font-black animate-pulse">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono bg-emerald-500 text-white font-black animate-pulse shrink-0">
                 {won_auctions.length}
               </span>
             )}
@@ -827,16 +853,16 @@ export default function UserDashboard() {
 
           <button
             onClick={() => setActiveTab('tenders')}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'tenders'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
             }`}
           >
-            <Key className="w-4 h-4" />
-            <span>Tender Requests</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'tenders' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
+            <Key className="w-4 h-4 shrink-0 text-teal-600" />
+            <span className="truncate">Tenders</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+              activeTab === 'tenders' ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {tender_requests.length}
             </span>
@@ -844,34 +870,32 @@ export default function UserDashboard() {
 
           <button
             onClick={() => setActiveTab('scrap')}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'scrap'
-                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
             }`}
           >
-            <Tag className="w-4 h-4" />
-            <span>Sell Scrap & Listings</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'scrap' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'
+            <Tag className="w-4 h-4 shrink-0 text-amber-600" />
+            <span className="truncate">Sell Scrap</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+              activeTab === 'scrap' ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {scrap_requests.length + my_listings.length}
             </span>
           </button>
 
-          <div className="ml-auto">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'profile'
-                  ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-[#D48B1C]" />
-              <span>KYC & Profile</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'profile'
+                ? 'bg-[#D48B1C] text-slate-950 font-black shadow-sm ring-1 ring-[#D48B1C]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/60'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0 text-[#D48B1C]" />
+            <span className="truncate">KYC & Profile</span>
+          </button>
         </div>
 
         {/* ── TAB 1: EXECUTIVE OVERVIEW ── */}
