@@ -497,47 +497,50 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-20 relative overflow-hidden">
       {/* ── TOP HERO HEADER & BUYER IDENTITY BANNER (CLEAN WHITE EXECUTIVE CARD) ── */}
       <div className="bg-white border-b border-slate-200 text-slate-900 shadow-xs relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-9">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 overflow-hidden">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 sm:gap-6 min-w-0 max-w-full">
             {/* User Profile Identity */}
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-[#D48B1C] to-amber-600 text-white flex items-center justify-center font-black text-2xl sm:text-3xl shadow-md border-2 border-amber-300/60 shrink-0">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 max-w-full flex-1 overflow-hidden">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#D48B1C] to-amber-600 text-white flex items-center justify-center font-black text-2xl sm:text-3xl shadow-md border-2 border-amber-300/60 shrink-0">
                 {user?.company_name ? user.company_name.charAt(0).toUpperCase() : (user?.name?.charAt(0).toUpperCase() || 'B')}
               </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[#D48B1C] bg-amber-50 px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1.5 shadow-xs">
+              <div className="space-y-1 min-w-0 max-w-full flex-1 overflow-hidden">
+                {/* All Tags in a Single Line */}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto no-scrollbar max-w-full pb-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#D48B1C] bg-amber-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1 shadow-2xs shrink-0 whitespace-nowrap">
                     <Sparkles className="w-3 h-3 text-[#D48B1C]" /> B2B Commercial Buyer
                   </span>
-                  <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 shadow-xs">
+                  <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs shrink-0 whitespace-nowrap">
                     ID: {(user as any)?.login_id || `SR-BIDDER-${user?.id}`}
                   </span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs shrink-0 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     Live Connected
                   </span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                {/* Company / User Title */}
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 truncate max-w-full">
                   {user?.company_name || user?.name}
                 </h1>
 
-                <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap font-medium pt-0.5">
-                  <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
-                    <UserIcon className="w-3.5 h-3.5 text-[#D48B1C]" /> {user?.name}
+                {/* All Contact Details in Same Single Line */}
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600 flex-nowrap overflow-x-auto no-scrollbar font-medium pt-0.5 max-w-full whitespace-nowrap">
+                  <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
+                    <UserIcon className="w-3 h-3 text-[#D48B1C]" /> {user?.name}
                   </span>
                   {user?.email && (
-                    <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
-                      <Mail className="w-3.5 h-3.5 text-blue-600" /> {user?.email}
+                    <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
+                      <Mail className="w-3 h-3 text-blue-600" /> {user?.email}
                     </span>
                   )}
                   {user?.phone && (
-                    <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" /> {user.phone}
+                    <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 shrink-0 whitespace-nowrap">
+                      <Phone className="w-3 h-3 text-emerald-600" /> {user.phone}
                     </span>
                   )}
-                  <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-amber-800 font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-[#D48B1C]" /> {user?.city || 'Mumbai'}, {user?.state || 'Maharashtra'}
+                  <span className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-amber-800 font-semibold shrink-0 whitespace-nowrap">
+                    <MapPin className="w-3 h-3 text-[#D48B1C]" /> {user?.city || 'Mumbai'}, {user?.state || 'Maharashtra'}
                   </span>
                 </div>
               </div>

@@ -71,3 +71,13 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   border-color: #10B981;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
