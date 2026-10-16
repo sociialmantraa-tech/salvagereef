@@ -147,7 +147,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   homeHeroBadge: 'Verified Industrial Marketplace',
   homeHeroTitle: 'Search classified and auctions',
   homeHeroSubtitle: 'Connect directly with verified corporate sellers, liquidators, and industrial buyers across India',
-  heroBannerUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80',
+  heroBannerUrl: '',
   homeSearchPlaceholder: 'Search scrap category, location, or auction lot...',
   homeFeature1Title: 'Verified Corporate Sellers',
   homeFeature1Desc: 'Strict KYC norms ensure reputable sellers and genuine buyers.',

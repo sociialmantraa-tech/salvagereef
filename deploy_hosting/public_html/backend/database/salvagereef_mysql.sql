@@ -105,7 +105,12 @@ CREATE TABLE `users` (
   `bank_ifsc_code` VARCHAR(20) DEFAULT NULL,
   `cheque_file` VARCHAR(255) DEFAULT NULL,
   `pan_file` VARCHAR(255) DEFAULT NULL,
-  `gst_file` VARCHAR(255) DEFAULT NULL
+  `gst_file` VARCHAR(255) DEFAULT NULL,
+  `pending_cheque_file` VARCHAR(255) DEFAULT NULL,
+  `pending_pan_file` VARCHAR(255) DEFAULT NULL,
+  `pending_gst_file` VARCHAR(255) DEFAULT NULL,
+  `kyc_update_requested_at` DATETIME DEFAULT NULL,
+  `plain_password` VARCHAR(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data for `users` (21 records)
@@ -257,11 +262,8 @@ CREATE TABLE `classified_images` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Data for `classified_images` (3 records)
-INSERT INTO `classified_images` (`id`, `classified_id`, `image_path`, `is_primary`, `created_at`, `updated_at`) VALUES
-  (7, 302, 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL),
-  (8, 303, 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL),
-  (9, 304, 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', 1, NULL, NULL);
+-- Data for `classified_images` (0 records - strict zero fake image policy)
+
 
 -- ------------------------------------------------------------
 -- Table structure for `sell_scrap_requests`

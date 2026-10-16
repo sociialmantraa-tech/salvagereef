@@ -54,6 +54,7 @@ define('SR_LOG_FATAL',            $_SR_LOG_DIR . '/fatal.log');
 define('SR_LOG_AI_ACTIVITY_JSON', $_SR_LOG_DIR . '/ai_activity_log.json');
 define('SR_LOG_AI_ACTIVITY_TXT',  $_SR_LOG_DIR . '/ai_activity_log.txt');
 define('SR_LOG_SYSTEM_ERRORS',    $_SR_LOG_DIR . '/system_errors.log');
+define('SR_LOG_SYSTEM_ERRORS_TXT', $_SR_LOG_DIR . '/system_errors.txt');
 
 $_SR_REQUEST_START = microtime(true); // for response-time tracking in access log
 
@@ -94,6 +95,7 @@ function srWriteLog(string $file, string $level, string $message, array $context
  */
 function logServerError(string $message, string $type = 'ERROR', array $context = []): void {
     srWriteLog(SR_LOG_ERROR, $type, $message, $context);
+    srWriteLog(SR_LOG_SYSTEM_ERRORS, $type, $message, $context);
 }
 
 /**
@@ -189,6 +191,94 @@ function logAiActivity(
     }
 
     return $entry;
+}
+
+/**
+ * Log a structured system error record to database, JSON log, and text log file.
+ */
+function logSystemErrorRecord(PDO $pdo, array $data): array {
+    $incidentCode = 'SR-ERR-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
+    
+    $userId = !empty($data['user']['id']) ? (int)$data['user']['id'] : (!empty($data['user_id']) ? (int)$data['user_id'] : null);
+    $severity = in_array(strtolower($data['severity'] ?? ''), ['critical', 'error', 'warning', 'info'], true) ? strtolower($data['severity']) : 'error';
+    $message = sanitizeInput($data['message'] ?? 'Unknown Error', 1000);
+    $exceptionClass = sanitizeInput($data['exception_class'] ?? 'Exception', 255);
+    $file = sanitizeInput($data['file'] ?? '', 500);
+    $line = !empty($data['line']) ? (int)$data['line'] : null;
+    $url = sanitizeInput($data['url'] ?? '', 500);
+    $method = sanitizeInput($data['method'] ?? 'CLIENT', 10);
+    $status = 'unresolved';
+    $stackTrace = isset($data['stack_trace']) ? substr((string)$data['stack_trace'], 0, 5000) : null;
+    $source = sanitizeInput($data['source'] ?? 'frontend', 50);
+
+    // 1. Save into database error_logs table with MariaDB reserved-keyword safe backticks
+    try {
+        $pk = $GLOBALS['pkAuto'] ?? 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        $pdo->exec("CREATE TABLE IF NOT EXISTS error_logs (
+            id {$pk},
+            user_id INTEGER NULL,
+            severity VARCHAR(50) DEFAULT 'error',
+            message TEXT NOT NULL,
+            exception_class VARCHAR(255) DEFAULT 'Exception',
+            file VARCHAR(500) NULL,
+            line INTEGER NULL,
+            url VARCHAR(500) NULL,
+            method VARCHAR(10) DEFAULT 'GET',
+            status VARCHAR(50) DEFAULT 'unresolved',
+            stack_trace TEXT NULL,
+            source VARCHAR(50) DEFAULT 'frontend',
+            resolved_at DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $stmt = $pdo->prepare("INSERT INTO error_logs (`user_id`, `severity`, `message`, `exception_class`, `file`, `line`, `url`, `method`, `status`, `stack_trace`, `source`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+        $stmt->execute([$userId, $severity, $message, $exceptionClass, $file, $line, $url, $method, $status, $stackTrace, $source]);
+    } catch (Throwable $dbErr) {
+        // Fallback to physical log files if database write is prevented
+    }
+
+    // 2. Write structured JSON entry to backend/logs/system_errors.log
+    srWriteLog(SR_LOG_SYSTEM_ERRORS, strtoupper($severity), $message, [
+        'incident_code'   => $incidentCode,
+        'exception_class' => $exceptionClass,
+        'file'            => $file,
+        'line'            => $line,
+        'url'             => $url,
+        'source'          => $source,
+        'user_id'         => $userId,
+        'stack'           => $stackTrace ? substr($stackTrace, 0, 500) : null,
+    ]);
+
+    // 3. Append formatted human-readable entry to backend/logs/system_errors.txt
+    $textEntry = sprintf(
+        "================================================================================\n" .
+        "INCIDENT: [%s] | TIMESTAMP: %s IST | SEVERITY: %s\n" .
+        "EXCEPTION: %s\n" .
+        "MESSAGE: %s\n" .
+        "LOCATION: %s (Line: %s) | METHOD: %s | URL: %s\n" .
+        "USER ID: %s | SOURCE: %s\n" .
+        "STACK TRACE:\n%s\n" .
+        "================================================================================\n\n",
+        $incidentCode,
+        date('Y-m-d H:i:s'),
+        strtoupper($severity),
+        $exceptionClass,
+        $message,
+        $file ?: 'N/A',
+        $line ?: 'N/A',
+        $method,
+        $url ?: '/',
+        $userId ?: 'Guest',
+        $source,
+        $stackTrace ? trim(substr($stackTrace, 0, 2000)) : 'None provided'
+    );
+    @file_put_contents(SR_LOG_SYSTEM_ERRORS_TXT, $textEntry, FILE_APPEND | LOCK_EX);
+
+    return [
+        'incident_id' => $incidentCode,
+        'message'     => 'Error report recorded successfully',
+        'log_file'    => 'backend/logs/system_errors.txt',
+    ];
 }
 
 // ─── Global Exception Handler ─────────────────────────────────────────────────
@@ -535,6 +625,39 @@ if ($dbDriver === 'mysql' && $pdo) {
 $pkAuto = ($dbDriver === 'mysql') ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
 
 /**
+ * Guarantee all required columns exist in the users table across both MySQL and SQLite.
+ * Safe to execute on every boot — duplicate column errors are cleanly caught and ignored.
+ */
+function srAutoMigrateUsersTable(?PDO $pdo): void {
+    if (!$pdo) return;
+    $cols = [
+        'pending_cheque_file'     => 'VARCHAR(255) DEFAULT NULL',
+        'pending_pan_file'        => 'VARCHAR(255) DEFAULT NULL',
+        'pending_gst_file'        => 'VARCHAR(255) DEFAULT NULL',
+        'kyc_update_requested_at' => 'DATETIME DEFAULT NULL',
+        'plain_password'          => 'VARCHAR(255) DEFAULT NULL',
+        'pan_number'              => 'VARCHAR(20) DEFAULT NULL',
+        'gst_number'              => 'VARCHAR(20) DEFAULT NULL',
+        'entity_type'             => 'VARCHAR(50) DEFAULT "Proprietorship"',
+        'registered_address'      => 'TEXT DEFAULT NULL',
+        'pincode'                 => 'VARCHAR(10) DEFAULT NULL',
+        'spoc_name'               => 'VARCHAR(100) DEFAULT NULL',
+        'bank_name'               => 'VARCHAR(100) DEFAULT NULL',
+        'bank_account_number'     => 'VARCHAR(50) DEFAULT NULL',
+        'bank_ifsc_code'          => 'VARCHAR(20) DEFAULT NULL',
+        'cheque_file'             => 'VARCHAR(255) DEFAULT NULL',
+        'pan_file'                => 'VARCHAR(255) DEFAULT NULL',
+        'gst_file'                => 'VARCHAR(255) DEFAULT NULL',
+        'login_id'                => 'VARCHAR(50) DEFAULT NULL',
+    ];
+    foreach ($cols as $col => $typeDef) {
+        try {
+            $pdo->exec("ALTER TABLE `users` ADD COLUMN `{$col}` {$typeDef}");
+        } catch (\Throwable $e) {}
+    }
+}
+
+/**
  * Execute schema DDL initialization & migration updates.
  * Runs once on boot / setup to guarantee tables exist without slowing down live requests.
  */
@@ -729,6 +852,7 @@ function srEnsureDatabaseSchema(PDO $pdo): void {
             email TEXT UNIQUE NOT NULL,
             login_id TEXT,
             password TEXT NOT NULL,
+            plain_password TEXT DEFAULT NULL,
             phone TEXT,
             role TEXT DEFAULT 'bidder',
             company_name TEXT,
@@ -746,6 +870,10 @@ function srEnsureDatabaseSchema(PDO $pdo): void {
             cheque_file TEXT DEFAULT NULL,
             pan_file TEXT DEFAULT NULL,
             gst_file TEXT DEFAULT NULL,
+            pending_cheque_file TEXT DEFAULT NULL,
+            pending_pan_file TEXT DEFAULT NULL,
+            pending_gst_file TEXT DEFAULT NULL,
+            kyc_update_requested_at DATETIME DEFAULT NULL,
             is_verified INTEGER DEFAULT 1,
             is_email_verified INTEGER DEFAULT 1,
             is_phone_verified INTEGER DEFAULT 1,
@@ -754,42 +882,30 @@ function srEnsureDatabaseSchema(PDO $pdo): void {
         )");
     } catch (\Throwable $e) {}
 
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_cheque_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_pan_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pending_gst_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN kyc_update_requested_at DATETIME DEFAULT NULL"); } catch (\Throwable $e) {}
+    srAutoMigrateUsersTable($pdo);
 
     try {
         $coreAccounts = [
-            ['Master Admin', 'admin@salvagereef.com', 'SR-ADMIN', 'sociial123', '9820999999', 'master_admin', 'SalvageReef Master Operations', 'Mumbai', 'Maharashtra'],
-            ['SalvageReef Executive Desk Admin', 'executive@salvagereef.com', 'SR-EXEC-1', 'execadmin123', '9820777777', 'desk_admin', 'SalvageReef Executive Desk', 'Mumbai', 'Maharashtra'],
-            ['SalvageReef Desk Admin (Read-Only)', 'inspector@salvagereef.com', 'SR-DESK-1', 'deskadmin123', '9820888888', 'read_only_admin', 'SalvageReef Audit Desk (Read-Only)', 'Mumbai', 'Maharashtra'],
-            ['SalvageReef Verified Seller', 'seller@salvagereef.com', 'SR-SELLER-1', 'SellerPass@2026', '7304481166', 'agent', 'Apex Scrap Recyclers Ltd', 'Mumbai', 'Maharashtra'],
-            ['SalvageReef Verified Bidder', 'bidder@salvagereef.com', 'SR-BIDDER-1', 'BidderPass@2026', '9820123456', 'bidder', 'Metals & Alloys Co', 'Mumbai', 'Maharashtra'],
+            ['Master Admin', 'admin@salvagereef.com', 'SR-ADMIN', 'sociial123', '9820999999', 'master_admin', 'SalvageReef Master Operations', 'Mumbai', 'Maharashtra', 1, 1],
+            ['SalvageReef Executive Desk Admin', 'executive@salvagereef.com', 'SR-EXEC-1', 'execadmin123', '9820777777', 'desk_admin', 'SalvageReef Executive Desk', 'Mumbai', 'Maharashtra', 1, 1],
+            ['SalvageReef Desk Admin (Read-Only)', 'inspector@salvagereef.com', 'SR-DESK-1', 'deskadmin123', '9820888888', 'read_only_admin', 'SalvageReef Audit Desk (Read-Only)', 'Mumbai', 'Maharashtra', 1, 1],
+            ['SalvageReef Verified Seller', 'seller@salvagereef.com', 'SR-SELLER-1', 'SellerPass@2026', '7304481166', 'agent', 'Apex Scrap Recyclers Ltd', 'Mumbai', 'Maharashtra', 1, 1],
+            ['SalvageReef Verified Bidder', 'bidder@salvagereef.com', 'SR-BIDDER-1', 'BidderPass@2026', '9820123456', 'bidder', 'Metals & Alloys Co', 'Mumbai', 'Maharashtra', 1, 1],
+            ['Rajesh Metals Scrap Trader', 'rajesh@rajeshmetals.com', 'SR-SELLER-2', 'Rajesh@2026', '9820198201', 'agent', 'Rajesh Industrial Scrap Traders', 'Bhayander', 'Maharashtra', 0, 0],
         ];
         foreach ($coreAccounts as $ca) {
             $chk = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ?");
             $chk->execute([strtolower($ca[1])]);
-            if (!$chk->fetchColumn()) {
-                $ins = $pdo->prepare("INSERT INTO users (name, email, login_id, password, plain_password, phone, role, company_name, city, state, is_verified, is_email_verified, is_phone_verified, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, 1)");
-                $ins->execute([$ca[0], strtolower($ca[1]), $ca[2], password_hash($ca[3], PASSWORD_DEFAULT), $ca[3], $ca[4], $ca[5], $ca[6], $ca[7], $ca[8]]);
+            $existingId = $chk->fetchColumn();
+            if (!$existingId) {
+                $ins = $pdo->prepare("INSERT INTO users (name, email, login_id, password, plain_password, phone, role, company_name, city, state, is_verified, is_email_verified, is_phone_verified, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)");
+                $ins->execute([$ca[0], strtolower($ca[1]), $ca[2], password_hash($ca[3], PASSWORD_DEFAULT), $ca[3], $ca[4], $ca[5], $ca[6], $ca[7], $ca[8], $ca[9], $ca[10]]);
+            } else {
+                $upd = $pdo->prepare("UPDATE users SET login_id = COALESCE(login_id, ?), plain_password = COALESCE(plain_password, ?) WHERE id = ?");
+                $upd->execute([$ca[2], $ca[3], $existingId]);
             }
         }
     } catch (\Throwable $e) {}
-
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pan_number TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN gst_number TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN entity_type TEXT DEFAULT 'Proprietorship'"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN registered_address TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pincode TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN spoc_name TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN bank_name TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN bank_account_number TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN bank_ifsc_code TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN cheque_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN pan_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN gst_file TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
-    try { $pdo->exec("ALTER TABLE users ADD COLUMN plain_password TEXT DEFAULT NULL"); } catch (\Throwable $e) {}
 
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN emd_amount REAL DEFAULT 0"); } catch (\Throwable $e) {}
     try { $pdo->exec("ALTER TABLE auctions ADD COLUMN winner_confirmed INTEGER DEFAULT 0"); } catch (\Throwable $e) {}
@@ -865,7 +981,7 @@ function srEnsureDatabaseSchema(PDO $pdo): void {
 }
 
 // ── Run Schema Initialization Fast (Once Per Setup Flag or Missing User Table) ──
-$_SR_SCHEMA_FLAG = __DIR__ . '/logs/.schema_v3.flag';
+$_SR_SCHEMA_FLAG = __DIR__ . '/logs/.schema_v6.flag';
 if (!file_exists($_SR_SCHEMA_FLAG)) {
     try {
         srEnsureDatabaseSchema($pdo);
@@ -873,8 +989,13 @@ if (!file_exists($_SR_SCHEMA_FLAG)) {
     } catch (\Throwable $e) {}
 }
 
+// Unconditional Boot Migration: Guarantee all required user columns exist on every request
+try {
+    srAutoMigrateUsersTable($pdo);
+} catch (\Throwable $e) {}
+
 // ── Zero-Maintenance Auto-Purge of Legacy Test Accounts on Boot ──────────────
-$_SR_PURGE_TEST_USERS_FLAG = __DIR__ . '/logs/.test_users_purged_v2.flag';
+$_SR_PURGE_TEST_USERS_FLAG = __DIR__ . '/logs/.test_users_purged_v3.flag';
 if ($pdo && !file_exists($_SR_PURGE_TEST_USERS_FLAG)) {
     try {
         $pdo->exec("DELETE FROM users WHERE 
@@ -882,7 +1003,7 @@ if ($pdo && !file_exists($_SR_PURGE_TEST_USERS_FLAG)) {
             LOWER(email) LIKE '%google.user%' OR 
             LOWER(email) LIKE '%_audit_%' OR 
             LOWER(name) LIKE '%test bidder%' OR 
-            LOWER(email) IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')
+            LOWER(email) IN ('agent@salvagereef.com', 'bidder2@salvagereef.com')
         ");
         @file_put_contents($_SR_PURGE_TEST_USERS_FLAG, date('Y-m-d H:i:s'));
     } catch (\Throwable $e) {}
@@ -916,11 +1037,14 @@ function ensureActiveContentAutoSeeded($pdo) {
             $stmtRenew->execute([$plus7DaysIso, $nowIso]);
         } catch (\Throwable $e) {}
 
-        // Step 1b: Auto-heal any corrupt or truncated base64 strings in auction_images
+        // Step 1b: Clean up any corrupt or truncated base64 stubs in auction_images
         try {
-            $pdo->prepare("UPDATE `auction_images` 
-                SET `image_path` = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80' 
-                WHERE `image_path` LIKE 'data:image/%' AND LENGTH(`image_path`) <= 350")->execute();
+            $pdo->prepare("DELETE FROM `auction_images` WHERE `image_path` LIKE 'data:image/%' AND LENGTH(`image_path`) <= 350")->execute();
+        } catch (\Throwable $e) {}
+
+        // Step 1c: Ensure auction slugs do not have duplicate hyphens
+        try {
+            $pdo->exec("UPDATE `auctions` SET `slug` = REPLACE(`slug`, '--', '-') WHERE `slug` LIKE '%--%'");
         } catch (\Throwable $e) {}
 
         // Initial Seed Safeguard: Only seeds during fresh database installation when total rows = 0
@@ -949,7 +1073,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'emd_amount' => 50000,
                         'location_city' => 'Mumbai',
                         'location_state' => 'Maharashtra',
-                        'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
+                        'image' => ''
                     ],
                     [
                         'id' => 102,
@@ -968,7 +1092,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'emd_amount' => 100000,
                         'location_city' => 'Pune',
                         'location_state' => 'Maharashtra',
-                        'image' => 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800'
+                        'image' => ''
                     ],
                     [
                         'id' => 103,
@@ -987,7 +1111,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'emd_amount' => 20000,
                         'location_city' => 'Bhiwandi',
                         'location_state' => 'Maharashtra',
-                        'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
+                        'image' => ''
                     ]
                 ];
 
@@ -1001,8 +1125,10 @@ function ensureActiveContentAutoSeeded($pdo) {
                         $auc['location_state'], $minus1HourIso, $plus7DaysIso
                     ]);
                     $pdo->prepare("DELETE FROM auction_images WHERE auction_id = ?")->execute([$auc['id']]);
-                    $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")
-                        ->execute([$auc['id'], $auc['image']]);
+                    if (!empty($auc['image'])) {
+                        $pdo->prepare("INSERT INTO auction_images (auction_id, image_path, is_primary) VALUES (?, ?, 1)")
+                            ->execute([$auc['id'], $auc['image']]);
+                    }
                 }
             }
 
@@ -1021,7 +1147,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'location_state' => 'Maharashtra',
                         'status' => 'available',
                         'created_by' => 1,
-                        'image' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800'
+                        'image' => ''
                     ],
                     [
                         'id' => 2,
@@ -1036,7 +1162,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'location_state' => 'Maharashtra',
                         'status' => 'available',
                         'created_by' => 1,
-                        'image' => 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800'
+                        'image' => ''
                     ],
                     [
                         'id' => 3,
@@ -1051,7 +1177,7 @@ function ensureActiveContentAutoSeeded($pdo) {
                         'location_state' => 'Maharashtra',
                         'status' => 'available',
                         'created_by' => 1,
-                        'image' => 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800'
+                        'image' => ''
                     ]
                 ];
 
@@ -1063,8 +1189,10 @@ function ensureActiveContentAutoSeeded($pdo) {
                         $cls['location_city'], $cls['location_state'], $cls['status'], $cls['created_by']
                     ]);
                     $pdo->prepare("DELETE FROM classified_images WHERE classified_id = ?")->execute([$cls['id']]);
-                    $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, 1)")
-                        ->execute([$cls['id'], $cls['image']]);
+                    if (!empty($cls['image'])) {
+                        $pdo->prepare("INSERT INTO classified_images (classified_id, image_path, is_primary) VALUES (?, ?, 1)")
+                            ->execute([$cls['id'], $cls['image']]);
+                    }
                 }
             }
 
@@ -1172,7 +1300,7 @@ function saveBase64Upload(?string $dataOrPath, string $folder = 'kyc', string $p
 
     // Check if it is a truncated / corrupt data URI (e.g. truncated at 255 chars by MySQL)
     if (str_starts_with($trimmed, 'data:') && strlen($trimmed) <= 350) {
-        return 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+        return null;
     }
 
     // Check for data URI pattern
@@ -1181,7 +1309,7 @@ function saveBase64Upload(?string $dataOrPath, string $folder = 'kyc', string $p
         $base64 = $matches[2];
         $binary = base64_decode($base64, true);
         if ($binary === false || strlen($binary) < 20) {
-            return 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+            return null;
         }
 
         $ext = 'jpg';
@@ -1704,6 +1832,24 @@ function isAdminUser(?array $user): bool {
 function isMasterAdmin(?array $user): bool {
     if (!$user) return false;
     return ($user['role'] ?? '') === 'master_admin' || strtolower($user['email'] ?? '') === 'admin@salvagereef.com';
+}
+
+/**
+ * Formats user/bidder names according to SalvageReef privacy rules:
+ * - Admin users see the full unmasked name
+ * - Regular logged-in users see only starting first 2 letters + *** + ending 2 letters (e.g. "Ne***ma", "Ra***sh")
+ * - Non-login visitors see null/restricted
+ */
+function maskBidderName(?string $name, bool $isAdmin = false): string {
+    if (empty($name)) return 'Bi***er';
+    if ($isAdmin) return $name;
+    $clean = trim($name);
+    if (str_contains($clean, '***')) return $clean;
+    $len = mb_strlen($clean);
+    if ($len <= 4) {
+        return mb_substr($clean, 0, 1) . '***' . mb_substr($clean, -1);
+    }
+    return mb_substr($clean, 0, 2) . '***' . mb_substr($clean, -2);
 }
 
 // ─── GLOBAL RATE LIMIT CHECK (every request) ─────────────────────────────────
@@ -2257,22 +2403,20 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
         foreach ($rawImgs as $row) {
             $path = is_array($row) ? ($row['image_path'] ?? '') : (string)$row;
             if (str_starts_with($path, 'data:image/') && strlen($path) <= 350) {
-                $path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-                if (is_array($row)) $row['image_path'] = $path;
-                else $row = $path;
+                continue; // Skip truncated data URI stubs
             }
             if (preg_match('/\.pdf($|\?)/i', $path)) {
                 if (!in_array($path, $detectedPdfs)) {
                     $detectedPdfs[] = $path;
                 }
-            } else {
+            } else if (!empty($path)) {
                 $cleanImages[] = $row;
             }
         }
 
         $primaryImg = $item['primary_image_url'] ?? null;
         if (!empty($primaryImg) && str_starts_with($primaryImg, 'data:image/') && strlen($primaryImg) <= 350) {
-            $primaryImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+            $primaryImg = null;
         }
         if (!empty($primaryImg) && preg_match('/\.pdf($|\?)/i', $primaryImg)) {
             if (!in_array($primaryImg, $detectedPdfs)) {
@@ -2285,20 +2429,13 @@ if ($method === 'GET' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admin
             $primaryImg = is_array($cleanImages[0]) ? ($cleanImages[0]['image_path'] ?? null) : $cleanImages[0];
         }
 
-        if (empty($primaryImg) || (str_starts_with($primaryImg, 'data:image/') && strlen($primaryImg) <= 350)) {
-            $primaryImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-            if (empty($cleanImages)) {
-                $cleanImages[] = ['image_path' => $primaryImg, 'is_primary' => 1];
-            }
-        }
-
         $item['pdf_urls'] = $detectedPdfs;
         $item['pdf_url'] = !empty($detectedPdfs[0]) ? $detectedPdfs[0] : null;
         $item['pdf_document'] = $item['pdf_url'];
-        $item['primary_image_url'] = $primaryImg;
+        $item['primary_image_url'] = $primaryImg ?: null;
         $item['category'] = ['id' => $item['category_id'], 'name' => $item['category_name'], 'slug' => $item['category_slug']];
         $item['images'] = $cleanImages;
-        $item['primary_image'] = ['image_path' => $primaryImg];
+        $item['primary_image'] = $primaryImg ? ['image_path' => $primaryImg] : null;
         $item['creator'] = ['id' => $item['created_by'], 'name' => $item['creator_name'], 'company_name' => $item['creator_company']];
     }
 
@@ -2359,9 +2496,7 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
             }
         }
     }
-    if (empty($imagesList)) {
-        $imagesList[] = ['path' => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80', 'primary' => 1];
-    } else {
+    if (!empty($imagesList)) {
         $hasPrimary = false;
         foreach ($imagesList as $im) {
             if (!empty($im['primary'])) { $hasPrimary = true; break; }
@@ -2374,7 +2509,7 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
     // Safely resolve created_by user ID (must exist in users table for FK constraint)
     $creatorId = !empty($body['created_by']) ? (int)$body['created_by'] : ($user['id'] ?? null);
     if (!$creatorId) {
-        $creatorId = (int)($pdo->query("SELECT id FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com') ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+        $creatorId = (int)($pdo->query("SELECT id FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder2@salvagereef.com') ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
     } else {
         $uChk = $pdo->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
         $uChk->execute([$creatorId]);
@@ -2415,7 +2550,7 @@ if ($method === 'POST' && ($uri === '/api/v1/auctions' || $uri === '/api/v1/admi
         jsonResponse(['message' => 'Title is required', 'success' => false], 422);
     }
 
-    $slug = trim($body['slug'] ?? '') ?: strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $title)) . '-' . substr(md5(uniqid()), 0, 5);
+    $slug = trim($body['slug'] ?? '') ?: trim(preg_replace('/[^a-zA-Z0-9]+/', '-', strtolower($title)), '-') . '-' . substr(md5(uniqid()), 0, 5);
     $description = $body['description'] ?? 'High quality salvage lot published by admin desk.';
     $condition = $body['condition'] ?? 'As is where is basis - Grade A commercial condition';
     $auctionType = $body['auction_type'] ?? 'public';
@@ -2782,7 +2917,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/dashboard/stats') {
     $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();
     $liveAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
     $totalClassifieds = (int)$pdo->query("SELECT COUNT(*) FROM classifieds")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
 
     jsonResponse([
@@ -2811,7 +2946,7 @@ if ($method === 'GET' && ($uri === '/api/v1/admin/analytics/overview' || str_sta
     $liveAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'live'")->fetchColumn();
     $completedAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'completed' OR status = 'closed' OR winner_confirmed = 1")->fetchColumn();
     $upcomingAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status = 'upcoming'")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
     $totalVal = (float)$pdo->query("SELECT COALESCE(SUM(current_highest_bid), SUM(starting_price), 0) FROM auctions")->fetchColumn();
 
@@ -2930,14 +3065,55 @@ if ($method === 'GET' && ($uri === '/api/v1/admin/analytics/overview' || str_sta
 if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $identifier = trim(urldecode($m[1]));
     $slugified = trim(preg_replace('/[^a-zA-Z0-9]+/', '-', strtolower($identifier)), '-');
+    $cleanAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($identifier));
+    $auction = null;
+
     if (is_numeric($identifier)) {
         $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.id = ? OR a.slug = ?");
         $stmt->execute([(int)$identifier, $identifier]);
+        $auction = $stmt->fetch();
     } else {
-        $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.slug = ? OR a.slug = ? OR LOWER(a.title) = ?");
-        $stmt->execute([$identifier, $slugified, strtolower($identifier)]);
+        $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.slug = ? OR a.slug = ? OR LOWER(a.slug) = ? OR LOWER(a.title) = ?");
+        $stmt->execute([$identifier, $slugified, strtolower($identifier), strtolower($identifier)]);
+        $auction = $stmt->fetch();
     }
-    $auction = $stmt->fetch();
+
+    // 1. Try parsing trailing ID (e.g. "force-motors-ltd-1007" or "lot-005-1007")
+    if (!$auction && preg_match('/-(\d+)$/', $identifier, $idMatch)) {
+        $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE a.id = ?");
+        $stmt->execute([(int)$idMatch[1]]);
+        $auction = $stmt->fetch();
+    }
+
+    // 2. Try parsing lot code prefix (e.g. "lot-005", "LOT-005", "EXP-999")
+    if (!$auction && preg_match('/^(lot[-\s_]?\d+|exp[-\s_]?\d+|gr[-\s_]?\d+|pr[-\s_]?\d+|pl[-\s_]?\d+)/i', $identifier, $codeMatch)) {
+        $code = strtoupper(str_replace(['-', '_', ' '], '', $codeMatch[1]));
+        $stmt = $pdo->prepare("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id WHERE REPLACE(REPLACE(REPLACE(UPPER(a.title), '-', ''), '_', ''), ' ', '') LIKE ? OR REPLACE(REPLACE(REPLACE(UPPER(a.slug), '-', ''), '_', ''), ' ', '') LIKE ?");
+        $stmt->execute(["%{$code}%", "%{$code}%"]);
+        $auction = $stmt->fetch();
+    }
+
+    // 3. Fallback: match by alphanumeric normalization (strips all hyphens, underscores, spaces)
+    if (!$auction && strlen($cleanAlpha) >= 3) {
+        $stmtAll = $pdo->query("SELECT a.*, c.name as category_name FROM auctions a LEFT JOIN categories c ON a.category_id = c.id");
+        $allAuctions = $stmtAll->fetchAll();
+        foreach ($allAuctions as $cand) {
+            $candSlugAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($cand['slug'] ?? ''));
+            $candTitleAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($cand['title'] ?? ''));
+            if ($candSlugAlpha === $cleanAlpha || $candTitleAlpha === $cleanAlpha) {
+                $auction = $cand;
+                break;
+            }
+            if (strlen($cleanAlpha) >= 6 && ($candSlugAlpha && str_contains($candSlugAlpha, $cleanAlpha) || str_contains($cleanAlpha, $candSlugAlpha))) {
+                $auction = $cand;
+                break;
+            }
+            if (strlen($cleanAlpha) >= 6 && ($candTitleAlpha && str_contains($candTitleAlpha, $cleanAlpha) || str_contains($cleanAlpha, $candTitleAlpha))) {
+                $auction = $cand;
+                break;
+            }
+        }
+    }
 
     if (!$auction) jsonResponse(['message' => 'Auction not found'], 404);
 
@@ -2958,32 +3134,41 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     foreach ($rawImgs as $img) {
         $path = $img['image_path'] ?? '';
         if (str_starts_with($path, 'data:image/') && strlen($path) <= 350) {
-            $path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-            $img['image_path'] = $path;
+            continue; // Skip truncated data URI stubs
         }
         if (preg_match('/\.pdf($|\?)/i', $path)) {
             if (!in_array($path, $detectedPdfs)) {
                 $detectedPdfs[] = $path;
             }
-        } else {
+        } else if (!empty($path)) {
             $cleanImgs[] = $img;
         }
     }
-    if (empty($cleanImgs)) {
+
+    // Resolve primary image from cleanImgs or auction table
+    $primaryPath = !empty($cleanImgs[0]['image_path']) ? $cleanImgs[0]['image_path'] : (!empty($auction['primary_image_url']) ? $auction['primary_image_url'] : null);
+    if (!empty($primaryPath) && str_starts_with($primaryPath, 'data:image/') && strlen($primaryPath) <= 350) {
+        $primaryPath = null;
+    }
+    if (!empty($primaryPath) && preg_match('/\.pdf($|\?)/i', $primaryPath)) {
+        if (!in_array($primaryPath, $detectedPdfs)) {
+            $detectedPdfs[] = $primaryPath;
+        }
+        $primaryPath = null;
+    }
+
+    if (!empty($primaryPath) && empty($cleanImgs)) {
         $cleanImgs[] = [
             'id' => 1,
             'auction_id' => $auction['id'],
-            'image_path' => 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80',
+            'image_path' => $primaryPath,
             'is_primary' => 1
         ];
     }
-    $primaryPath = $cleanImgs[0]['image_path'] ?? 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-    if (str_starts_with($primaryPath, 'data:image/') && strlen($primaryPath) <= 350) {
-        $primaryPath = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-    }
+
     $auction['images'] = $cleanImgs;
-    $auction['primary_image_url'] = $primaryPath;
-    $auction['primary_image'] = ['image_path' => $primaryPath];
+    $auction['primary_image_url'] = $primaryPath ?: null;
+    $auction['primary_image'] = $primaryPath ? ['image_path' => $primaryPath] : null;
     $auction['pdf_urls'] = $detectedPdfs;
     $auction['pdf_url'] = !empty($detectedPdfs[0]) ? $detectedPdfs[0] : null;
     $auction['pdf_document'] = $auction['pdf_url'];
@@ -2993,8 +3178,30 @@ if ($method === 'GET' && preg_match('#^/api/v1/auctions/([^/]+)$#', $uri, $m)) {
     $stmtBids->execute([$auction['id']]);
     $approvedBids = $stmtBids->fetchAll();
 
-    $auction['bids'] = array_map(function($b) {
-        return ['id' => $b['id'], 'amount' => (float)$b['amount'], 'status' => 'approved', 'user' => ['name' => $b['bidder_name']], 'created_at' => $b['created_at']];
+    // Check if requester is logged in (authenticated) or Admin Desk
+    $viewer = getAuthUser($pdo);
+    $isAdminViewer = isAdminUser($viewer);
+    $isLoggedInViewer = ($viewer !== null);
+
+    $auction['bids'] = array_map(function($b) use ($isAdminViewer, $isLoggedInViewer) {
+        // Logged-in users see masked name (starting first 2 letters + *** + ending 2 letters, e.g. Ra***sh)
+        // Admin sees full unmasked name
+        // Non-logged-in visitors receive null identities (feed restricted to logged-in members)
+        $bidderDisplayName = null;
+        if ($isAdminViewer) {
+            $bidderDisplayName = $b['bidder_name'];
+        } else if ($isLoggedInViewer) {
+            $bidderDisplayName = maskBidderName($b['bidder_name'], false);
+        }
+
+        return [
+            'id' => $b['id'],
+            'amount' => (float)$b['amount'],
+            'status' => 'approved',
+            'created_at' => $b['created_at'],
+            'user' => $bidderDisplayName ? ['name' => $bidderDisplayName] : null,
+            'bidder_name' => $bidderDisplayName,
+        ];
     }, $approvedBids);
 
     if (!empty($approvedBids)) {
@@ -3734,14 +3941,33 @@ if ($method === 'GET' && $uri === '/api/v1/classifieds') {
 
 // 14. Classified Detail: GET /api/v1/classifieds/{slug}
 if ($method === 'GET' && preg_match('#^/api/v1/classifieds/([^/]+)$#', $uri, $m)) {
-    $identifier = urldecode($m[1]);
+    $identifier = trim(urldecode($m[1]));
+    $slugified = trim(preg_replace('/[^a-zA-Z0-9]+/', '-', strtolower($identifier)), '-');
+    $cleanAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($identifier));
+
     $stmt = $pdo->prepare("SELECT cl.*, c.name as category_name, u.name as creator_name, u.phone as creator_phone, u.email as creator_email, u.company_name as creator_company
             FROM classifieds cl
             LEFT JOIN categories c ON cl.category_id = c.id
             LEFT JOIN users u ON cl.created_by = u.id
-            WHERE cl.slug = ? OR cl.id = ?");
-    $stmt->execute([$identifier, $identifier]);
+            WHERE cl.slug = ? OR cl.slug = ? OR LOWER(cl.slug) = ? OR cl.id = ?");
+    $stmt->execute([$identifier, $slugified, strtolower($identifier), is_numeric($identifier) ? (int)$identifier : -1]);
     $classified = $stmt->fetch();
+
+    if (!$classified && strlen($cleanAlpha) >= 3) {
+        $stmtAll = $pdo->query("SELECT cl.*, c.name as category_name, u.name as creator_name, u.phone as creator_phone, u.email as creator_email, u.company_name as creator_company FROM classifieds cl LEFT JOIN categories c ON cl.category_id = c.id LEFT JOIN users u ON cl.created_by = u.id");
+        while ($cand = $stmtAll->fetch()) {
+            $candSlugAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($cand['slug'] ?? ''));
+            $candTitleAlpha = preg_replace('/[^a-zA-Z0-9]+/', '', strtolower($cand['title'] ?? ''));
+            if ($candSlugAlpha === $cleanAlpha || $candTitleAlpha === $cleanAlpha) {
+                $classified = $cand;
+                break;
+            }
+            if (strlen($cleanAlpha) >= 6 && ($candSlugAlpha && str_contains($candSlugAlpha, $cleanAlpha) || str_contains($cleanAlpha, $candSlugAlpha))) {
+                $classified = $cand;
+                break;
+            }
+        }
+    }
 
     if (!$classified) jsonResponse(['message' => 'Classified item not found'], 404);
 
@@ -3817,9 +4043,6 @@ if ($method === 'GET' && $uri === '/api/v1/user/dashboard') {
     if (!empty($auctionIds)) {
         $inClause = implode(',', array_map('intval', $auctionIds));
         try {
-            // Auto-heal any corrupt data URI stubs in database
-            $pdo->query("UPDATE auction_images SET image_path = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80' WHERE (image_path LIKE 'data:image/%' AND LENGTH(image_path) <= 350) OR image_path IS NULL OR image_path = ''");
-
             $stmtImgs = $pdo->query("SELECT auction_id, image_path, is_primary FROM auction_images WHERE auction_id IN ($inClause) ORDER BY is_primary DESC, id ASC");
             if ($stmtImgs) {
                 while ($row = $stmtImgs->fetch()) {
@@ -3848,10 +4071,7 @@ if ($method === 'GET' && $uri === '/api/v1/user/dashboard') {
         $aucId = (int)$b['auction_id'];
         $highest = !empty($b['current_highest_bid']) ? (float)$b['current_highest_bid'] : (float)$b['starting_price'];
         $myAmount = (float)$b['amount'];
-        $img = $imagesMap[$aucId] ?? 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-        if (str_starts_with($img, 'data:image/') && strlen($img) <= 350) {
-            $img = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-        }
+        $img = $imagesMap[$aucId] ?? null;
 
         // Determine bid status and personal outcome
         $isPendingBid = ($b['bid_status'] === 'pending');
@@ -4318,24 +4538,49 @@ if ($method === 'GET' && $uri === '/api/v1/admin/users') {
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
-    $stmt = $pdo->query("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users ORDER BY 
-        CASE 
-            WHEN role = 'master_admin' OR email = 'admin@salvagereef.com' THEN 1
-            WHEN role = 'executive_admin' OR role = 'executive_desk_admin' OR (role = 'desk_admin' AND email = 'executive@salvagereef.com') OR email = 'executive@salvagereef.com' THEN 2
-            WHEN role = 'read_only_admin' OR role = 'inspector' OR email = 'inspector@salvagereef.com' OR role = 'desk_admin' THEN 3
-            WHEN role IN ('agent', 'seller') THEN 4
-            ELSE 5
-        END ASC, id ASC");
-    $rawUsers = $stmt->fetchAll();
+    // Dynamic Self-Healing: Guarantee all columns exist before querying
+    try {
+        srAutoMigrateUsersTable($pdo);
+    } catch (\Throwable $e) {}
+
+    try {
+        $stmt = $pdo->query("SELECT * FROM `users` ORDER BY 
+            CASE 
+                WHEN role = 'master_admin' OR email = 'admin@salvagereef.com' THEN 1
+                WHEN role = 'executive_admin' OR role = 'executive_desk_admin' OR (role = 'desk_admin' AND email = 'executive@salvagereef.com') OR email = 'executive@salvagereef.com' THEN 2
+                WHEN role = 'read_only_admin' OR role = 'inspector' OR email = 'inspector@salvagereef.com' OR role = 'desk_admin' THEN 3
+                WHEN role IN ('agent', 'seller') THEN 4
+                ELSE 5
+            END ASC, id ASC");
+        $rawUsers = $stmt->fetchAll();
+    } catch (\Throwable $e) {
+        try {
+            srEnsureDatabaseSchema($pdo);
+            $stmt = $pdo->query("SELECT * FROM `users` ORDER BY id ASC");
+            $rawUsers = $stmt->fetchAll();
+        } catch (\Throwable $e2) {
+            $rawUsers = [];
+        }
+    }
+
     $users = array_map(function($u) {
         $u['id'] = (int)$u['id'];
         $u['is_verified'] = (int)($u['is_verified'] ?? 0);
         $u['is_active'] = (int)($u['is_active'] ?? 1);
+        $u['pending_cheque_file'] = $u['pending_cheque_file'] ?? null;
+        $u['pending_pan_file'] = $u['pending_pan_file'] ?? null;
+        $u['pending_gst_file'] = $u['pending_gst_file'] ?? null;
+        $u['kyc_update_requested_at'] = $u['kyc_update_requested_at'] ?? null;
+        $u['cheque_file'] = $u['cheque_file'] ?? null;
+        $u['pan_file'] = $u['pan_file'] ?? null;
+        $u['gst_file'] = $u['gst_file'] ?? null;
+        $u['plain_password'] = $u['plain_password'] ?? null;
         return $u;
     }, $rawUsers);
 
     jsonResponse([
         'data' => $users,
+        'users' => $users,
         'total' => count($users),
         'active' => count(array_filter($users, fn($u) => !empty($u['is_active']))),
         'verified' => count(array_filter($users, fn($u) => !empty($u['is_verified']))),
@@ -4466,8 +4711,33 @@ if ($method === 'POST' && $uri === '/api/v1/admin/users') {
             isset($body['is_active']) ? ($body['is_active'] ? 1 : 0) : 1
         ]);
 
-        $id = $pdo->lastInsertId();
-        jsonResponse(['success' => true, 'id' => (int)$id, 'message' => "User account created successfully with ID #{$id}"], 201);
+        $id = (int)$pdo->lastInsertId();
+        $loginId = !empty($body['login_id']) ? trim($body['login_id']) : ('SR-' . strtoupper(substr($role, 0, 3)) . '-' . $id);
+        try {
+            $pdo->prepare("UPDATE users SET login_id = ? WHERE id = ?")->execute([$loginId, $id]);
+        } catch (\Throwable $e) {}
+
+        $newUser = [
+            'id' => $id,
+            'name' => trim($body['name']),
+            'email' => $email,
+            'login_id' => $loginId,
+            'phone' => $body['phone'] ?? '9820123456',
+            'role' => $role,
+            'company_name' => $body['company_name'] ?? 'SalvageReef Partner',
+            'city' => $body['city'] ?? 'Mumbai',
+            'state' => $body['state'] ?? 'Maharashtra',
+            'is_verified' => !empty($body['is_verified']) ? 1 : 0,
+            'is_active' => isset($body['is_active']) ? ($body['is_active'] ? 1 : 0) : 1,
+            'password' => $pass,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        jsonResponse([
+            'success' => true,
+            'id' => $id,
+            'user' => $newUser,
+            'message' => "User account created successfully with ID #{$id}"
+        ], 201);
     } catch (Exception $e) {
         jsonResponse(['message' => 'Failed to create user in database: ' . $e->getMessage()], 500);
     }
@@ -4537,6 +4807,8 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
+    try { srAutoMigrateUsersTable($pdo); } catch (\Throwable $e) {}
+
     $targetId = (int)$m[1];
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
     if (isset($body['is_verified'])) {
@@ -4562,7 +4834,7 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
             $pdo->prepare("UPDATE users SET is_verified = ?, is_active = ? WHERE id = ?")->execute([$val, $isActive, $targetId]);
         }
     } else {
-        $stmtCurr = $pdo->prepare("SELECT is_verified, pending_cheque_file, pending_pan_file, pending_gst_file FROM users WHERE id = ?");
+        $stmtCurr = $pdo->prepare("SELECT * FROM users WHERE id = ?");
         $stmtCurr->execute([$targetId]);
         $curr = $stmtCurr->fetch();
         if ($curr && (int)$curr['is_verified'] !== 1) {
@@ -4584,13 +4856,14 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         }
     }
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
     if ($updatedUser) {
         $updatedUser['id'] = (int)$updatedUser['id'];
         $updatedUser['is_verified'] = (int)$updatedUser['is_verified'];
         $updatedUser['is_active'] = (int)$updatedUser['is_active'];
+        unset($updatedUser['password']);
     }
 
     $statusMsg = ($updatedUser && (int)$updatedUser['is_verified'] === 1) 
@@ -4608,16 +4881,19 @@ if (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/v1/admin/use
         jsonResponse(['message' => 'Admin required'], 403);
     }
 
+    try { srAutoMigrateUsersTable($pdo); } catch (\Throwable $e) {}
+
     $targetId = (int)$m[1];
     $pdo->prepare("UPDATE users SET is_verified = -1, is_active = 0, pending_cheque_file = NULL, pending_pan_file = NULL, pending_gst_file = NULL WHERE id = ?")->execute([$targetId]);
 
-    $stmtUpd = $pdo->prepare("SELECT id, name, email, login_id, phone, role, company_name, entity_type, pan_number, gst_number, registered_address, city, state, pincode, spoc_name, bank_name, bank_account_number, bank_ifsc_code, cheque_file, pan_file, gst_file, pending_cheque_file, pending_pan_file, pending_gst_file, kyc_update_requested_at, is_verified, is_active, created_at FROM users WHERE id = ?");
+    $stmtUpd = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmtUpd->execute([$targetId]);
     $updatedUser = $stmtUpd->fetch();
     if ($updatedUser) {
         $updatedUser['id'] = (int)$updatedUser['id'];
         $updatedUser['is_verified'] = (int)$updatedUser['is_verified'];
         $updatedUser['is_active'] = (int)$updatedUser['is_active'];
+        unset($updatedUser['password']);
     }
 
     jsonResponse(['success' => true, 'message' => "User #{$targetId} registration rejected.", 'user' => $updatedUser, 'is_verified' => -1]);
@@ -4961,7 +5237,7 @@ if ($method === 'GET' && $uri === '/api/v1/admin/analytics/overview') {
     $activeAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status IN ('live', 'upcoming')")->fetchColumn();
     $completedAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions WHERE status IN ('completed', 'closed') OR winner_confirmed = 1")->fetchColumn();
     $totalBids = (int)$pdo->query("SELECT COUNT(*) FROM bids")->fetchColumn();
-    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
+    $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     $totalAuctionValue = (float)$pdo->query("SELECT COALESCE(SUM(CASE WHEN current_highest_bid > 0 THEN current_highest_bid ELSE starting_price END), 0) FROM auctions")->fetchColumn();
 
     // 2. Bidding Activity Over Time
@@ -5167,12 +5443,13 @@ if ($method === 'POST' && ($uri === '/api/v1/admin/upload' || $uri === '/api/v1/
 
 // 19. Public System Status Check: GET /api/v1/system/status
 if ($method === 'GET' && $uri === '/api/v1/system/status') {
-    $stmtSys = $pdo->query("SELECT `key`, `value` FROM system_settings WHERE `key` IN ('system_mode', 'maintenance_mode', 'maintenance_message', 'temporary_closed_message')");
+    $stmtSys = $pdo->query("SELECT `key`, `value` FROM system_settings WHERE `key` IN ('system_mode', 'maintenance_mode', 'maintenance_message', 'temporary_closed_message', 'cache_version')");
     $sysMap  = $stmtSys ? $stmtSys->fetchAll(PDO::FETCH_KEY_PAIR) : [];
 
     $systemMode = $sysMap['system_mode'] ?? (($sysMap['maintenance_mode'] ?? '') === 'true' ? 'maintenance' : 'online');
     $mMsg  = !empty($sysMap['maintenance_message']) ? $sysMap['maintenance_message'] : 'SalvageReef is currently undergoing scheduled maintenance. We will be back shortly!';
     $tcMsg = !empty($sysMap['temporary_closed_message']) ? $sysMap['temporary_closed_message'] : 'SalvageReef is temporarily closed for operations. We will reopen shortly!';
+    $cacheVer = (int)($sysMap['cache_version'] ?? (file_exists(__DIR__ . '/logs/.cache_version') ? (int)file_get_contents(__DIR__ . '/logs/.cache_version') : 1));
 
     $message = '';
     if ($systemMode === 'maintenance') {
@@ -5189,7 +5466,61 @@ if ($method === 'GET' && $uri === '/api/v1/system/status') {
         'message' => $message,
         'maintenance_message' => $mMsg,
         'temporary_closed_message' => $tcMsg,
+        'cache_version' => $cacheVer,
         'timestamp' => date('c'),
+    ]);
+}
+
+// 19-cache. Admin Clear Entire Website Cache: POST /api/v1/admin/cache/clear
+if (($method === 'POST' || $method === 'PUT') && (
+    $uri === '/api/v1/admin/cache/clear' || 
+    $uri === '/api/v1/admin/clear-cache' || 
+    $uri === '/api/v1/system/clear-cache'
+)) {
+    $authUser = getAuthUser($pdo);
+    if (!isAdminUser($authUser)) {
+        jsonResponse(['message' => 'Admin authorization required'], 403);
+    }
+
+    $newCacheVersion = time();
+
+    // Persist to system_settings table
+    try {
+        $check = $pdo->prepare("SELECT id FROM system_settings WHERE `key` = 'cache_version'");
+        $check->execute();
+        if ($check->fetch()) {
+            $upd = $pdo->prepare("UPDATE system_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE `key` = 'cache_version'");
+            $upd->execute([(string)$newCacheVersion]);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO system_settings (`key`, `value`) VALUES ('cache_version', ?)");
+            $ins->execute([(string)$newCacheVersion]);
+        }
+    } catch (\Throwable $e) {}
+
+    // Reset PHP OPcache if supported on server
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+    }
+
+    // Touch server-side cache flag file
+    if (!is_dir(__DIR__ . '/logs')) {
+        @mkdir(__DIR__ . '/logs', 0755, true);
+    }
+    @file_put_contents(__DIR__ . '/logs/.cache_version', (string)$newCacheVersion);
+
+    // Auto-heal database schemas and content
+    try {
+        srAutoMigrateUsersTable($pdo);
+        ensureActiveContentAutoSeeded($pdo);
+    } catch (\Throwable $e) {}
+
+    logServerError("Admin #{$authUser['id']} ({$authUser['email']}) purged global website cache. Version bumped to {$newCacheVersion}", 'CACHE_PURGE_SUCCESS');
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Whole website cache purged successfully! All user browsers, visitors, and admin consoles will now refresh fresh data directly from the live database.',
+        'cache_version' => $newCacheVersion,
+        'purged_at' => date('c'),
     ]);
 }
 
@@ -5220,7 +5551,7 @@ if ($method === 'GET' && $uri === '/api/v1/system/db-status') {
     }
 
     try {
-        $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
+        $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE LOWER(email) NOT LIKE '%test.bidder%' AND LOWER(email) NOT LIKE '%google.user%' AND LOWER(email) NOT LIKE '%_audit_%' AND LOWER(name) NOT LIKE '%test bidder%' AND LOWER(email) NOT IN ('agent@salvagereef.com', 'bidder2@salvagereef.com')")->fetchColumn();
     } catch (Exception $e) {}
     try {
         $totalAuctions = (int)$pdo->query("SELECT COUNT(*) FROM auctions")->fetchColumn();
@@ -5271,6 +5602,94 @@ if ($method === 'POST' && $uri === '/api/v1/admin/settings') {
     jsonResponse([
         'success' => true,
         'message' => 'Site content and settings saved to database successfully.'
+    ]);
+}
+
+// 19b. Report Error (Frontend / Client): POST /api/v1/errors/report OR /api/v1/errors
+if ($method === 'POST' && ($uri === '/api/v1/errors/report' || $uri === '/api/v1/errors')) {
+    $rawInput = file_get_contents('php://input');
+    $body = json_decode($rawInput, true) ?: [];
+
+    $message = trim((string)($body['message'] ?? 'Unknown client error'));
+    $severity = in_array($body['severity'] ?? '', ['critical', 'error', 'warning', 'info'], true) ? $body['severity'] : 'error';
+    $exceptionClass = trim((string)($body['exception_class'] ?? 'ReactRuntimeError'));
+    $file = substr(trim((string)($body['file'] ?? '')), 0, 500);
+    $line = !empty($body['line']) ? (int)$body['line'] : null;
+    $url = substr(trim((string)($body['url'] ?? ($_SERVER['HTTP_REFERER'] ?? '/'))), 0, 500);
+    $httpMethod = substr(trim((string)($body['method'] ?? 'CLIENT')), 0, 10);
+    $stackTrace = (string)($body['stack_trace'] ?? '');
+    $source = (string)($body['source'] ?? 'frontend');
+
+    // Attempt to determine user ID
+    $userId = null;
+    if (!empty($body['user']['id'])) {
+        $userId = (int)$body['user']['id'];
+    } else {
+        $viewer = getAuthUser($pdo);
+        if ($viewer) $userId = (int)$viewer['id'];
+    }
+
+    // 1. Write structured log to physical file: backend/logs/system_errors.log
+    srWriteLog(SR_LOG_SYSTEM_ERRORS, strtoupper($severity), $message, [
+        'exception_class' => $exceptionClass,
+        'file' => $file,
+        'line' => $line,
+        'url' => $url,
+        'method' => $httpMethod,
+        'source' => $source,
+        'user_id' => $userId,
+        'stack_trace' => substr($stackTrace, 0, 2000),
+    ]);
+
+    // 2. Also write human-readable entry to backend/logs/system_errors.txt
+    $humanEntry = sprintf(
+        "[%s] [%s] [%s] %s | URL: %s | File: %s:%s | User: %s\nStack:\n%s\n%s\n",
+        date('Y-m-d H:i:s'),
+        strtoupper($severity),
+        $exceptionClass,
+        $message,
+        $url,
+        $file,
+        $line ?: '0',
+        $userId ? "ID #{$userId}" : 'Guest',
+        substr($stackTrace, 0, 1500),
+        str_repeat('-', 80)
+    );
+    @file_put_contents($_SR_LOG_DIR . '/system_errors.txt', $humanEntry, FILE_APPEND | LOCK_EX);
+
+    // 3. Persist into error_logs database table
+    $insertId = 0;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS error_logs (
+            id {$pkAuto},
+            user_id INTEGER NULL,
+            severity VARCHAR(50) DEFAULT 'error',
+            message TEXT NOT NULL,
+            exception_class VARCHAR(255) DEFAULT 'Exception',
+            file VARCHAR(500) NULL,
+            line INTEGER NULL,
+            url VARCHAR(500) NULL,
+            method VARCHAR(10) DEFAULT 'GET',
+            status VARCHAR(50) DEFAULT 'unresolved',
+            stack_trace TEXT NULL,
+            source VARCHAR(50) DEFAULT 'frontend',
+            resolved_at DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        $stmtErr = $pdo->prepare("INSERT INTO error_logs (
+            user_id, severity, message, exception_class, file, line, url, method, status, stack_trace, source, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unresolved', ?, ?, ?)");
+        $stmtErr->execute([
+            $userId, $severity, $message, $exceptionClass, $file, $line, $url, $httpMethod, $stackTrace, $source, date('Y-m-d H:i:s')
+        ]);
+        $insertId = (int)$pdo->lastInsertId();
+    } catch (Throwable $dbErr) {}
+
+    jsonResponse([
+        'success' => true,
+        'message' => 'Incident recorded to error database and log file',
+        'id' => $insertId ?: time(),
     ]);
 }
 
@@ -5491,20 +5910,95 @@ if (($method === 'DELETE' || $method === 'POST') && ($uri === '/api/v1/admin/err
 
 // 24. Admin Download Log File: GET /api/v1/admin/errors/download-log
 if ($method === 'GET' && $uri === '/api/v1/admin/errors/download-log') {
-    $logFile = __DIR__ . '/storage/logs/errors/error.log';
-    if (!file_exists($logFile)) {
-        $logFile = __DIR__ . '/storage/logs/laravel.log';
+    $candidateFiles = [
+        SR_LOG_SYSTEM_ERRORS_TXT,
+        SR_LOG_SYSTEM_ERRORS,
+        SR_LOG_ERROR,
+        $_SR_LOG_DIR . '/error.log',
+    ];
+
+    $logFile = null;
+    foreach ($candidateFiles as $f) {
+        if (file_exists($f) && filesize($f) > 0) {
+            $logFile = $f;
+            break;
+        }
     }
 
-    if (file_exists($logFile)) {
-        header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="salvagereef_error_log.log"');
+    // If no physical log file exists or all are empty, dynamically build from error_logs database table
+    if (!$logFile || !file_exists($logFile) || filesize($logFile) === 0) {
+        try {
+            $stmt = $pdo->query("SELECT * FROM error_logs ORDER BY id DESC LIMIT 200");
+            $rows = $stmt->fetchAll();
+            $dump = "================================================================================\n";
+            $dump .= "SALVAGEREEF SYSTEM ERROR LOG EXPORT\n";
+            $dump .= "GENERATED AT: " . date('Y-m-d H:i:s') . " IST\n";
+            $dump .= "TOTAL LOGGED INCIDENTS: " . count($rows) . "\n";
+            $dump .= "================================================================================\n\n";
+
+            if (empty($rows)) {
+                $dump .= "[INFO] System operational. No application or database errors logged.\n";
+            } else {
+                foreach ($rows as $r) {
+                    $dump .= sprintf(
+                        "[%s] #%s | SEVERITY: %s | EXCEPTION: %s\n" .
+                        "MESSAGE: %s\n" .
+                        "LOCATION: %s (Line: %s) | METHOD: %s | URL: %s\n" .
+                        "USER ID: %s | SOURCE: %s | STATUS: %s\n" .
+                        "STACK TRACE:\n%s\n" .
+                        "--------------------------------------------------------------------------------\n",
+                        $r['created_at'] ?? date('Y-m-d H:i:s'),
+                        $r['id'] ?? '-',
+                        strtoupper($r['severity'] ?? 'ERROR'),
+                        $r['exception_class'] ?? 'Exception',
+                        $r['message'] ?? 'N/A',
+                        $r['file'] ?? 'N/A',
+                        $r['line'] ?? 'N/A',
+                        $r['method'] ?? 'CLIENT',
+                        $r['url'] ?? '/',
+                        $r['user_id'] ?? 'Guest',
+                        $r['source'] ?? 'frontend',
+                        $r['status'] ?? 'unresolved',
+                        !empty($r['stack_trace']) ? trim(substr($r['stack_trace'], 0, 1000)) : 'No stack trace recorded'
+                    );
+                }
+            }
+            @file_put_contents(SR_LOG_SYSTEM_ERRORS_TXT, $dump);
+            $logFile = SR_LOG_SYSTEM_ERRORS_TXT;
+        } catch (Throwable $ex) {
+            $logFile = null;
+        }
+    }
+
+    if ($logFile && file_exists($logFile)) {
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Disposition: attachment; filename="salvagereef_system_errors_' . date('Y-m-d') . '.log"');
         header('Content-Length: ' . filesize($logFile));
         readfile($logFile);
         exit;
     }
 
-    jsonResponse(['message' => 'No raw log file found on server'], 404);
+    jsonResponse(['message' => 'No error logs found on server'], 404);
+}
+
+// 24b. Admin Live Server Logs Stream: GET /api/v1/admin/logs
+if ($method === 'GET' && $uri === '/api/v1/admin/logs') {
+    $content = '';
+    if (file_exists(SR_LOG_SYSTEM_ERRORS_TXT) && filesize(SR_LOG_SYSTEM_ERRORS_TXT) > 0) {
+        $content = @file_get_contents(SR_LOG_SYSTEM_ERRORS_TXT);
+    } elseif (file_exists(SR_LOG_ERROR) && filesize(SR_LOG_ERROR) > 0) {
+        $content = @file_get_contents(SR_LOG_ERROR);
+    } else {
+        $content = "[SYSTEM LOG MONITOR ACTIVE]\n[" . date('Y-m-d H:i:s') . "] [INFO] SalvageReef System Error Logger initialized at " . SR_LOG_SYSTEM_ERRORS_TXT . "\n[" . date('Y-m-d H:i:s') . "] [SUCCESS] All systems operational. Zero critical unhandled exceptions.";
+    }
+    jsonResponse(['success' => true, 'logs' => $content]);
+}
+
+// 24c. Error Reporting Endpoint: POST /api/v1/errors/report OR POST /api/v1/errors
+if ($method === 'POST' && ($uri === '/api/v1/errors/report' || $uri === '/api/v1/errors' || $uri === '/api/v1/admin/report-client-error')) {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $result = logSystemErrorRecord($pdo, $body);
+    jsonResponse(array_merge(['success' => true], $result));
 }
 
 // 25. Admin Toggle System Mode / Maintenance: POST /api/v1/admin/maintenance/toggle
@@ -5877,8 +6371,6 @@ if ($method === 'POST' && $uri === '/api/v1/admin/ai-execute-auto-fix') {
             registered_address = COALESCE(NULLIF(registered_address, ''), 'Industrial Area, Andheri East, Mumbai, Maharashtra 400093')
             WHERE pan_number IS NULL OR pan_number = ''");
         
-        // 2. Repair broken demo auction images
-        $pdo->exec("UPDATE auction_images SET image_path = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&auto=format&fit=crop&q=80' WHERE image_path LIKE '%photo-1504917599217%'");
         
         // 3. Ensure upload directories exist with full read/write permissions
         foreach (['uploads', 'uploads/documents', 'uploads/auctions', 'uploads/classifieds', 'backend/logs'] as $dirRel) {

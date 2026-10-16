@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Classified } from '../types';
-import { MapPin, Phone, FileText } from 'lucide-react';
+import { MapPin, Phone, FileText, Image as ImageIcon } from 'lucide-react';
 import { isPdfDocument } from '../utils/imageCompressor';
 
 interface ClassifiedCardProps {
   classified: Classified;
 }
 
-const FALLBACK_CLASSIFIED_IMG = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80';
-
 export default function ClassifiedCard({ classified }: ClassifiedCardProps) {
   const primaryImg =
     classified.primary_image?.image_path ||
     classified.images?.[0]?.image_path ||
-    FALLBACK_CLASSIFIED_IMG;
+    classified.image_url ||
+    '';
 
   const [imgSrc, setImgSrc] = useState<string>(primaryImg);
+  const [hasImgError, setHasImgError] = useState<boolean>(false);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group">
@@ -29,13 +29,18 @@ export default function ClassifiedCard({ classified }: ClassifiedCardProps) {
               PDF Spec Doc
             </span>
           </div>
-        ) : (
+        ) : (imgSrc && !hasImgError) ? (
           <img
             src={imgSrc}
             alt={classified.title}
-            onError={() => setImgSrc(FALLBACK_CLASSIFIED_IMG)}
+            onError={() => setHasImgError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 p-3 text-center select-none">
+            <ImageIcon className="w-8 h-8 text-slate-600 mb-1" />
+            <span className="text-xs font-bold text-slate-400">No Image</span>
+          </div>
         )}
 
         <div className="absolute top-2.5 left-2.5">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Auction } from '../types';
-import { Calendar, Clock, FileText } from 'lucide-react';
+import { Calendar, Clock, FileText, Image as ImageIcon } from 'lucide-react';
 import { isPdfDocument } from '../utils/imageCompressor';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTime, parseIstDate } from '../utils/dateUtils';
@@ -11,11 +11,10 @@ interface AuctionCardProps {
   auction: Auction;
 }
 
-const FALLBACK_AUCTION_IMG = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-
 export default function AuctionCard({ auction }: AuctionCardProps) {
   const { isAuthenticated, user } = useAuthStore();
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [hasImgError, setHasImgError] = useState<boolean>(false);
 
   const isPrivate = auction.auction_type === 'private';
   const isGroup = auction.auction_type === 'group';
@@ -38,13 +37,14 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     if (isValidAuctionImg((auction as any).image_url)) {
       return (auction as any).image_url;
     }
-    return FALLBACK_AUCTION_IMG;
+    return '';
   };
 
   const [imgSrc, setImgSrc] = useState<string>(resolveFrontImage());
 
   useEffect(() => {
     setImgSrc(resolveFrontImage());
+    setHasImgError(false);
   }, [auction]);
 
   // Check if official PDF Tender / Document is uploaded
@@ -107,25 +107,30 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     }
   }
 
-  // Safe normalized URL slug for links
-  const targetSlug = (
-    auction.slug
-      ? String(auction.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
-      : (auction.title ? String(auction.title).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : String(auction.id))
-  ) || String(auction.id);
+  // URL slug for links — preserve exact database slug if present
+  const targetSlug = auction.slug
+    ? encodeURIComponent(String(auction.slug).trim())
+    : (auction.id ? String(auction.id) : (auction.title ? encodeURIComponent(String(auction.title).trim()) : ''));
 
   return (
     <div className="bg-[#f0f7ff]/90 rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-3">
       {/* Top Section: Thumbnail Image + Right Specs Table + Badge */}
       <div className="flex gap-4 items-start">
-        {/* Left Thumbnail Image - Always high-fidelity JPG/WebP photo */}
+        {/* Left Thumbnail Image - Displays real photo or clean No Image placeholder */}
         <div className="w-36 sm:w-40 h-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm flex items-center justify-center">
-          <img
-            src={imgSrc}
-            alt={displayTitle}
-            onError={() => setImgSrc(FALLBACK_AUCTION_IMG)}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          />
+          {imgSrc && !hasImgError ? (
+            <img
+              src={imgSrc}
+              alt={displayTitle}
+              onError={() => setHasImgError(true)}
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 p-2 text-center select-none">
+              <ImageIcon className="w-6 h-6 text-slate-300 mb-1" />
+              <span className="text-[11px] font-bold text-slate-400 tracking-tight">No Image</span>
+            </div>
+          )}
         </div>
 
         {/* Right Specs Table & Badge */}
@@ -218,7 +223,7 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
             >
               View
             </Link>
-            {hasPdf && (
+            {hasPdf && isAuthenticated && (
               <button
                 onClick={async (e) => {
                   e.preventDefault();

@@ -15,7 +15,7 @@ export default function SEOHead({
   description = "SalvageReef is India's leading B2B salvage auction & scrap marketplace. Bid on industrial HMS scrap steel, copper, plant machinery, insurance accident vehicles, and factory clearance tenders with verified buyers.",
   keywords = "Salvage Auctions India, HMS Steel Scrap, Accident Fleet Salvage, Plant Machinery Liquidation, Copper & Metal Scrap, E-Tender Auctions, India B2B Portal, salvage auction india, scrap metal bidding, industrial scrap buyers, insurance salvage vehicles, accident car auction india, scrap copper price today, aluminium scrap auction, brass scrap metal, factory demolition tenders, plant machinery liquidation, B2B scrap marketplace, MSTC auction alternative, e-auction scrap metal, industrial asset recovery, scrap buyer near me, total loss vehicle bidding, doorstep scrap pickup, commercial truck salvage, scrap battery recycling",
   canonicalUrl,
-  ogImage = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80",
+  ogImage = "https://salvagereef.com/logo.png",
   ogType = "website",
   jsonLd,
 }: SEOProps) {

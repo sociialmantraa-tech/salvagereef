@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Phone, Mail, User, ShieldCheck, ChevronRight, FileText, Download, ExternalLink } from 'lucide-react';
+import { Phone, Mail, User, ShieldCheck, ChevronRight, FileText, Download, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { Classified } from '../types';
 import { INITIAL_CLASSIFIEDS } from '../services/mockService';
 import { isPdfDocument } from '../utils/imageCompressor';
@@ -16,9 +16,10 @@ export default function ClassifiedDetail() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authModalType, setAuthModalType] = useState<'pdf' | 'images' | 'document'>('pdf');
 
-  const initialMatch = INITIAL_CLASSIFIEDS.find((c) => c.slug === slug || c.id.toString() === slug) || INITIAL_CLASSIFIEDS[0];
-  const [classified, setClassified] = useState<Classified | null>(initialMatch);
+  const [classified, setClassified] = useState<Classified | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [activeImage, setActiveImage] = useState<number>(0);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -59,14 +60,13 @@ export default function ClassifiedDetail() {
     );
   }
 
-  const images = classified.images && classified.images.length > 0
+  const images = (classified.images && classified.images.length > 0
     ? classified.images.map((img: any) => typeof img === 'string' ? img : img.image_path)
     : classified.primary_image?.image_path
     ? [classified.primary_image.image_path]
-    : [classified.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'];
+    : [classified.image_url || '']).filter(Boolean);
 
-  const [activeImage, setActiveImage] = useState(0);
-  const currentImg = images[activeImage] || images[0];
+  const currentImg = images[activeImage] || images[0] || '';
 
   const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
 
@@ -152,21 +152,26 @@ export default function ClassifiedDetail() {
                     )}
                   </div>
                 </div>
-              ) : (
+              ) : (currentImg && !imageError) ? (
                 <img 
                   src={currentImg} 
                   alt={classified.title} 
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
-                  }}
+                  onError={() => setImageError(true)}
                   className="w-full h-full object-cover" 
                 />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center select-none">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-2">
+                    <ImageIcon className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300">No Image</span>
+                  <span className="text-xs text-slate-500 mt-0.5">No photographic asset uploaded for this classified</span>
+                </div>
               )}
             </div>
 
             {/* Multi-Image Thumbnail Selector */}
-            {images.length > 1 && (
+            {images.length > 1 && !imageError && (
               <div className="flex gap-3 overflow-x-auto pb-1 pt-1">
                 {images.map((img: string, idx: number) => (
                   <button
@@ -187,8 +192,7 @@ export default function ClassifiedDetail() {
                         src={img} 
                         alt={`Thumb ${idx + 1}`} 
                         onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80';
+                          (e.target as HTMLElement).style.display = 'none';
                         }}
                         className="w-full h-full object-cover" 
                       />

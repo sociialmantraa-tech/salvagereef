@@ -1,4 +1,5 @@
 import { Auction, Classified, Category, User, Bid } from '../types';
+import { formatBidderName } from '../utils/formatUtils';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 1, name: 'Scrap Heavy Machinery', slug: 'scrap-heavy-machinery', auctions_count: 5, classifieds_count: 8 },
@@ -122,9 +123,9 @@ export const INITIAL_AUCTIONS: Auction[] = [
     category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
     creator: { id: 1, name: 'SalvageReef Corporate Disposal', email: 'salvagereef@gmail.com', phone: '7304481166', role: 'admin', company_name: 'SalvageReef Operations' },
     images: [
-      { id: 99, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }
+      { id: 99, image_path: 'https://salvagereef.com/uploads/auction/20261016_140225_24163085c559.jpg', is_primary: true }
     ],
-    primary_image: { id: 99, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    primary_image: { id: 99, image_path: 'https://salvagereef.com/uploads/auction/20261016_140225_24163085c559.jpg', is_primary: true },
     bids: [
       { id: 901, amount: 750000, bidder_name: 'Neelkanth Sharma (H1 Winner)', user: { name: 'Neelkanth Sharma', email: 'neelkanth@metals.com' }, created_at: new Date(Date.now() - 60000).toISOString() },
       { id: 902, amount: 720000, bidder_name: 'Bharat Scrap Traders (H2 Winner)', user: { name: 'Bharat Traders', email: 'procurement@bharatscrap.com' }, created_at: new Date(Date.now() - 120000).toISOString() },
@@ -156,10 +157,9 @@ export const INITIAL_AUCTIONS: Auction[] = [
     category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
     creator: { id: 1, name: 'Apex Scrap Recyclers Ltd', email: 'seller@salvagereef.com', phone: '7304481166', role: 'agent', company_name: 'Apex Metals' },
     images: [
-      { id: 1, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
-      { id: 2, image_path: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80', is_primary: false }
+      { id: 1, image_path: 'https://salvagereef.com/uploads/auction/20261016_140225_24163085c559.jpg', is_primary: true }
     ],
-    primary_image: { id: 1, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    primary_image: { id: 1, image_path: 'https://salvagereef.com/uploads/auction/20261016_140225_24163085c559.jpg', is_primary: true },
     bids: [
       { id: 501, amount: 4150000, bidder_name: 'Metals & Alloys Co', user: { name: 'Rajesh Kumar' }, created_at: new Date(Date.now() - 3600000).toISOString() },
       { id: 502, amount: 3900000, bidder_name: 'Bharat Scrap Traders', user: { name: 'Bharat Traders' }, created_at: new Date(Date.now() - 7200000).toISOString() },
@@ -189,10 +189,8 @@ export const INITIAL_AUCTIONS: Auction[] = [
     created_by: 1,
     category: { id: 1, name: 'Scrap Heavy Machinery', slug: 'scrap-heavy-machinery' },
     creator: { id: 1, name: 'Apex Scrap Recyclers Ltd', email: 'seller@salvagereef.com', phone: '7304481166', role: 'agent', company_name: 'Apex Metals' },
-    images: [
-      { id: 3, image_path: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80', is_primary: true },
-    ],
-    primary_image: { id: 3, image_path: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    images: [],
+    primary_image: undefined,
     bids: [
       { id: 504, amount: 9200000, bidder_name: 'Precision Engineering Ltd', user: { name: 'Precision Eng' }, created_at: new Date(Date.now() - 5000000).toISOString() },
       { id: 505, amount: 8500000, bidder_name: 'Global Heavy Infra', user: { name: 'Global Heavy' }, created_at: new Date(Date.now() - 10000000).toISOString() },
@@ -216,10 +214,8 @@ export const INITIAL_CLASSIFIEDS: Classified[] = [
     created_by: 1,
     category: { id: 4, name: 'E-Waste & Circuit Boards', slug: 'e-waste-circuit-boards' },
     creator: { id: 1, name: 'Apex Recycling Desk', email: 'seller@salvagereef.com', phone: '7304481166', company_name: 'Apex Recyclers' },
-    images: [
-      { id: 304, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
-    ],
-    primary_image: { id: 304, image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    images: [],
+    primary_image: undefined,
   },
   {
     id: 303,
@@ -236,10 +232,8 @@ export const INITIAL_CLASSIFIEDS: Classified[] = [
     created_by: 1,
     category: { id: 1, name: 'Scrap Heavy Machinery', slug: 'scrap-heavy-machinery' },
     creator: { id: 1, name: 'Suresh Traders', email: 'seller@salvagereef.com', phone: '7304481166', company_name: 'Suresh Machinery Sales' },
-    images: [
-      { id: 303, image_path: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80', is_primary: true },
-    ],
-    primary_image: { id: 303, image_path: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    images: [],
+    primary_image: undefined,
   },
   {
     id: 302,
@@ -256,10 +250,8 @@ export const INITIAL_CLASSIFIEDS: Classified[] = [
     created_by: 2,
     category: { id: 2, name: 'Non-Ferrous Copper & Brass', slug: 'non-ferrous-copper-brass' },
     creator: { id: 2, name: 'Rajesh Kumar', email: 'bidder@salvagereef.com', phone: '9820123456', company_name: 'Metals & Alloys Co' },
-    images: [
-      { id: 302, image_path: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80', is_primary: true },
-    ],
-    primary_image: { id: 302, image_path: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80', is_primary: true },
+    images: [],
+    primary_image: undefined,
   },
 ];
 
@@ -291,7 +283,7 @@ export const INITIAL_SELL_SCRAP_REQUESTS = [
     seller_phone: '9820198201',
     seller_email: 'amit@patelscrap.com',
     description: 'Factory clearance HMS 1&2 scrap along with 10 defective electric motors. Inspection invited at site location.',
-    image_url: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80',
+    image_url: '',
     status: 'pending',
     submitted_at: new Date(Date.now() - 86400000).toISOString(),
     user_id: 2,
@@ -312,7 +304,7 @@ export const INITIAL_SELL_SCRAP_REQUESTS = [
     seller_phone: '9820771122',
     seller_email: 'sanjay@deshmukhenterprises.com',
     description: 'Purity verified high grade copper scrap from power distribution dismantling. Instant loading available.',
-    image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+    image_url: '',
     status: 'pending',
     submitted_at: new Date(Date.now() - 172800000).toISOString(),
     user_id: 1,
@@ -684,7 +676,7 @@ export function handleMockApi(config: any): any {
       seller_phone: bodyData.seller_phone || currentUser.phone,
       seller_email: bodyData.seller_email || currentUser.email,
       description: bodyData.description || '',
-      image_url: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+      image_url: bodyData.image_url || '',
       status: 'pending',
       submitted_at: new Date().toISOString(),
       user_id: currentUser.id,
@@ -732,34 +724,60 @@ export function handleMockApi(config: any): any {
     const cleanParam = decodeURIComponent(rawSlugOrId).trim().toLowerCase();
     const normParam = cleanParam.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
+    const cleanAlpha = cleanParam.replace(/[^a-z0-9]+/g, '');
     const auctions = getMockAuctions();
     const auction = auctions.find((a) => {
       const aId = String(a.id);
       const aSlug = (a.slug || '').toLowerCase();
       const aNormSlug = aSlug.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const aLotCode = (a.lot_code || '').toLowerCase();
+      const aSlugAlpha = aSlug.replace(/[^a-z0-9]+/g, '');
+      const aLotCode = (a.lot_code || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
       const aTitleNorm = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const aTitleAlpha = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
       return (
         aId === cleanParam ||
         aSlug === cleanParam ||
         aNormSlug === normParam ||
-        aLotCode === cleanParam ||
-        (normParam && aTitleNorm.includes(normParam)) ||
-        (normParam && normParam.includes(aNormSlug) && aNormSlug.length > 5)
+        (aLotCode && (aLotCode === cleanAlpha || cleanAlpha.startsWith(aLotCode))) ||
+        (cleanAlpha.length >= 4 && aSlugAlpha === cleanAlpha) ||
+        (cleanAlpha.length >= 6 && (aSlugAlpha.includes(cleanAlpha) || cleanAlpha.includes(aSlugAlpha))) ||
+        (cleanAlpha.length >= 6 && (aTitleAlpha.includes(cleanAlpha) || cleanAlpha.includes(aTitleAlpha)))
       );
-    }) || auctions[0];
+    });
+
+    if (!auction) {
+      return { message: 'Auction not found', status: 404 };
+    }
 
     const interests = getMockInterests();
     const currentUser = getStoredUser();
+    const isAdmin = currentUser && ['admin', 'master_admin', 'desk_admin', 'executive_admin', 'read_only_admin'].includes(currentUser.role);
     const isApproved = interests.some(
       (i) => i.auction_id === auction.id && i.user_id === currentUser?.id && i.status === 'approved'
     );
 
-    const isUnlocked = auction.auction_type !== 'private' || isApproved || currentUser?.role === 'admin';
+    const isUnlocked = auction.auction_type !== 'private' || isApproved || isAdmin;
+
+    const sanitizedAuction = {
+      ...auction,
+      bids: (auction.bids || []).map((b) => {
+        let bidderDisplayName: string | null = null;
+        if (isAdmin) {
+          bidderDisplayName = b.user?.name || b.bidder_name || 'Admin Verified Bidder';
+        } else if (currentUser) {
+          bidderDisplayName = formatBidderName(b.user?.name || b.bidder_name, false);
+        }
+        return {
+          ...b,
+          user: bidderDisplayName ? { name: bidderDisplayName } : null,
+          bidder_name: bidderDisplayName,
+        };
+      }),
+    };
 
     return {
-      auction,
+      auction: sanitizedAuction,
       is_unlocked: isUnlocked,
     };
   }
@@ -829,18 +847,8 @@ export function handleMockApi(config: any): any {
       created_by: currentUser.id,
       category: categoryObj,
       creator: currentUser,
-      images: [
-        {
-          id: Date.now(),
-          image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-          is_primary: true,
-        },
-      ],
-      primary_image: {
-        id: Date.now(),
-        image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-        is_primary: true,
-      },
+      images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : [],
+      primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : undefined,
     };
 
     classifieds.unshift(newClassified);
@@ -947,7 +955,7 @@ export function handleMockApi(config: any): any {
       !String(u.email).toLowerCase().includes('google.user') &&
       !String(u.email).toLowerCase().includes('_audit_') &&
       !String(u.name || '').toLowerCase().includes('test bidder') &&
-      !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+      !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
     );
     const storedBids = getItem('sr_admin_bids', [
       { id: 101, auction_id: 101, auction_title: '50 MT Industrial Copper Cable Scrap', amount: 1450000, bidder_name: 'Neelkanth Sharma', bidder_company: 'Metals & Alloys Co', status: 'approved', created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
@@ -1083,7 +1091,7 @@ export function handleMockApi(config: any): any {
       !String(u.email).toLowerCase().includes('google.user') &&
       !String(u.email).toLowerCase().includes('_audit_') &&
       !String(u.name || '').toLowerCase().includes('test bidder') &&
-      !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+      !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
     );
     let masterFound = false;
     const users = cleanRawUsers.map((u: any) => {
@@ -1380,10 +1388,8 @@ export function handleMockApi(config: any): any {
       created_by: currentUser.id,
       category: categoryObj,
       creator: currentUser,
-      images: [
-        { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }
-      ],
-      primary_image: { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : [],
+      primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : undefined,
       pdf_url: bodyData.pdf_url || null,
       bids: [],
     };
@@ -1496,18 +1502,8 @@ export function handleMockApi(config: any): any {
       created_by: currentUser.id,
       category: categoryObj,
       creator: currentUser,
-      images: [
-        {
-          id: Date.now(),
-          image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-          is_primary: true,
-        },
-      ],
-      primary_image: {
-        id: Date.now(),
-        image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-        is_primary: true,
-      },
+      images: bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : [],
+      primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : undefined,
     };
 
     classifieds.unshift(newClassified);
@@ -1726,6 +1722,20 @@ export function handleMockApi(config: any): any {
       message,
       maintenance_message: mMsg,
       temporary_closed_message: tcMsg,
+      cache_version: Number(localStorage.getItem('sr_cache_version') || 1),
+    };
+  }
+
+  // 20b. POST /admin/cache/clear
+  if ((url.includes('/admin/cache/clear') || url.includes('/admin/clear-cache') || url.includes('/system/clear-cache')) && method === 'post') {
+    const newVersion = Date.now();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sr_cache_version', String(newVersion));
+    }
+    return {
+      success: true,
+      message: 'Global website cache purged successfully.',
+      cache_version: newVersion,
     };
   }
 
@@ -1950,8 +1960,8 @@ export function handleMockApi(config: any): any {
       start_time: bodyData.start_time || new Date().toISOString(),
       end_time: bodyData.end_time || new Date(Date.now() + 7 * 86400000).toISOString(),
       created_by: currentUser.id,
-      images: bodyData.images || (bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : [{ id: Date.now(), image_path: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true }]),
-      primary_image: { id: Date.now(), image_path: bodyData.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80', is_primary: true },
+      images: bodyData.images || (bodyData.image_url ? [{ id: Date.now(), image_path: bodyData.image_url, is_primary: true }] : []),
+      primary_image: bodyData.image_url ? { id: Date.now(), image_path: bodyData.image_url, is_primary: true } : (bodyData.images?.[0] || undefined),
       pdf_url: bodyData.pdf_url || null,
       bids: [],
     };

@@ -159,7 +159,7 @@ export default function AdminAnalyticsDashboard({
               !String(u.email).toLowerCase().includes('google.user') &&
               !String(u.email).toLowerCase().includes('_audit_') &&
               !String(u.name || '').toLowerCase().includes('test bidder') &&
-              !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+              !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
             )
           : [];
         const storedBids = JSON.parse(localStorage.getItem('sr_admin_bids') || '[]');

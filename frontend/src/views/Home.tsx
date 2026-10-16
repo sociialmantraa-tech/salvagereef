@@ -124,17 +124,17 @@ export default function Home() {
       />
       {/* Hero Sunset Cityscape Banner */}
       <section className="relative min-h-[440px] py-12 px-4 bg-slate-900 flex flex-col justify-center items-center overflow-hidden">
-        {/* Full-width High-Res City Skyline Sunset Background Image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={content.heroBannerUrl || "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80"}
-            alt="Hero Banner"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80";
-            }}
-            className="w-full h-full object-cover object-center opacity-70"
-          />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#0B192C] via-slate-900 to-[#0B192C]">
+          {content.heroBannerUrl && (
+            <img
+              src={content.heroBannerUrl}
+              alt="Hero Banner"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+              className="w-full h-full object-cover object-center opacity-60"
+            />
+          )}
           {/* Subtle gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/30 to-slate-900/70"></div>
         </div>

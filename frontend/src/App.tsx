@@ -105,6 +105,42 @@ export default function App() {
       } else {
         setIsMaintenance(false);
       }
+
+      // ── Global Multi-Browser Cache Invalidation Engine ──
+      const serverCacheVer = Number(res.data?.cache_version || 0);
+      if (serverCacheVer > 0 && typeof localStorage !== 'undefined') {
+        const localCacheVer = Number(localStorage.getItem('sr_cache_version') || '0');
+        if (localCacheVer > 0 && serverCacheVer > localCacheVer) {
+          // Admin performed a central cache purge! Wipe all local cached app stores across this browser
+          const token = localStorage.getItem('salvagereef_token');
+          const user = localStorage.getItem('salvagereef_user');
+          const adminAuth = localStorage.getItem('sr_admin_auth');
+          const adminToken = localStorage.getItem('sr_admin_token');
+
+          [
+            'sr_admin_users', 'sr_admin_auctions', 'sr_admin_classifieds', 'sr_admin_bids',
+            'sr_admin_interests', 'sr_auctions', 'sr_classifieds', 'sr_categories',
+            'sr_interests', 'sr_sell_scrap_requests', 'sr_deleted_user_ids', 'sr_deleted_user_emails',
+            'sr_user_bids', 'sr_all_users', 'sr_site_content'
+          ].forEach(k => {
+            try { localStorage.removeItem(k); } catch {}
+          });
+
+          if (typeof window !== 'undefined' && 'caches' in window) {
+            try {
+              window.caches.keys().then(keys => keys.forEach(k => window.caches.delete(k))).catch(() => {});
+            } catch {}
+          }
+
+          localStorage.setItem('sr_cache_version', String(serverCacheVer));
+          if (token) localStorage.setItem('salvagereef_token', token);
+          if (user) localStorage.setItem('salvagereef_user', user);
+          if (adminAuth) localStorage.setItem('sr_admin_auth', adminAuth);
+          if (adminToken) localStorage.setItem('sr_admin_token', adminToken);
+        } else if (localCacheVer === 0) {
+          localStorage.setItem('sr_cache_version', String(serverCacheVer));
+        }
+      }
     } catch {
       // Proceed normally if status check fails
     }

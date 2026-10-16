@@ -76,17 +76,17 @@ export interface AdminAIAssistantProps {
   onCloseFloating?: () => void;
 }
 
-// Preset verified scrap images for any material type
+// Preset verified scrap images - strict zero-mock policy (empty when no physical photo uploaded)
 const SCRAP_IMAGE_PRESETS: Record<string, string> = {
-  copper: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=800&auto=format&fit=crop&q=80',
-  steel: 'https://images.unsplash.com/photo-1535813547-99c456a41d4a?w=800&auto=format&fit=crop&q=80',
-  machinery: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-  motor: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
-  ewaste: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80',
-  solar: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
-  transformer: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800&auto=format&fit=crop&q=80',
-  boiler: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80',
-  general: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+  copper: '',
+  steel: '',
+  machinery: '',
+  motor: '',
+  ewaste: '',
+  solar: '',
+  transformer: '',
+  boiler: '',
+  general: '',
 };
 
 // Market benchmark advisory data

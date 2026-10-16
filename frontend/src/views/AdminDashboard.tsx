@@ -250,6 +250,10 @@ export default function AdminDashboard() {
     userName?: string;
   } | null>(null);
 
+  // Clear Global Website Cache Confirmation Modal State
+  const [showClearCacheModal, setShowClearCacheModal] = useState<boolean>(false);
+  const [isClearingCache, setIsClearingCache] = useState<boolean>(false);
+
   // Add User / Seller Modal State
   const [showAddUserModal, setShowAddUserModal] = useState<boolean>(false);
   const [newUserForm, setNewUserForm] = useState({
@@ -308,7 +312,7 @@ export default function AdminDashboard() {
             !String(u.email).toLowerCase().includes('google.user') &&
             !String(u.email).toLowerCase().includes('_audit_') &&
             !String(u.name || '').toLowerCase().includes('test bidder') &&
-            !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+            !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
           );
           if (sanitized.length !== parsed.length) {
             try {
@@ -414,7 +418,7 @@ export default function AdminDashboard() {
         seller_phone: '9820198201',
         seller_email: 'amit@patelscrap.com',
         description: 'Factory clearance HMS 1&2 scrap along with 10 defective electric motors. Inspection invited at site location.',
-        image_url: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80',
+        image_url: '',
         status: 'pending',
         submitted_at: new Date(Date.now() - 86400000).toISOString(),
         user_id: 2,
@@ -435,7 +439,7 @@ export default function AdminDashboard() {
         seller_phone: '9820771122',
         seller_email: 'sanjay@deshmukhenterprises.com',
         description: 'Purity verified high grade copper scrap from power distribution dismantling. Instant loading available.',
-        image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+        image_url: '',
         status: 'pending',
         submitted_at: new Date(Date.now() - 172800000).toISOString(),
         user_id: 1,
@@ -622,7 +626,7 @@ export default function AdminDashboard() {
     let finalImageUrl = editingAuction.image_url;
     // Check if image is corrupt truncated base64
     if (finalImageUrl && finalImageUrl.startsWith('data:image/') && finalImageUrl.length <= 350) {
-      finalImageUrl = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+      finalImageUrl = '';
     } else if (finalImageUrl && finalImageUrl.startsWith('data:image/')) {
       // If a full base64 string exists, upload to physical server storage before saving
       try {
@@ -645,7 +649,7 @@ export default function AdminDashboard() {
     }
     if (isPdfDocument(finalImageUrl)) {
       if (!finalPdfUrls.includes(finalImageUrl)) finalPdfUrls.push(finalImageUrl);
-      finalImageUrl = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+      finalImageUrl = '';
     }
     finalPdfUrls = finalPdfUrls.filter(Boolean);
     const finalPdfUrl = finalPdfUrls[0] || null;
@@ -1731,7 +1735,7 @@ export default function AdminDashboard() {
       // 100% Genuine Database Users Fetch
       let fetchedUsers: any[] = [];
       if (usersRes?.data) {
-        fetchedUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data || []);
+        fetchedUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.users || usersRes.data?.data || []);
       }
       if (!fetchedUsers || fetchedUsers.length === 0) {
         try {
@@ -1739,7 +1743,7 @@ export default function AdminDashboard() {
             headers: { Authorization: 'Bearer sr_master_admin_token' },
             params: { _t: Date.now() },
           });
-          fetchedUsers = Array.isArray(directUsersRes?.data) ? directUsersRes.data : (directUsersRes?.data?.data || []);
+          fetchedUsers = Array.isArray(directUsersRes?.data) ? directUsersRes.data : (directUsersRes?.data?.users || directUsersRes?.data?.data || []);
         } catch {}
       }
 
@@ -1756,7 +1760,7 @@ export default function AdminDashboard() {
           !String(u.email).toLowerCase().includes('google.user') &&
           !String(u.email).toLowerCase().includes('_audit_') &&
           !String(u.name || '').toLowerCase().includes('test bidder') &&
-          !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+          !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
         );
 
         const normalized = normalizeAdminUsers(sanitized);
@@ -1840,6 +1844,64 @@ export default function AdminDashboard() {
     }
   };
 
+  // ─── CLEAR ENTIRE WEBSITE CACHE (CROSS-BROWSER & MULTI-USER) ───
+  const handleClearWebsiteCache = async () => {
+    setIsClearingCache(true);
+    try {
+      let serverVer = Date.now();
+      try {
+        const res = await api.post('/admin/cache/clear', { clear_all: true });
+        if (res.data?.cache_version) serverVer = Number(res.data.cache_version);
+      } catch {
+        try {
+          const res = await api.post('/system/clear-cache', { clear_all: true });
+          if (res.data?.cache_version) serverVer = Number(res.data.cache_version);
+        } catch {}
+      }
+
+      // Preserve admin credentials & auth session
+      const preserveToken = localStorage.getItem('salvagereef_token');
+      const preserveUser = localStorage.getItem('salvagereef_user');
+      const preserveAdminAuth = localStorage.getItem('sr_admin_auth');
+      const preserveAdminToken = localStorage.getItem('sr_admin_token');
+
+      // Purge all stale cache stores across the client
+      [
+        'sr_admin_users', 'sr_admin_auctions', 'sr_admin_classifieds', 'sr_admin_bids',
+        'sr_admin_interests', 'sr_auctions', 'sr_classifieds', 'sr_categories',
+        'sr_interests', 'sr_sell_scrap_requests', 'sr_deleted_user_ids', 'sr_deleted_user_emails',
+        'sr_user_bids', 'sr_all_users', 'sr_site_content'
+      ].forEach(k => {
+        try { localStorage.removeItem(k); } catch {}
+      });
+
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const names = await window.caches.keys();
+          await Promise.all(names.map(name => window.caches.delete(name)));
+        } catch {}
+      }
+
+      // Record updated cache version
+      localStorage.setItem('sr_cache_version', String(serverVer));
+      if (preserveToken) localStorage.setItem('salvagereef_token', preserveToken);
+      if (preserveUser) localStorage.setItem('salvagereef_user', preserveUser);
+      if (preserveAdminAuth) localStorage.setItem('sr_admin_auth', preserveAdminAuth);
+      if (preserveAdminToken) localStorage.setItem('sr_admin_token', preserveAdminToken);
+
+      // Re-fetch 100% fresh database data across the console
+      await fetchAdminData(false);
+
+      setShowClearCacheModal(false);
+      showNotification('✓ Whole website cache cleared successfully! All user browsers and admin consoles are now in sync with live database.');
+    } catch (err: any) {
+      console.error('Failed to clear cache:', err);
+      showNotification('Failed to clear cache: ' + (err?.message || 'Server error'), 'red');
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
+
   // Keep live data updated when switching between active management tabs
   useEffect(() => {
     if (activeTab === 'bid-approvals' || activeTab === 'overview' || activeTab === 'auctions') {
@@ -1864,7 +1926,7 @@ export default function AdminDashboard() {
             !String(u.email).toLowerCase().includes('google.user') &&
             !String(u.email).toLowerCase().includes('_audit_') &&
             !String(u.name || '').toLowerCase().includes('test bidder') &&
-            !['agent@salvagereef.com', 'bidder@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
+            !['agent@salvagereef.com', 'bidder2@salvagereef.com'].includes(String(u.email).toLowerCase())
           );
           if (sanitized.length !== parsed.length) {
             localStorage.setItem('sr_admin_users', JSON.stringify(sanitized));
@@ -1940,7 +2002,7 @@ export default function AdminDashboard() {
       location_state: item.location_state || 'Maharashtra',
       status: 'available',
       description: item.description || '',
-      image_url: item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+      image_url: item.image_url || '',
     };
 
     try {
@@ -2076,10 +2138,6 @@ export default function AdminDashboard() {
         }
       }
 
-      if (uploadedLotUrls.length === 0) {
-        uploadedLotUrls.push('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80');
-      }
-
       // ── Upload official tender PDF documents (Multiple supported) ─────────────
       const uploadedPdfUrls: string[] = [];
       for (const pdfItem of lotPdfFiles) {
@@ -2104,7 +2162,7 @@ export default function AdminDashboard() {
 
       const uploadedPdfUrl = uploadedPdfUrls[0] || null;
 
-      const finalImageUrl = uploadedLotUrls[0];
+      const finalImageUrl = uploadedLotUrls[0] || null;
       const finalImagesList = uploadedLotUrls.map((url, idx) => ({
         id: Date.now() + idx,
         image_path: url,
@@ -2217,11 +2275,7 @@ export default function AdminDashboard() {
         }
       }
 
-      if (uploadedClassifiedUrls.length === 0) {
-        uploadedClassifiedUrls.push('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80');
-      }
-
-      const finalImageUrl = uploadedClassifiedUrls[0];
+      const finalImageUrl = uploadedClassifiedUrls[0] || null;
       const finalImagesList = uploadedClassifiedUrls.map((url, idx) => ({
         id: Date.now() + idx,
         image_path: url,
@@ -2991,6 +3045,20 @@ export default function AdminDashboard() {
               </span>
             </button>
 
+            {/* Clear Website Cache Button */}
+            <button
+              type="button"
+              onClick={() => setShowClearCacheModal(true)}
+              className="flex items-center justify-center gap-1 sm:gap-1.5 bg-amber-600/90 hover:bg-amber-600 text-white font-black px-1.5 sm:px-3 py-2 rounded-xl text-[10px] sm:text-xs border border-amber-500 transition-all shadow whitespace-nowrap overflow-hidden"
+              title="Purge & Clear Entire Website Cache for all users, browsers and administrators"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-white shrink-0" />
+              <span className="truncate">
+                <span className="sm:hidden">Clear Cache</span>
+                <span className="hidden sm:inline">Clear Website Cache</span>
+              </span>
+            </button>
+
             {/* 3. Lock Console Button */}
             <button
               onClick={() => {
@@ -3135,6 +3203,81 @@ export default function AdminDashboard() {
                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs shadow-lg transition-all flex items-center gap-1.5 uppercase tracking-wider"
               >
                 <Trash2 className="w-4 h-4" /> Yes, Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAR ENTIRE WEBSITE CACHE CONFIRMATION MODAL */}
+      {showClearCacheModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-amber-300 shadow-2xl space-y-4 animate-scale-up text-xs font-semibold text-slate-700">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <h3 className="font-black text-amber-900 text-base flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-amber-600 shrink-0" /> Clear Entire Website Cache
+              </h3>
+              <button
+                type="button"
+                onClick={() => !isClearingCache && setShowClearCacheModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-black text-lg p-1"
+                disabled={isClearingCache}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-black text-amber-950 text-sm">
+                    Notice about Global Platform Cache Purge
+                  </h4>
+                  <p className="text-xs text-amber-900/90 font-medium mt-1 leading-relaxed">
+                    This action will purge all cached records, stored queries, and asset memory across the <strong>entire SalvageReef platform</strong> for <strong>ALL users, visitors, and administrators in every browser</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white/90 p-3.5 rounded-xl border border-amber-200 text-[11px] text-slate-700 space-y-1.5 font-medium">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> What this will do:
+                </div>
+                <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
+                  <li><strong>All Users & Visitors:</strong> Bumps the server-wide cache version. Any user opening the website in Chrome, Edge, Firefox, Safari, or mobile will automatically purge their local cache and fetch 100% fresh live database data.</li>
+                  <li><strong>Admin Console:</strong> Instantly clears this browser's temporary storage, resetting stale counts and re-syncing directly from the database.</li>
+                  <li><strong>Backend Server:</strong> Resets server-side OPcache and temporary query flags.</li>
+                  <li><strong>Zero Data Loss:</strong> All your real database data (users, bids, auction lots, classifieds) remains completely safe and untouched.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isClearingCache}
+                onClick={() => setShowClearCacheModal(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isClearingCache}
+                onClick={handleClearWebsiteCache}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 uppercase tracking-wider disabled:opacity-50"
+              >
+                {isClearingCache ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Purging Cache...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" /> Yes, Clear Entire Cache
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -3511,7 +3654,14 @@ export default function AdminDashboard() {
                                     </span>
                                   </a>
                                 ) : (
-                                  <img src={item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'} alt={item.title} className="w-full h-full object-cover" />
+                                  item.image_url ? (
+                                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 p-1 text-center select-none">
+                                      <ImageIcon className="w-4 h-4 text-slate-300 mb-0.5" />
+                                      <span className="text-[9px] font-bold text-slate-400">No Image</span>
+                                    </div>
+                                  )
                                 )}
                               </div>
 
@@ -3724,6 +3874,14 @@ export default function AdminDashboard() {
                     title="Force fetch fresh users directly from database"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#1D70B8]' : 'text-slate-600'}`} /> Sync Database Users
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowClearCacheModal(true)}
+                    className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 font-extrabold rounded-xl text-xs shadow-sm transition-all flex items-center gap-1.5 border border-amber-300 shrink-0"
+                    title="Purge & Clear entire website cache for all users and administrators"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-amber-700" /> Clear Website Cache
                   </button>
                   <button
                     onClick={() => setShowAddUserModal(true)}
@@ -5824,7 +5982,7 @@ export default function AdminDashboard() {
                                   }
                                   let currentImg = auc.image_url || auc.primary_image_url || (auc.primary_image?.image_path) || '';
                                   if (currentImg.startsWith('data:image/') && currentImg.length <= 350) {
-                                    currentImg = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                                    currentImg = '';
                                   }
                                   setEditingAuction({
                                     ...auc,
@@ -6719,7 +6877,7 @@ export default function AdminDashboard() {
                               type="text"
                               value={pageContentForm.heroBannerUrl || ''}
                               onChange={(e) => setPageContentForm({ ...pageContentForm, heroBannerUrl: e.target.value })}
-                              placeholder="https://images.unsplash.com/... or upload image file"
+                              placeholder="Enter image URL or upload image file"
                               className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-100 text-xs focus:ring-2 focus:ring-amber-500"
                             />
                           </div>
@@ -6772,14 +6930,17 @@ export default function AdminDashboard() {
                         <div className="space-y-2">
                           <label className="block text-slate-300 font-bold text-xs">Live Hero Banner Preview:</label>
                           <div className="relative h-52 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shadow-inner">
-                            <img
-                              src={pageContentForm.heroBannerUrl || "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80"}
-                              alt="Hero Banner Preview"
-                              className="w-full h-full object-cover opacity-80"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80";
-                              }}
-                            />
+                            {pageContentForm.heroBannerUrl ? (
+                              <img
+                                src={pageContentForm.heroBannerUrl}
+                                alt="Hero Banner Preview"
+                                className="w-full h-full object-cover opacity-80"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center text-slate-500 text-xs font-semibold">
+                                No Hero Image Set (Default Gradient Active)
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/30 to-slate-900/70 flex flex-col items-center justify-center p-4 text-center">
                               <div className="text-white font-extrabold text-sm sm:text-base max-w-xs drop-shadow-md">
                                 {pageContentForm.homeHeroTitle || 'Search classified and auctions'}
@@ -8877,7 +9038,7 @@ export default function AdminDashboard() {
                       type="text"
                       value={isPdfDocument(editingAuction.image_url) ? '' : (editingAuction.image_url || '')}
                       onChange={(e) => setEditingAuction({ ...editingAuction, image_url: e.target.value })}
-                      placeholder="https://images.unsplash.com/... or uploaded URL"
+                      placeholder="Enter image URL or uploaded URL"
                       className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-100 text-xs focus:ring-2 focus:ring-amber-500 font-mono truncate"
                     />
 
@@ -8931,16 +9092,22 @@ export default function AdminDashboard() {
                           <span className="text-xs font-bold text-slate-200">Uploading photo to server...</span>
                         </div>
                       )}
-                      <img
-                        src={!isPdfDocument(editingAuction.image_url) && editingAuction.image_url && (!editingAuction.image_url.startsWith('data:image/') || editingAuction.image_url.length > 350)
-                          ? editingAuction.image_url
-                          : "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80"}
-                        alt="Auction Lot Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80";
-                        }}
-                      />
+                      {!isPdfDocument(editingAuction.image_url) && editingAuction.image_url && (!editingAuction.image_url.startsWith('data:image/') || editingAuction.image_url.length > 350) ? (
+                        <img
+                          src={editingAuction.image_url}
+                          alt="Auction Lot Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                            const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                            if (next) next.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div style={{ display: (!isPdfDocument(editingAuction.image_url) && editingAuction.image_url && (!editingAuction.image_url.startsWith('data:image/') || editingAuction.image_url.length > 350)) ? 'none' : 'flex' }} className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-400 p-3 text-center select-none">
+                        <ImageIcon className="w-8 h-8 text-slate-600 mb-1" />
+                        <span className="text-xs font-bold text-slate-400">No Image</span>
+                      </div>
                       <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-emerald-300 font-mono text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs border border-emerald-900/60 flex items-center gap-1 shadow">
                         <Check className="w-2.5 h-2.5 text-emerald-400 shrink-0" /> Front Card Image
                       </div>
@@ -9018,7 +9185,7 @@ export default function AdminDashboard() {
                                           pdf_url: updatedList[0] || null,
                                         };
                                         if (isPdfDocument(updated.image_url) && updatedList.length === 0) {
-                                          updated.image_url = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                                          updated.image_url = '';
                                         }
                                         setEditingAuction(updated);
                                       }}
@@ -9089,7 +9256,7 @@ export default function AdminDashboard() {
                                 pdf_url: merged[0] || null,
                               };
                               if (isPdfDocument(updated.image_url)) {
-                                updated.image_url = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                                updated.image_url = '';
                               }
                               setEditingAuction(updated);
                               showNotification(`✓ Attached ${newUrls.length} PDF document(s) successfully!`);

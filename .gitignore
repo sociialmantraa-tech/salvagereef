@@ -29,3 +29,8 @@ deploy_hosting/_temp_safe_update/
 # IDE & Editors
 .vscode/
 .idea/
+
+# Scratch & runtime flags
+scratch/
+backend/logs/*.flag
+backend/logs/.cache_version

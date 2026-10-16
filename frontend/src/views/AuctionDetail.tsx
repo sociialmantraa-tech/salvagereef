@@ -22,6 +22,7 @@ export default function AuctionDetail() {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeImage, setActiveImage] = useState<number>(0);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
   const [downloadingImages, setDownloadingImages] = useState<boolean>(false);
@@ -38,33 +39,61 @@ export default function AuctionDetail() {
   const fetchAuctionDetail = async () => {
     try {
       const cleanParam = slug ? encodeURIComponent(slug) : '';
-      const res = await api.get(`/auctions/${cleanParam}`);
-      
       let fetchedAuction: Auction | null = null;
-      if (res.data?.auction && !Array.isArray(res.data.auction)) {
-        fetchedAuction = res.data.auction;
-      } else if (res.data?.data && !Array.isArray(res.data.data)) {
-        fetchedAuction = res.data.data;
-      } else if (res.data && !Array.isArray(res.data) && (res.data as any).id) {
-        fetchedAuction = res.data;
-      } else if (Array.isArray(res.data?.data) || Array.isArray(res.data)) {
-        const list: Auction[] = Array.isArray(res.data?.data) ? res.data.data : res.data;
-        if (slug) {
+      let isUnlockedVal = true;
+
+      try {
+        const res = await api.get(`/auctions/${cleanParam}`);
+        if (res.data?.auction && !Array.isArray(res.data.auction)) {
+          fetchedAuction = res.data.auction;
+        } else if (res.data?.data && !Array.isArray(res.data.data)) {
+          fetchedAuction = res.data.data;
+        } else if (res.data && !Array.isArray(res.data) && (res.data as any).id) {
+          fetchedAuction = res.data;
+        }
+        if (res.data?.is_unlocked !== undefined) {
+          isUnlockedVal = res.data.is_unlocked;
+        }
+      } catch (directErr) {
+        // Direct route had an issue, fallback to full list lookup
+      }
+
+      // Robust fallback search across all auctions if direct slug route did not resolve
+      if (!fetchedAuction && slug) {
+        try {
+          const listRes = await api.get('/auctions');
+          const list: Auction[] = Array.isArray(listRes.data?.data) ? listRes.data.data : (Array.isArray(listRes.data) ? listRes.data : []);
           const raw = decodeURIComponent(slug).toLowerCase().trim();
-          const norm = raw.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-          fetchedAuction = list.find((a: any) => 
-            String(a.id) === raw ||
-            (a.slug && a.slug.toLowerCase() === raw) ||
-            (a.slug && a.slug.toLowerCase().replace(/[^a-z0-9]+/g, '-') === norm) ||
-            (a.lot_code && a.lot_code.toLowerCase() === raw) ||
-            (a.title && a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(norm))
-          ) || null;
+          const cleanAlpha = raw.replace(/[^a-z0-9]+/g, '');
+          const normHyphens = raw.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+          fetchedAuction = list.find((a: any) => {
+            const aId = String(a.id);
+            const aSlug = (a.slug || '').toLowerCase();
+            const aSlugAlpha = aSlug.replace(/[^a-z0-9]+/g, '');
+            const aLotCode = (a.lot_code || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const aTitleAlpha = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+            return (
+              aId === raw ||
+              aSlug === raw ||
+              aSlug === normHyphens ||
+              (cleanAlpha.length >= 4 && aSlugAlpha === cleanAlpha) ||
+              (aLotCode && (cleanAlpha.startsWith(aLotCode) || aLotCode === cleanAlpha)) ||
+              (cleanAlpha.length >= 6 && (aSlugAlpha.includes(cleanAlpha) || cleanAlpha.includes(aSlugAlpha))) ||
+              (cleanAlpha.length >= 6 && (aTitleAlpha.includes(cleanAlpha) || cleanAlpha.includes(aTitleAlpha)))
+            );
+          }) || null;
+        } catch (listErr) {
+          console.error('List search fallback error:', listErr);
         }
       }
 
       if (fetchedAuction) {
         setAuction(fetchedAuction);
-        setIsUnlocked(res.data?.is_unlocked ?? true);
+        setIsUnlocked(isUnlockedVal);
+      } else {
+        setAuction(null);
       }
     } catch (err) {
       console.error('Error loading auction detail:', err);
@@ -88,6 +117,11 @@ export default function AuctionDetail() {
 
     return () => unsubscribe();
   }, [slug, auction?.id]);
+
+  useEffect(() => {
+    setImageError(false);
+    setActiveImage(0);
+  }, [auction?.id]);
 
   const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,9 +232,7 @@ export default function AuctionDetail() {
     : [(auction as any).image_url];
 
   const validPhotos = rawImagePaths.filter(isValidPhoto);
-  const images = validPhotos.length > 0
-    ? validPhotos
-    : ['https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80'];
+  const images = validPhotos;
 
   const isVerified = isAuthenticated && user && (user.is_verified === true || user.is_verified === 1 || user.is_verified === '1');
 
@@ -329,19 +361,21 @@ export default function AuctionDetail() {
               </button>
             )}
 
-            <button
-              onClick={handleDownloadImages}
-              disabled={downloadingImages}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-slate-100 font-bold text-xs rounded-xl border border-slate-700 shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-              title="Download all high-resolution images for this auction lot"
-            >
-              {downloadingImages ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <ImageIcon className="w-4 h-4 text-[#D48B1C]" />
-              )}
-              <span>{downloadingImages ? 'Downloading...' : `Download Images (${images.length})`}</span>
-            </button>
+            {images.length > 0 && !imageError && (
+              <button
+                onClick={handleDownloadImages}
+                disabled={downloadingImages}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-slate-100 font-bold text-xs rounded-xl border border-slate-700 shadow-xs transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                title="Download all high-resolution images for this auction lot"
+              >
+                {downloadingImages ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ImageIcon className="w-4 h-4 text-[#D48B1C]" />
+                )}
+                <span>{downloadingImages ? 'Downloading...' : `Download Images (${images.length})`}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -351,19 +385,26 @@ export default function AuctionDetail() {
         {/* Left Column */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-4">
-            {/* Main Featured Photo Viewer - Always JPG/WebP */}
+            {/* Main Featured Photo Viewer */}
             <div className="relative h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center group">
-              <img
-                src={images[activeImage]}
-                alt={auction.title}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-                }}
-                className="w-full h-full object-cover transition-transform duration-300"
-              />
-              {/* Floating Action Controls on Image - Only when user is verified */}
-              {isVerified && (
+              {images.length > 0 && !imageError ? (
+                <img
+                  src={images[activeImage]}
+                  alt={auction.title}
+                  onError={() => setImageError(true)}
+                  className="w-full h-full object-cover transition-transform duration-300"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center select-none">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-2">
+                    <ImageIcon className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300">No Image</span>
+                  <span className="text-xs text-slate-500 mt-0.5">No photographic asset uploaded for this lot</span>
+                </div>
+              )}
+              {/* Floating Action Controls on Image - Only when user is verified and real image exists */}
+              {isVerified && images.length > 0 && !imageError && (
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleDownloadSinglePhoto(images[activeImage], activeImage)}
@@ -399,7 +440,7 @@ export default function AuctionDetail() {
             </div>
 
             {/* Thumbnail Row */}
-            {images.length > 1 && (
+            {images.length > 1 && !imageError && (
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {images.map((img, idx) => (
                   <button
@@ -413,8 +454,7 @@ export default function AuctionDetail() {
                       src={img} 
                       alt="" 
                       onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
+                        (e.target as HTMLElement).style.display = 'none';
                       }}
                       className="w-full h-full object-cover" 
                     />
@@ -424,8 +464,8 @@ export default function AuctionDetail() {
             )}
           </div>
 
-          {/* Dedicated Official Tender PDF Document Box (Shown ONLY when PDF is uploaded) */}
-          {hasPdf && (
+          {/* Dedicated Official Tender PDF Document Box (Shown ONLY to logged-in users when PDF is uploaded) */}
+          {hasPdf && isAuthenticated && (
             <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 rounded-3xl border border-emerald-900/60 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shrink-0">

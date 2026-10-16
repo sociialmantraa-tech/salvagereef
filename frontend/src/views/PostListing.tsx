@@ -161,7 +161,7 @@ export default function PostListing() {
         category_name: categoryName,
         location_state: resolvedState,
         location_city: resolvedCity,
-        image_url: compressedImage ? compressedImage.dataUrl : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+        image_url: compressedImage ? compressedImage.dataUrl : '',
         submitted_at: new Date().toISOString(),
         user_id: user?.id,
         status: 'pending',

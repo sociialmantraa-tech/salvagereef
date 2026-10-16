@@ -41,7 +41,8 @@ import {
   EyeOff,
   CheckCheck,
   CreditCard,
-  Upload
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Classified } from '../types';
 import { formatDateTime } from '../utils/dateUtils';
@@ -50,13 +51,11 @@ import { subscribeRealtimeEvents } from '../services/realtimeSync';
 import { getUserEffectiveDocuments, getUserPendingDocuments } from '../utils/kycDocuments';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 
-const FALLBACK_AUCTION_IMG = 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800&auto=format&fit=crop&q=80';
-
 export const resolveAuctionImg = (path?: string): string => {
-  if (!path || typeof path !== 'string') return FALLBACK_AUCTION_IMG;
+  if (!path || typeof path !== 'string') return '';
   const trimmed = path.trim();
-  if (trimmed.startsWith('data:image/') && trimmed.length <= 350) return FALLBACK_AUCTION_IMG;
-  if (trimmed.toLowerCase().endsWith('.pdf') || trimmed.includes('.pdf?')) return FALLBACK_AUCTION_IMG;
+  if (trimmed.startsWith('data:image/') && trimmed.length <= 350) return '';
+  if (trimmed.toLowerCase().endsWith('.pdf') || trimmed.includes('.pdf?')) return '';
   return trimmed;
 };
 
@@ -959,15 +958,22 @@ export default function UserDashboard() {
                           <div className="flex items-start gap-3.5">
                             {/* Lot Thumbnail */}
                             <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center shadow-inner">
-                              <img
-                                src={resolveAuctionImg(bid.auction?.primary_image_url)}
-                                alt={bid.auction?.title || "Lot Thumbnail"}
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = FALLBACK_AUCTION_IMG;
-                                }}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                              />
+                              {resolveAuctionImg(bid.auction?.primary_image_url) ? (
+                                <img
+                                  src={resolveAuctionImg(bid.auction?.primary_image_url)}
+                                  alt={bid.auction?.title || "Lot Thumbnail"}
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                    const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                    if (next) next.style.display = 'flex';
+                                  }}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                />
+                              ) : null}
+                              <div style={{ display: resolveAuctionImg(bid.auction?.primary_image_url) ? 'none' : 'flex' }} className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 p-1 text-center select-none">
+                                <ImageIcon className="w-4 h-4 text-slate-300 mb-0.5" />
+                                <span className="text-[9px] font-bold text-slate-400">No Image</span>
+                              </div>
                             </div>
 
                             <div>
@@ -1270,15 +1276,22 @@ export default function UserDashboard() {
                           <td className="py-4 px-3">
                             <div className="flex items-center gap-3.5">
                               <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
-                                <img
-                                  src={resolveAuctionImg(b.auction?.primary_image_url)}
-                                  alt="Lot"
-                                  onError={(e) => {
-                                    e.currentTarget.onerror = null;
-                                    e.currentTarget.src = FALLBACK_AUCTION_IMG;
-                                  }}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                />
+                                {resolveAuctionImg(b.auction?.primary_image_url) ? (
+                                  <img
+                                    src={resolveAuctionImg(b.auction?.primary_image_url)}
+                                    alt="Lot"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                      const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                      if (next) next.style.display = 'flex';
+                                    }}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                  />
+                                ) : null}
+                                <div style={{ display: resolveAuctionImg(b.auction?.primary_image_url) ? 'none' : 'flex' }} className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 p-1 text-center select-none">
+                                  <ImageIcon className="w-3.5 h-3.5 text-slate-300 mb-0.5" />
+                                  <span className="text-[8px] font-bold text-slate-400">No Image</span>
+                                </div>
                               </div>
                               <div>
                                 <Link
@@ -1398,15 +1411,22 @@ export default function UserDashboard() {
 
                     <div className="flex items-start gap-4 pt-2">
                       <div className="w-18 h-18 rounded-2xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center shadow-inner">
-                        <img
-                          src={resolveAuctionImg(won.primary_image_url)}
-                          alt="Lot"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = FALLBACK_AUCTION_IMG;
-                          }}
-                          className="w-full h-full object-cover"
-                        />
+                        {resolveAuctionImg(won.primary_image_url) ? (
+                          <img
+                            src={resolveAuctionImg(won.primary_image_url)}
+                            alt="Lot"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (next) next.style.display = 'flex';
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
+                        <div style={{ display: resolveAuctionImg(won.primary_image_url) ? 'none' : 'flex' }} className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 p-1 text-center select-none">
+                          <ImageIcon className="w-5 h-5 text-slate-300 mb-0.5" />
+                          <span className="text-[10px] font-bold text-slate-400">No Image</span>
+                        </div>
                       </div>
                       <div>
                         <h4 className="font-black text-slate-900 text-sm sm:text-base line-clamp-2">{won.title}</h4>

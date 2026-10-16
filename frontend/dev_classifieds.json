@@ -14,9 +14,9 @@
     "created_by": 1,
     "category": { "id": 4, "name": "E-Waste & Circuit Boards", "slug": "e-waste-circuit-boards" },
     "creator": { "id": 1, "name": "Apex Recycling Desk", "email": "seller@salvagereef.com", "phone": "7304481166", "company_name": "Apex Recyclers" },
-    "primary_image": { "id": 304, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80" },
+    "primary_image": { "id": 304, "image_path": "" },
     "images": [
-      { "id": 304, "image_path": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+      { "id": 304, "image_path": "", "is_primary": true }
     ]
   },
   {
@@ -34,9 +34,9 @@
     "created_by": 1,
     "category": { "id": 1, "name": "Scrap Heavy Machinery", "slug": "scrap-heavy-machinery" },
     "creator": { "id": 1, "name": "Suresh Traders", "email": "seller@salvagereef.com", "phone": "7304481166", "company_name": "Suresh Machinery Sales" },
-    "primary_image": { "id": 303, "image_path": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80" },
+    "primary_image": { "id": 303, "image_path": "" },
     "images": [
-      { "id": 303, "image_path": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80", "is_primary": true }
+      { "id": 303, "image_path": "", "is_primary": true }
     ]
   }
 ]

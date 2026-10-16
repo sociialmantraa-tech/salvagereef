@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: 'SalvageReef',
     images: [
       {
-        url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80',
+        url: 'https://salvagereef.com/logo.png',
         width: 1200,
         height: 630,
         alt: 'SalvageReef Scrap Auctions & Marketplace',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SalvageReef — B2B Industrial Salvage Auctions & Scrap Marketplace',
     description: "India's premier scrap buyer & seller platform. Real-time bidding on industrial scrap metal, damaged fleet vehicles, and factory assets.",
-    images: ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80'],
+    images: ['https://salvagereef.com/logo.png'],
   },
 };
 

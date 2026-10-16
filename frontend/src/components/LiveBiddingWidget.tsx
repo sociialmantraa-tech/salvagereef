@@ -18,6 +18,9 @@ interface LiveBiddingWidgetProps {
 
 export default function LiveBiddingWidget({ auction: initialAuction, onBidSuccess }: LiveBiddingWidgetProps) {
   const { user, isAuthenticated } = useAuthStore();
+  const isAdmin = Boolean(
+    user && ['admin', 'master_admin', 'desk_admin', 'executive_admin', 'executive_desk_admin', 'read_only_admin'].includes(user.role)
+  );
   const [auction, setAuction] = useState<Auction>(initialAuction);
   const [bids, setBids] = useState<Bid[]>((initialAuction.bids || []).filter((b: any) => b.status === 'approved'));
   const [userPendingBid, setUserPendingBid] = useState<any>(initialAuction?.user_pending_bid || null);
@@ -481,7 +484,6 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
   const isUpcoming = auction?.status === 'upcoming';
   const isLive = auction?.status === 'live' && !isClosed;
   const isOwner = user?.id === auction?.created_by;
-  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 
   // If auction is closed and viewer is not an admin, show ONLY the beautiful Thank You message with complete privacy
   if (isClosed && !isAdmin) {
@@ -679,26 +681,44 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           </p>
         </div>
       ) : !isAuthenticated ? (
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-[#D48B1C] p-5 rounded-2xl text-center space-y-3 shadow-md">
-          <div className="w-10 h-10 bg-[#D48B1C] text-white rounded-full flex items-center justify-center mx-auto shadow">
+        <div className="bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-amber-50/80 border-2 border-amber-300 rounded-3xl p-5 sm:p-6 text-center space-y-4 shadow-md">
+          <div className="w-11 h-11 bg-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
             <Lock className="w-5 h-5" />
           </div>
-          <div>
-            <h4 className="font-extrabold text-slate-900 text-sm">Bidding Restricted to Verified Bidders</h4>
-            <p className="text-xs text-slate-600 mt-1">
-              Please sign in or complete the 3-stage business vendor registration to place bids.
-            </p>
+
+          <div className="space-y-2.5 text-left max-w-sm mx-auto">
+            {/* Message 1: Bidding Access Restriction */}
+            <div className="bg-white/90 border border-amber-200/80 rounded-2xl p-3.5 space-y-1 shadow-2xs">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-950 uppercase tracking-wider">
+                <Gavel className="w-3.5 h-3.5 text-amber-600" /> Bidding Restricted to Verified Bidders
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Please sign in or complete the 3-stage business vendor registration to place bids.
+              </p>
+            </div>
+
+            {/* Message 2: Top 3 Bidders Live Ranking Feed Restriction */}
+            <div className="bg-white/90 border border-amber-200/80 rounded-2xl p-3.5 space-y-1 shadow-2xs">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-950 uppercase tracking-wider">
+                <Trophy className="w-3.5 h-3.5 text-[#D48B1C]" /> Top 3 Bidders (H1 / H2 / H3)
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Live H1, H2, H3 bidding ranks and activity are visible exclusively to logged-in members.
+              </p>
+            </div>
           </div>
+
+          {/* Unified Action Buttons Shown Only ONCE */}
           <div className="flex items-center justify-center gap-3 pt-1">
             <Link
               to="/login"
-              className="px-5 py-2.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs shadow transition-all"
+              className="px-6 py-2.5 bg-[#D48B1C] hover:bg-[#B87514] text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-md transition-all active:scale-95"
             >
               Sign In &rarr;
             </Link>
             <Link
               to="/register"
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all"
+              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all active:scale-95"
             >
               Register Account
             </Link>
@@ -759,9 +779,11 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
           </div>
         </div>
       ) : isOwner ? (
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center text-xs text-blue-800">
-          <ShieldAlert className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-          You are the creator of this auction lot. You cannot place bids on your own listing.
+        <div className="bg-blue-50 border border-blue-200 py-3.5 px-3 sm:px-4 rounded-2xl text-center text-blue-900 shadow-2xs">
+          <ShieldAlert className="w-5 h-5 text-blue-600 mx-auto mb-1.5 shrink-0" />
+          <p className="text-[10.5px] sm:text-[11.5px] md:text-xs font-semibold text-blue-900 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+            You are the creator of this auction lot. You cannot place bids on your own listing.
+          </p>
         </div>
       ) : (
         <form onSubmit={handleOpenConfirmModal} className="space-y-4">
@@ -941,64 +963,77 @@ export default function LiveBiddingWidget({ auction: initialAuction, onBidSucces
         </form>
       )}
 
-      {/* TOP 3 BIDDERS (H1 / H2 / H3) */}
-      <div className="pt-4 border-t border-slate-200">
-        <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-[#D48B1C]" /> Top 3 Bidders (H1 / H2 / H3)
-          </span>
-          <span className="text-[10px] text-slate-400 font-semibold font-mono">Total Bids: {bids.length}</span>
-        </h4>
+      {/* TOP 3 BIDDERS (H1, H2, H3) FEED - VISIBLE TO LOGGED IN USERS (MASKED) & ADMIN (FULL) */}
+      {isAuthenticated && (
+        <div className="pt-4 border-t border-slate-200">
+          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Trophy className="w-4 h-4 text-[#D48B1C]" /> Top 3 Bidders (H1 / H2 / H3)
+            </span>
+            <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
+              {isAdmin ? 'Admin View' : 'Live Feed'} • Total: {bids.length}
+            </span>
+          </h4>
 
-        {bids.length === 0 ? (
-          <p className="text-xs text-slate-400 italic py-2 text-center">
-            No bids placed yet. Be the first bidder!
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {bids.slice(0, 3).map((b, idx) => {
-              let rankBadge = { label: 'H1 - Highest Bid', style: 'bg-amber-100 text-amber-900 border-amber-300' };
-              if (idx === 1) rankBadge = { label: 'H2 - 2nd Highest', style: 'bg-slate-100 text-slate-700 border-slate-300' };
-              if (idx === 2) rankBadge = { label: 'H3 - 3rd Highest', style: 'bg-[#D48B1C]/10 text-[#D48B1C] border-[#D48B1C]/30' };
+          {bids.length === 0 ? (
+            <p className="text-xs text-slate-400 italic py-3 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              No bids placed yet. Be the first bidder!
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {bids.slice(0, 3).map((b, idx) => {
+                let rankBadge = { label: 'H1 - Highest Bid', style: 'bg-amber-100 text-amber-900 border-amber-300' };
+                if (idx === 1) rankBadge = { label: 'H2 - 2nd Highest', style: 'bg-slate-100 text-slate-700 border-slate-300' };
+                if (idx === 2) rankBadge = { label: 'H3 - 3rd Highest', style: 'bg-[#D48B1C]/10 text-[#D48B1C] border-[#D48B1C]/30' };
 
-              return (
-                <div
-                  key={b.id || idx}
-                  className={`flex justify-between items-center p-3 rounded-xl text-xs border transition-all ${
-                    idx === 0
-                      ? 'bg-amber-500/10 border-amber-500/40 font-bold shadow-xs'
-                      : 'bg-slate-50 border-slate-200 text-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black text-[10px] shrink-0">
-                      H{idx + 1}
+                const rawName = b.user?.name || b.bidder_name || (b.id ? `Bidder #${b.id}` : 'Bidder');
+                const displayName = formatBidderName(rawName, isAdmin);
+
+                return (
+                  <div
+                    key={b.id || idx}
+                    className={`flex justify-between items-center p-3 rounded-xl text-xs border transition-all ${
+                      idx === 0
+                        ? 'bg-amber-500/10 border-amber-500/40 font-bold shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
+                        idx === 0
+                          ? 'bg-amber-500 text-white'
+                          : idx === 1
+                          ? 'bg-slate-400 text-white'
+                          : 'bg-amber-700 text-white'
+                      }`}>
+                        H{idx + 1}
+                      </div>
+                      <div>
+                        {/* FIRST 2 LETTERS + *** + LAST 2 LETTERS FOR LOGGED-IN USERS, FULL NAME FOR ADMIN */}
+                        <span className="font-bold text-slate-900 block font-mono">
+                          {displayName}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block font-sans">
+                          {b.created_at ? formatTimeOnly(b.created_at) : 'Just now'}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      {/* ENFORCES FIRST 2 + *** + LAST 2 MASKING (e.g. Ne***ma) */}
-                      <span className="font-bold text-slate-900 block font-mono">
-                        {formatBidderName(b.user?.name || b.bidder_name, user?.role === 'admin')}
+
+                    <div className="text-right">
+                      <span className="font-extrabold text-slate-900 text-sm font-mono block">
+                        ₹{Number(b.amount).toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-slate-400 block font-sans">
-                        {b.created_at ? formatTimeOnly(b.created_at) : 'Just now'}
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase border ${rankBadge.style}`}>
+                        {rankBadge.label}
                       </span>
                     </div>
                   </div>
-
-                  <div className="text-right">
-                    <span className="font-extrabold text-slate-900 text-sm font-mono block">
-                      ₹{Number(b.amount).toLocaleString('en-IN')}
-                    </span>
-                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase border ${rankBadge.style}`}>
-                      {rankBadge.label}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PRE-BID ALERT CONFIRMATION MODAL */}
       {showConfirmModal && (
